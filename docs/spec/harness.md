@@ -163,8 +163,9 @@ binding: `go run ./tools/bind relink`（入力は `{"missing": 見出し, "headi
 - binding の中の語のうち、リポジトリ内に実在するファイルまたはディレクトリを指すものを、その claim が触るパスとする
 - 変更されたファイルが、claim が触るファイルそのもの、または claim が触るディレクトリの配下なら、その claim は対象
 - 変更されたファイルが、claim が触るファイルと同じディレクトリにあり、拡張子が同じなら対象（同じパッケージの別ファイルの変更を見逃さない）
+- claim が触るパスがこのモジュール内の Go パッケージのディレクトリ（または Go ファイル）なら、そのパッケージが直接・間接に import するモジュール内のパッケージのディレクトリも触るパスに加え、上の 3 つの規則で比べる（`go run ./tools/bind relink` の claim は、呼び出す先の実装の変更でも対象になる）。依存を調べられないときは加えるパスがないだけで、元の触るパスは外さない
 
-binding: `go run ./tools/bind touched`（入力は `{"touches": パスの配列, "changed": 変更ファイル}`、出力は対象かどうか）
+binding: `go run ./tools/bind touched`（入力は `{"touches": パスの配列, "changed": 変更ファイル}`、出力は対象かどうか。touches は依存パッケージを加え終えたパスの配列）
 
 | 入力 | 出力 |
 |---|---|
@@ -173,6 +174,7 @@ binding: `go run ./tools/bind touched`（入力は `{"touches": パスの配列,
 | `{"touches": ["src/payroll/round.ts"], "changed": "src/payroll/README.md"}` | `false` |
 | `{"touches": ["src/app"], "changed": "src/app/handler/x.ts"}` | `true` |
 | `{"touches": ["src/payroll/round.ts"], "changed": "src/ui/List.tsx"}` | `false` |
+| `{"touches": ["tools/bind", "pkg/domain"], "changed": "pkg/domain/relink.go"}` | `true` |
 
 ## 通り方のログ
 
@@ -218,3 +220,4 @@ binding: `go run ./tools/bind llm-paths`（入力は `{"ref": ref, "runs": 回�
 - 2026-11-04 初版
 - 2026-11-04 LLM 処理のサブエージェント委譲を追加
 - 2026-11-04 合議抽出で【要確認】になった箇所（漏れ検知の桁数、乱数の種と範囲、変異の一覧、再リンクの長さと同点、変更行数と pass の基準）を確定
+- 2026-11-04 変更検知の精度に、触る Go パッケージが import するモジュール内のパッケージも触るパスに加える規則を追加
