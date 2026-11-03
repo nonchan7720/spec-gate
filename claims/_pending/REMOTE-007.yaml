@@ -1,0 +1,8 @@
+# confidence: 3/3
+# 承認するには内容を確認して claims/<領域>/ に移し、`spec-gate approve REMOTE-007` を実行する
+id: REMOTE-007
+kind: manual
+title: review ask は読めない候補と同じ ID が複数のファイルにある候補を出さず（stderr に案内）、候補が無ければ [] を出して stderr に案内する
+source:
+    type: markdown
+    ref: docs/spec/harness.md#リモート承認

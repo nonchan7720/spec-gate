@@ -1,0 +1,9 @@
+# confidence: 3/3
+# 承認するには内容を確認して claims/<領域>/ に移し、`spec-gate approve MUTATE-006` を実行する
+id: MUTATE-006
+kind: manual
+title: '文字列リテラルとコメントの中は変異させない【要確認: 入力が 1 行のため、複数行コメントの扱いと、リテラル内の演算子を含む具体例が仕様に無い】'
+source:
+    type: markdown
+    ref: docs/spec/harness.md#mutation score
+binding: go run ./tools/bind mutate

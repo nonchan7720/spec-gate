@@ -1,0 +1,8 @@
+# confidence: 3/3
+# 承認するには内容を確認して claims/<領域>/ に移し、`spec-gate approve ROLE-002` を実行する
+id: ROLE-002
+kind: manual
+title: check --role engineer は fail を仕様の位置（file:line）つきで出す
+source:
+    type: markdown
+    ref: docs/spec/harness.md#役割別レポート

@@ -1,0 +1,8 @@
+# confidence: 3/3
+# 承認するには内容を確認して claims/<領域>/ に移し、`spec-gate approve HARNESS-003` を実行する
+id: HARNESS-003
+kind: manual
+title: spec-gate extract <ref> --collect は、N 個の回答を読み、従来と同じ合議で claims/_pending/ に置く
+source:
+    type: markdown
+    ref: docs/spec/harness.md#LLM 処理のサブエージェント委譲

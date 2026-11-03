@@ -1,0 +1,8 @@
+# confidence: 3/3
+# 承認するには内容を確認して claims/<領域>/ に移し、`spec-gate approve HOLDOUT-005` を実行する
+id: HOLDOUT-005
+kind: manual
+title: spec-gate 本体（`check` / `lint`）は holdout を読める
+source:
+    type: markdown
+    ref: docs/spec/harness.md#holdout の読み取り拒否

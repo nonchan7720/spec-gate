@@ -1,0 +1,8 @@
+# confidence: 3/3
+# 承認するには内容を確認して claims/<領域>/ に移し、`spec-gate approve REMOTE-003` を実行する
+id: REMOTE-003
+kind: manual
+title: review ask の N は 1〜4（既定 4）で、範囲外はエラーになる
+source:
+    type: markdown
+    ref: docs/spec/harness.md#リモート承認

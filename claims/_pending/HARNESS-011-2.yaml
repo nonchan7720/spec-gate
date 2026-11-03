@@ -1,0 +1,8 @@
+# confidence: 1/3
+# 承認するには内容を確認して claims/<領域>/ に移し、`spec-gate approve HARNESS-011-2` を実行する
+id: HARNESS-011-2
+kind: manual
+title: 'collect が終わったら作業ディレクトリの内容を消す【要確認: 消す対象が extract / reverse のどちらの collect 完了時か、部分的な collect（回答欠け・比較待ち）でも消すのか不明】'
+source:
+    type: markdown
+    ref: docs/spec/harness.md#LLM 処理のサブエージェント委譲

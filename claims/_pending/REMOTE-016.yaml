@@ -1,0 +1,10 @@
+# confidence: 3/3
+# 承認するには内容を確認して claims/<領域>/ に移し、`spec-gate approve REMOTE-016` を実行する
+id: REMOTE-016
+kind: manual
+title: review record は反映結果と反映しなかった理由を hookSpecificOutput.additionalContext の JSON として stdout に出し、何があっても exit 0 で終わる
+source:
+    type: markdown
+    ref: docs/spec/harness.md#リモート承認
+properties:
+    - review record の exit code は常に 0

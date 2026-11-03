@@ -1,0 +1,8 @@
+# confidence: 3/3
+# 承認するには内容を確認して claims/<領域>/ に移し、`spec-gate approve HARNESS-008` を実行する
+id: HARNESS-008
+kind: manual
+title: 作業ディレクトリ .spec-gate-llm/ は git の管理対象外にし、collect が終わったら消す
+source:
+    type: markdown
+    ref: docs/spec/harness.md#LLM 処理のサブエージェント委譲

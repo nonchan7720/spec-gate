@@ -1,0 +1,8 @@
+# confidence: 3/3
+# 承認するには内容を確認して claims/<領域>/ に移し、`spec-gate approve HOLDOUT-004` を実行する
+id: HOLDOUT-004
+kind: manual
+title: holdout の in は binding に流すので平文で書く。out_sha256 は期待出力の正規化 JSON の SHA-256（16 進小文字 64 文字）
+source:
+    type: markdown
+    ref: docs/spec/harness.md#holdout examples

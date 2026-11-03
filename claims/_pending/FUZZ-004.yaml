@@ -1,0 +1,8 @@
+# confidence: 3/3
+# 承認するには内容を確認して claims/<領域>/ に移し、`spec-gate approve FUZZ-004` を実行する
+id: FUZZ-004
+kind: manual
+title: 入力の生成は乱数の種（seed）で決まり、同じ種なら同じ入力列になる
+source:
+    type: markdown
+    ref: docs/spec/harness.md#ランダム入力による検証

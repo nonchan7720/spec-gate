@@ -1,0 +1,228 @@
+# confidence: 3/3
+# 承認するには内容を確認して claims/<領域>/ に移し、`spec-gate approve REMOTE-001` を実行する
+id: REMOTE-001
+kind: example
+title: 'remote-decisions: hook の stdin と preview から反映する判定の配列を返す（承認・却下・曖昧・Other 自由入力・不一致・不正入力）'
+source:
+    type: markdown
+    ref: docs/spec/harness.md#リモート承認
+binding: go run ./tools/bind remote-decisions
+examples:
+    - in:
+        hook:
+            tool_input:
+                questions:
+                    - header: R-1
+                      multiSelect: false
+                      options:
+                        - description: 内容は正しい。このまま仕様として確定する
+                          label: 承認
+                          preview: P
+                        - description: 内容が間違っている。この候補を捨てる
+                          label: 却下
+                          preview: P
+                        - description: 仕様がまだ決まっていない。保留として記録する（理由は Other に書ける）
+                          label: 曖昧
+                          preview: P
+                      question: 候補 R-1 をどうしますか？
+            tool_name: AskUserQuestion
+            tool_response:
+                answers:
+                    候補 R-1 をどうしますか？: 承認
+        previews:
+            R-1: P
+      out:
+        - id: R-1
+          verdict: approve
+    - in:
+        hook:
+            tool_input:
+                questions:
+                    - header: R-1
+                      multiSelect: false
+                      options:
+                        - description: 内容は正しい。このまま仕様として確定する
+                          label: 承認
+                          preview: P
+                        - description: 内容が間違っている。この候補を捨てる
+                          label: 却下
+                          preview: P
+                        - description: 仕様がまだ決まっていない。保留として記録する（理由は Other に書ける）
+                          label: 曖昧
+                          preview: P
+                      question: 候補 R-1 をどうしますか？
+            tool_name: AskUserQuestion
+            tool_response: 'User has answered your questions: "候補 R-1 をどうしますか？"="却下". You can now continue with the user''s answers in mind.'
+        previews:
+            R-1: P
+      out:
+        - id: R-1
+          verdict: reject
+    - in:
+        hook:
+            tool_input:
+                answers:
+                    候補 R-1 をどうしますか？: 曖昧
+                questions:
+                    - header: R-1
+                      multiSelect: false
+                      options:
+                        - description: 内容は正しい。このまま仕様として確定する
+                          label: 承認
+                          preview: P
+                        - description: 内容が間違っている。この候補を捨てる
+                          label: 却下
+                          preview: P
+                        - description: 仕様がまだ決まっていない。保留として記録する（理由は Other に書ける）
+                          label: 曖昧
+                          preview: P
+                      question: 候補 R-1 をどうしますか？
+            tool_name: AskUserQuestion
+        previews:
+            R-1: P
+      out: []
+    - in:
+        hook:
+            tool_input:
+                questions:
+                    - header: R-1
+                      multiSelect: false
+                      options:
+                        - description: 内容は正しい。このまま仕様として確定する
+                          label: 承認
+                          preview: P
+                        - description: 内容が間違っている。この候補を捨てる
+                          label: 却下
+                          preview: P
+                        - description: 仕様がまだ決まっていない。保留として記録する（理由は Other に書ける）
+                          label: 曖昧
+                          preview: P
+                      question: 候補 R-1 をどうしますか？
+            tool_name: AskUserQuestion
+            tool_response: 'User has answered your questions: "候補 R-1 をどうしますか？"="曖昧". You can now continue with the user''s answers in mind.'
+        previews:
+            R-1: P
+      out:
+        - id: R-1
+          reason: リモート承認で曖昧と判断（理由未記入）
+          verdict: ambiguous
+    - in:
+        hook:
+            tool_input:
+                questions:
+                    - header: R-1
+                      multiSelect: false
+                      options:
+                        - description: 内容は正しい。このまま仕様として確定する
+                          label: 承認
+                          preview: P
+                        - description: 内容が間違っている。この候補を捨てる
+                          label: 却下
+                          preview: P
+                        - description: 仕様がまだ決まっていない。保留として記録する（理由は Other に書ける）
+                          label: 曖昧
+                          preview: P
+                      question: 候補 R-1 をどうしますか？
+            tool_name: AskUserQuestion
+            tool_response:
+                answers:
+                    候補 R-1 をどうしますか？: 締め日の扱いが決まっていない
+        previews:
+            R-1: P
+      out:
+        - id: R-1
+          reason: 締め日の扱いが決まっていない
+          verdict: ambiguous
+    - in:
+        hook:
+            tool_input:
+                questions:
+                    - header: R-1
+                      multiSelect: false
+                      options:
+                        - description: 内容は正しい。このまま仕様として確定する
+                          label: 承認
+                          preview: P
+                        - description: 内容が間違っている。この候補を捨てる
+                          label: 却下
+                          preview: P
+                        - description: 仕様がまだ決まっていない。保留として記録する（理由は Other に書ける）
+                          label: 曖昧
+                          preview: P
+                      question: 候補 R-1 をどうしますか？
+            tool_name: AskUserQuestion
+            tool_response:
+                answers:
+                    候補 R-1 をどうしますか？: 承認
+        previews:
+            R-1: Q
+      out: []
+    - in:
+        hook:
+            tool_input:
+                questions:
+                    - header: R-1
+                      multiSelect: false
+                      options:
+                        - description: 内容は正しい。このまま仕様として確定する
+                          label: 承認
+                          preview: P
+                        - description: 内容が間違っている。この候補を捨てる
+                          label: 却下
+                          preview: P
+                        - description: 仕様がまだ決まっていない。保留として記録する（理由は Other に書ける）
+                          label: 曖昧
+                          preview: P
+                      question: 候補 R-1 をどうしますか？
+            tool_name: AskUserQuestion
+            tool_response:
+                answers:
+                    候補 R-1 をどうしますか？: 承認
+        previews: {}
+      out: []
+    - in:
+        hook:
+            tool_input:
+                questions:
+                    - header: R-1
+                      multiSelect: false
+                      options:
+                        - description: 内容は正しい。このまま仕様として確定する
+                          label: 承認
+                          preview: P
+                        - description: 内容が間違っている。この候補を捨てる
+                          label: 却下
+                          preview: P
+                        - description: 仕様がまだ決まっていない。保留として記録する（理由は Other に書ける）
+                          label: 曖昧
+                          preview: P
+                      question: 候補 R-1 をどうしますか？
+            tool_name: Bash
+            tool_response:
+                answers:
+                    候補 R-1 をどうしますか？: 承認
+        previews:
+            R-1: P
+      out: []
+    - in:
+        hook:
+            tool_input:
+                questions:
+                    - header: R-1
+                      multiSelect: false
+                      options:
+                        - description: 内容は正しい。このまま仕様として確定する
+                          label: 承認
+                          preview: P
+                        - description: 内容が間違っている。この候補を捨てる
+                          label: 却下
+                          preview: P
+                        - description: 仕様がまだ決まっていない。保留として記録する（理由は Other に書ける）
+                          label: 曖昧
+                          preview: P
+                      question: 候補 R-1 をどうしますか？
+            tool_name: AskUserQuestion
+            tool_response: {}
+        previews:
+            R-1: P
+      out: []

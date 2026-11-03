@@ -1,0 +1,8 @@
+# confidence: 3/3
+# 承認するには内容を確認して claims/<領域>/ に移し、`spec-gate approve LEAK-009` を実行する
+id: LEAK-009
+kind: manual
+title: 文字列は 4 文字以上のものだけを対象にする
+source:
+    type: markdown
+    ref: docs/spec/harness.md#リテラル漏れ検知

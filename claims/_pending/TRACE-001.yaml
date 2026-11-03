@@ -1,0 +1,8 @@
+# confidence: 3/3
+# 承認するには内容を確認して claims/<領域>/ に移し、`spec-gate approve TRACE-001` を実行する
+id: TRACE-001
+kind: manual
+title: check --hook を実行するたびに、claim ごとの判定（時刻・claim id・status・その時点の変更行数）を .spec-gate/trace.jsonl に 1 行ずつ追記する
+source:
+    type: markdown
+    ref: docs/spec/harness.md#通り方のログ

@@ -1,0 +1,24 @@
+# confidence: 3/3
+# 承認するには内容を確認して claims/<領域>/ に移し、`spec-gate approve FUZZ-008` を実行する
+id: FUZZ-008
+kind: example
+title: relation binding は関係式と f の値と x を受け取り、関係が成り立つかを真偽で返す
+source:
+    type: markdown
+    ref: docs/spec/harness.md#ランダム入力による検証
+binding: go run ./tools/bind relation
+examples:
+    - in:
+        relation: f(x + 1) == f(x) + 1
+        values:
+            f(x + 1): 2
+            f(x): 1
+        x: 1.5
+      out: true
+    - in:
+        relation: f(x + 1) == f(x) + 1
+        values:
+            f(x + 1): 3
+            f(x): 1
+        x: 1.5
+      out: false

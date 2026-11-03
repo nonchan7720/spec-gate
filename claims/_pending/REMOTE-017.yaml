@@ -1,0 +1,10 @@
+# confidence: 3/3
+# 承認するには内容を確認して claims/<領域>/ に移し、`spec-gate approve REMOTE-017` を実行する
+id: REMOTE-017
+kind: manual
+title: エージェントが review record を直接実行することと、承認画面の変更系 API（/api/approve・/api/reject・/api/ambiguous）をシェルから叩くことは hook-gate の pre_bash で拒否する
+source:
+    type: markdown
+    ref: docs/spec/harness.md#リモート承認
+properties:
+    - pre_bash は review record の直接実行と /api/approve・/api/reject・/api/ambiguous のシェルからの呼び出しを常に拒否する
