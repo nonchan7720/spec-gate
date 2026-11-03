@@ -25,13 +25,14 @@ Figma / PNG / PDF                    ↑ 人間承認はここ 1 回だけ
 
 | 工程 | コマンド | 誰が | 何が起きる |
 |---|---|---|---|
-| 抽出 | `spec-gate extract <ref> --runs 3` | AI | 同じ仕様を独立に N 回読み、一致した主張だけ高信頼にして `claims/_pending/` へ（合議） |
-| 整合 | `spec-gate lint` | 機械 | examples が properties を満たすか、claim 同士が矛盾しないか |
+| 抽出 | `spec-gate extract <ref> --runs 3 --emit` / `--collect` | AI（サブエージェント） | 同じ仕様を独立したサブエージェントが N 回読み、一致した主張だけ高信頼にして `claims/_pending/` へ（合議）。[extract / reverse のサブエージェント委譲](#extract--reverse-のサブエージェント委譲)を参照 |
+| 整合 | `spec-gate lint` | 機械 | examples が properties を満たすか、holdout の形が正しいか、claim 同士が矛盾しないか |
 | 承認 | `spec-gate approve <id>` | **人間** | 仕様の該当箇所を表示し、ハッシュを凍結。lint 失敗なら拒否 |
-| 承認 UI | `spec-gate review` | **人間** | `claims/_pending/` を仕様の抜粋つきで平易に並べるローカルの Web ページ（127.0.0.1）。チェックして承認すると `claims/<領域>/` に移して `approve` する |
-| 判定 | `spec-gate check` | 機械 | 承認 → 仕様ドリフト → 種類別チェック → プランの verify |
-| 漏れ | `spec-gate coverage` | 機械 | 仕様のうち claim に紐づかない箇所を列挙 |
-| 逆変換 | `spec-gate reverse [<id>...]` | AI | 仕様を見せずに claim だけから仕様文を書き起こし、原文の該当箇所と比べて、claim にだけある主張・抜けている規範・矛盾を列挙（レビュー補助。`--strict` で食い違いがあれば exit 1） |
+| 承認 UI | `spec-gate review` | **人間** | `claims/_pending/` を仕様の抜粋つきで平易に並べるローカルの Web ページ（127.0.0.1）。候補ごとに承認・却下・曖昧を選ぶ。承認すると `claims/<領域>/` に移して `approve` する |
+| リモート承認 | `spec-gate review ask` → 質問ダイアログ | **人間**が回答 | リモートセッション向けに、同じ 3 つのボタンを Claude Code の質問ダイアログに出す。下の「リモート承認」を参照 |
+| 判定 | `spec-gate check` | 機械 | 承認 → 仕様ドリフト → 種類別チェック（examples・holdout・fuzz）→ プランの verify |
+| 漏れ | `spec-gate coverage` | 機械 | 仕様のうち claim に紐づかない箇所と、曖昧と記録された箇所（要確認）を列挙 |
+| 逆変換 | `spec-gate reverse [<id>...] --emit` / `--collect` | AI（サブエージェント） | 仕様を見せずに claim だけから仕様文を書き起こし、原文の該当箇所と比べて、claim にだけある主張・抜けている規範・矛盾を列挙（レビュー補助。`--strict` で食い違いがあれば exit 1） |
 
 ### 判定の順序と状態
 
@@ -47,17 +48,40 @@ pass
 
 blocking があれば exit 1。`--hook` では stderr に直すべきものだけのレポートを出して exit 2。
 
+`kind: example` の fail には、examples・holdout・
+[ランダム入力](#fuzz-と-relations--ランダム入力による検証)のどれで落ちたものも含まれる。
+Markdown の claim が参照する見出しが仕様から消えたとき（`source.ref` の見出しが無いとき）は「仕様を読めない」で fail になり、
+説明に最も近い見出しを「もしかして」として添える。近さは見出しの文字単位の編集距離で、距離が見つからない見出しの文字数の半分以下の
+ものだけを提案し、同点なら仕様の中で先に現れる見出しを選ぶ。提案だけで claim は書き換えない（直すのは人間）。
+
+### 誰が何をするか
+
+| 人間だけが行う | エージェント（誰でも）が行う |
+|---|---|
+| `approve`、`review`（ブラウザでの承認・却下・曖昧） | `status`・`lint`・`check`・`coverage`・`metrics`・`trace`・`leak` |
+| リモート承認のダイアログへの回答 | `review ask`（ダイアログに出す質問の生成） |
+| `plan freeze` | `verify:` 付きのプランを書く、`plan check`、`plan mutate` |
+| `holdout add` | `extract` / `reverse` の `--emit` / `--collect`（LLM 処理はサブエージェントに任せる） |
+| `claims/**`（`_pending/` を除く）・`.spec-gate/`・`holdout/`・`.claude/settings*.json` の編集 | claim が間違っていると思ったら `claims/_pending/` に修正案を置き、人間に伝える |
+
+「人間だけ」の列はお願いではなく強制される。hook-gate のルール（`.claude/feedback/`）がエージェントによるこれらのコマンドの実行と
+パスの編集を拒否し、`review record`（リモート承認の hook）はハーネスだけが起動する。
+
 ### 嘘をつけない構造
 
 - **claim は AI が触れない**。`claims/**` と `.spec-gate/` の編集、`approve` / `plan freeze` の実行を
-  hook-gate の `pre_edit` / `pre_bash` ルールで拒否する（`.claude/feedback/protect_spec_claims.md`）
+  hook-gate の `pre_edit` / `pre_bash` ルールで拒否する（`.claude/feedback/protect_spec_claims.md`）。同じファイルで、
+  `review record` の直接実行と、承認画面の `/api/approve`・`/api/reject`・`/api/ambiguous` をシェルから叩くことも拒否する
 - **プランの verify は先に凍結する**。`spec-gate plan freeze` で verify 行のハッシュを記録し、
   実装後に verify を緩めると `stale` になる。加えて、プランを編集した直後に hook-gate の `post_edit` が
   `spec-gate plan check` を走らせ、凍結済みの verify が変わっていればその場で止める
-  （`.claude/feedback/protect_plan_verify.md`）
+  （`.claude/feedback/protect_plan_verify.md`）。プランによっては、壊したコードを verify が検出できることを
+  凍結の条件にできる（[mutation score](#plan-mutate-と-mutation-の閾値)）
 - **仕様が変わったら自動で stale**。仕様側を書き換えて辻褄を合わせることもできない
 - **検証手段のない claim は fail ではなく unverified**。「検証していないのに通った」を作らない代わりに、
   人間が見るべきものとして可視化する
+- **examples だけ通しても通らない**。エージェントが読めない holdout、ランダム入力、例の値の直書きの警告、
+  通り方のログで、よくある抜け道を塞ぐ（[抜け道を塞ぐ](#抜け道を塞ぐ)）
 
 ## インストール
 
@@ -97,10 +121,15 @@ pnpm install --frozen-lockfile             # サンプルの TS 側（tools/call
 
 ./spec-gate status                         # claim とプランの一覧
 ./spec-gate lint                           # 内部整合
-./spec-gate approve ROUND-001 ROUND-002 CLOSE-001 ARCH-001 UI-001
+./spec-gate approve ROUND-001 ROUND-002 CLOSE-001 ARCH-001 UI-001   # 人間
 ./spec-gate check                          # 全判定
-./spec-gate coverage                       # 抜け落ち
+./spec-gate check --changed                # 変更ファイルに関係する claim だけ
+./spec-gate coverage                       # 抜け落ちと要確認
 ./spec-gate plan check plans/x.md          # 凍結済みプランの verify が変わっていないか
+./spec-gate plan mutate plans/x.md         # わざと入れたバグを verify がどれだけ検出するか
+./spec-gate leak src/payroll/round.ts      # 例の値が実装に直書きされていないか
+./spec-gate metrics                        # kind 別の件数と unverified 率
+./spec-gate trace                          # claim がどう通ったか
 ```
 
 サンプルは承認済みの状態で同梱してあるので、clone 直後の `check` は通る。
@@ -125,6 +154,8 @@ sed -i 's/切り捨てる/四捨五入する/' docs/spec/rounding.md && ./spec-g
 
 - 編集のたびに、変更したファイルに応じて gofmt / go vet / go test（Go）、`depgraph gate`（Go / TS / JS）、
   `spec-gate lint`（claims）、`spec-gate check --changed`（仕様・プラン・サンプルアプリ）が走る
+- 実装ファイル（`.go` / `.ts` / `.js` など。テスト・`claims/`・`holdout/`・`docs/` は除く）を編集すると、
+  `.claude/feedback/detect_literal_leak.md` の `post_edit` ルールがそのファイルに `spec-gate leak` を走らせて警告する
 - 終了時に `consistency_checks` の `go-all`（build / golangci-lint / 全テスト）と
   `spec-gate`（`check --changed --hook`）が走り、失敗があれば終了をブロックする。
   連続失敗で諦める処理（5 回）は hook-gate 側が持つ
@@ -133,7 +164,36 @@ depgraph は `docker compose up -d` で起動する Neo4j（`localhost:17687`）
 depgraph は hook・gate とも `mise exec --` 経由で呼ぶ。`.claude/settings.json` の SessionStart hook（`depgraph hook session-start`）が
 セッション開始時の基準を記録し、`depgraph gate` はそこから増えた負債だけで失敗する。
 
-`CLAUDE.md` にエージェント向けのルールがある。
+`CLAUDE.md` にエージェント向けのルールがある。extract / reverse 用のサブエージェント定義とスキルは
+`.claude/agents/` と `.claude/skills/` に同梱している（次節）。
+
+### extract / reverse のサブエージェント委譲
+
+spec-gate 自身は LLM を呼ばない。`extract`（合議抽出）と `reverse`（逆変換）は **プロンプトの書き出し**（`--emit`）と
+**回答の取り込み**（`--collect`）だけを行い、spec-gate を動かしているエージェントが各プロンプトを新しいサブエージェントに渡す。
+
+- `extract <ref> --runs N --emit` は自己完結したプロンプトを `.spec-gate-llm/extract/<ref>/run-<k>.prompt.md` に N 個書き出し、
+  パスを表示する。`extract <ref> --collect` は N 個の回答（`run-<k>.answer.md`）を読み、これまでと同じ合議で `claims/_pending/` に置く。
+  回答が欠けていれば欠けている run を挙げて失敗する
+- `reverse [<id>...] --emit` は claim ごとに再生成のプロンプトを書き出す。`reverse --collect` は、再生成の回答がそろえば比較の
+  プロンプトを書き出し、比較の回答もそろえばレポートを出す（`--strict` で mismatch / error があれば exit 1）
+- `.spec-gate-llm/` は git の管理対象外で、collect が終わると消える（エージェントの書き込みを禁止している `.spec-gate/` は使わない）
+- `.claude/agents/spec-gate-llm-worker.md` は Read / Write だけを持つ使い捨ての担当者で、渡されたプロンプトファイル 1 つを読み、
+  名指しされた回答ファイル 1 つに書く以外は何もしない。スキル `spec-gate-extract` / `spec-gate-reverse`（`.claude/skills/`）が手順を持つ:
+  emit → プロンプト 1 つにつき新しいワーカーを 1 体、並列に起動し、`Read <プロンプトのパス> and follow it.` だけを渡す → collect。
+  合議の独立性を保つため、ワーカーは使い回さず、ヒントも足さない
+
+環境変数 `SPEC_GATE_EXTRACT_CMD` / `SPEC_GATE_REVERSE_CMD` を設定したときだけ、これまでどおりそのコマンド（`claude -p` など。
+stdin にプロンプト、stdout に回答）を呼ぶ。変数を設定せず `--emit` / `--collect` も付けなければ、委譲の手順を案内して exit 1 にする
+（意図せず LLM を呼ばない）。
+
+```sh
+spec-gate extract docs/spec/rounding.md#端数処理 --runs 3 --emit
+#   （表示されたプロンプト 1 つにつき spec-gate-llm-worker を 1 体）
+spec-gate extract docs/spec/rounding.md#端数処理 --collect
+
+SPEC_GATE_EXTRACT_CMD='claude -p' spec-gate extract --type mermaid docs/arch/layers.mmd --runs 5
+```
 
 ## ディレクトリ
 
@@ -144,31 +204,77 @@ Figma / *.png / *.pdf  UI・その他                   ─┘
 sources.yaml          監視する source の登録簿（coverage 用）
 claims/<領域>/*.yaml  claim。書式は claims/SCHEMA.md
 claims/_pending/      extract の出力。承認まで check 対象外
+claims/_ambiguous/    「仕様が決まっていない」と記録した候補。check 対象外で、coverage が要確認として出す
+holdout/<id>.yaml     holdout（入力と期待値のハッシュ）。書くのは人間だけ
 plans/*.md            プラン。front matter の status: active で check 対象
-.spec-gate/           プランのロック（コミット対象）
+.spec-gate/           プランのロック（コミット対象）と trace.jsonl・review-decisions.jsonl（git 管理外）
+.spec-gate-llm/       extract / reverse を委譲している間のプロンプトと回答（git 管理外、一時的）
 .depgraph.yml         depgraph のレイヤー定義。図と一致していることを structure claim が照合する
 .claude/gate.yaml     hook-gate の品質ゲート
-.claude/feedback/     hook-gate の保護ルール（claims・verify 行）
+.claude/feedback/     hook-gate のルール（claims・verify 行・holdout の保護、リテラル漏れの警告）
+.claude/agents/       spec-gate-llm-worker（extract / reverse 用のサブエージェント）
+.claude/skills/       spec-gate-extract / spec-gate-reverse（委譲の手順）
 tools/call.ts         example claim の binding 用ラッパ（TS 関数向け）
+tools/bind            docs/spec/harness.md（spec-gate 自身の仕様）の入出力例を検証する binding
 
 main.go               エントリポイント
-pkg/domain            Claim / Plan / Result、ポート、lint（純粋）
-pkg/services          check / approve / coverage / extract / plan
-pkg/infrastructure    claimrepo, adapter(markdown/mermaid/figma/image), checker, planfile, vcs, extractor
-pkg/interfaces/cli    cobra コマンド、レポート、hook 出力
+pkg/domain            Claim / Plan / Result、ポート、lint、fuzz、mutation、leak、relink（純粋）
+pkg/services          check / approve / coverage / extract / reverse / plan / mutate / holdout / metrics / trace / review
+pkg/infrastructure    claimrepo, adapter(markdown/mermaid/figma/image), checker, planfile, vcs, extractor, reverser, llmwork, tracelog, workspace
+pkg/interfaces        cli（cobra コマンド、レポート、hook 出力）、handler/review（承認画面）
 ```
 
 ## claim の種類と、何が機械的に守れるか
 
 | kind | source の例 | 検証 | 確度 |
 |---|---|---|---|
-| `example` | 詳細仕様（端数・締め日） | binding コマンドに入出力例を流し、properties（expr 式）も評価 | 高・決定的 |
-| `structure` | Mermaid の図 | 図のエッジ（= 許可）と `.depgraph.yml` の layers / forbidden が一致するかを照合し、依存違反の検出は `depgraph gate` に任せる | 照合は決定的。検出は depgraph 次第 |
+| `example` | 詳細仕様（端数・締め日） | binding コマンドに入出力例（と holdout の入力）を流し、properties（expr 式）も評価。ランダム入力とメタモルフィック関係も書ける | 高・決定的 |
+| `structure` | Mermaid の図 | 図のエッジ（= 許可）と `.depgraph.yml` の layers / forbidden が一致するかを照合し、依存違反の検出は `depgraph scan` に任せる | 照合は決定的。検出は depgraph 次第 |
 | `ui` | Figma | story に variant と同名の export があるか / `--ui` で Playwright が文言を確認 | 中 |
 | `manual` | 何でも | なし。常に unverified | — |
 
 `example` の binding は「stdin JSON → stdout JSON」の契約を満たすコマンドなら何でもよいので、
 TS / Go / Python どれでも同じ claim で検証できる。
+
+### fuzz と relations — ランダム入力による検証
+
+examples の数件だけを満たす実装を落とすため、`example` の claim に `fuzz:` と `relations:` を書ける（書式は `claims/SCHEMA.md`）。
+
+```yaml
+fuzz:
+  runs: 200            # 生成する入力の数（1〜10000）
+  seed: 42             # 省略可。省略時は claim ID の 64 ビット FNV-1a ハッシュ
+  input: { type: number, min: -100000, max: 100000 }   # number | integer。両端を含む
+relations:             # メタモルフィック関係。x は生成した入力、f(...) は binding の呼び出し
+  - "f(x + 1) == f(x) + 1"
+```
+
+`check` は examples がすべて一致したあとで、seed から `runs` 個の入力を決定的に生成し（同じ seed なら同じ入力列）、binding に流して
+各 x について properties（`input` = x、`output` = 出力）と relations を評価する。最初に満たさない入力が見つかった時点で fail にし、
+反例と seed を出す（その `seed:` を書けば再現できる）。`lint` は、relations には fuzz を、fuzz には properties か relations を、
+relations には真偽を返す式を求める。
+
+### holdout（エージェントに見せない入出力例）
+
+holdout は、claim の examples とは別に `holdout/<claim-id>.yaml` に置く、エージェントに見せない入出力例。
+シェルを使えるエージェントは利用者が読めるファイルを読めてしまうので、平文の holdout は隠し切れない。そこで **期待値はハッシュだけで持つ**:
+
+```yaml
+examples:
+  - in: 98765.43
+    out_sha256: 3f1c…   # 期待する出力の正規化 JSON の SHA-256（16 進小文字 64 文字）
+```
+
+- `check` は examples に続けて holdout の `in` を binding に流し、出力の正規化 JSON の SHA-256 を `out_sha256` と比べる。
+  properties は holdout の入力と実際の出力で評価する。1 件でも不一致なら claim は fail で、レポートには
+  **件数だけ**を出す（「holdout 2 件中 1 件が不一致（値は表示しない）」）。入力・期待値・実際の値は出さない
+- 平文の `out`、`in` / `out_sha256` の欠落、形の崩れたハッシュは読み込みで拒否する。`lint` は形だけを確かめる
+  （対応する claim があり `kind: example` であること）
+- **holdout を足すのは人間だけ**: `spec-gate holdout add <claim-id> --in <json> --out <json>` が `in` と `out_sha256` を末尾に足す
+  （ファイルが無ければ作る）。out の平文はどこにも保存も表示もしない（ただしコマンドラインには載るので、シェルの履歴に注意）
+- エージェントは `holdout/` を読めず、書けない。`.claude/settings.json` の `permissions.deny` に `Read` / `Edit` / `Write(./holdout/**)` があり、
+  hook-gate が holdout を読み書きするシェルコマンド（`.claude/feedback/protect_holdout.md`）と `holdout add` の実行
+  （`.claude/feedback/protect_holdout_add.md`）を拒否する。読むのは spec-gate 本体（`check` / `lint`）だけ
 
 ### structure と depgraph
 
@@ -192,6 +298,79 @@ TS / Go / Python どれでも同じ claim で検証できる。
 
 Figma / 画像のように AI が直接読めない source は、`extract` の精度は保証しない。
 人間が承認する工程があるので、候補の質が低くても「間違いが混入する」ことはない。
+
+### `check --changed` が判定し直すもの
+
+`check --changed` は git の変更ファイルに関係する claim だけを判定する。見逃すより多めに判定する側に倒す。
+claim が触るパスは、仕様ファイル・claim ファイル・`story`・`layers`、そして `binding` の語のうちリポジトリに実在するファイルまたは
+ディレクトリを指すもの。変更ファイルが次のどれかなら、その claim は対象になる。
+
+- 触るファイルそのもの、または触るディレクトリの配下
+- 触るファイルと同じディレクトリにあり、拡張子が同じ（同じパッケージの別ファイル）
+- 触る Go パッケージが直接・間接に import する、このモジュール内のパッケージ（`go run ./tools/bind relink` のような binding は、
+  呼び出す先の実装が変わっても判定し直す）。依存を調べられないときは加えないだけで、元の触るパスは外さない
+- その claim の `holdout/<claim-id>.yaml`（人間が holdout を足したとき）
+
+## 抜け道を塞ぐ
+
+エージェントは、仕様の例の値を実装に直接書き込む・例の数件だけ通る実装にする・検証を甘くする、といった「通り方」で
+claim を満たそうとすることがある。次の機能でそれを機械的に塞ぐか、少なくとも人間に見えるようにする（仕様: `docs/spec/harness.md`）。
+
+| 抜け道 | 塞ぐもの |
+|---|---|
+| examples だけ通す | holdout、[fuzz / relations](#fuzz-と-relations--ランダム入力による検証) |
+| 例の値を実装に直書きする | `spec-gate leak` |
+| プランの verify が甘い | `plan mutate` と `mutation:` の閾値 |
+| 何度も落ちた claim を無理やり通す | `spec-gate trace` |
+
+### `leak` — 実装に書き込まれた例の値
+
+`spec-gate leak <file>...` は、指定ファイルに claim の examples の in / out の値と holdout の in の値が現れるかを調べ、見つかれば
+値と行番号を出して exit 1（holdout だけにある値は行番号だけ）。数値は数字 3 桁以上（符号と小数点は数えない）を、前後が数字・小数点・
+英字でない位置に現れたときだけ数える（1234.56 の中の 1234 は数えない）。文字列は 4 文字以上。テストファイル（`_test.go`・`.test.ts`・
+`.spec.ts`）と `claims/`・`holdout/`・`docs/` は対象外。hook-gate が実装ファイルの編集ごとに走らせて警告する。
+
+### `plan mutate` と mutation の閾値
+
+`spec-gate plan mutate <plans/x.md>` は、プランの claims が触るファイル（binding のパス・layers・story）に変異を 1 か所ずつ入れて
+プランの verify を走らせ、検出できた変異の割合（mutation score）と、生き残った変異を出す。変異は、算術 `+`↔`-`・`*`↔`/`、
+比較 `>` → `>=` と `<`、`<` → `<=` と `>`、`>=` → `>`、`<=` → `<`、`==`↔`!=`、2 以上の整数リテラル n → n+1
+（文字列リテラルとコメントの中は変えない）。変異を入れる前に verify が通ることが前提で、走らせる変異は `--max`（既定 50）件まで均等に選ぶ。
+変異を入れたファイルは、成功・失敗・中断（Ctrl-C）のどれでも必ず元に戻す。
+
+プランの front matter に閾値を書くと、`plan freeze`（人間）が先に同じ score を計算し、閾値未満、または変異を 1 件も作れないときは
+凍結を拒否する:
+
+```yaml
+---
+status: draft
+claims: [ROUND-001]
+mutation: 0.8   # 0〜1
+---
+```
+
+閾値があって満たさなければ `plan mutate` は exit 1。エージェントは人間に凍結を頼む前に `plan mutate` を走らせて verify を強くできる。
+
+### `trace` — claim がどう通ったか
+
+`check --hook` のたびに、claim ごとの判定を `.spec-gate/trace.jsonl` に 1 行ずつ追記する（時刻・claim id・status・その時点の変更行数。
+変更行数は `git diff --numstat HEAD` の追加行と削除行の合計で、git でなければ 0。ファイルは git 管理外）。
+`spec-gate trace`（`--json` で JSON）は claim ごとに、最後に pass になったときの直前の連続 fail 回数と、その時点の変更行数を出す。
+何度も fail した末に大きな変更で pass した claim は、無理に通していないかを人間が確かめる目安になる。
+
+## CI 用の出力と役割別レポート
+
+- `check --json` は判定結果を JSON で出す。claim ごとの `id`・`kind`・`status`・`title`・`detail`・`spec`（file:line）と、プラン、件数の集計。
+  exit code は通常の `check` と同じ（blocking があれば 1）
+- `spec-gate metrics` は全 claim を `check` と同じ手順で判定し（プランは見ない、`--ui` なし）、kind 別の件数と割合、unverified 率
+  （unverified の件数 / claim の総数。claim が 0 件なら 0）を出す。`--json` で JSON。判定の失敗では exit 1 にしない（止めたいときは `check`）
+- `check --role <役割>` は、その人が対応すべきものだけを出す。exit code は変わらない:
+
+| 役割 | 出すもの |
+|---|---|
+| `engineer` | `fail`（仕様の位置 file:line つき） |
+| `designer` | `kind: ui` の claim のうち `unverified` と `fail` |
+| `pm` | `stale` と `unapproved` |
 
 ## UI 層の扱い
 
@@ -222,6 +401,13 @@ docs/spec/rounding.md#端数処理 から読み取った主張
 （入出力例は表、層、画面の状態と文言）。YAML は見せない。承認すると `claims/spec|arch|ui/` に移して `approve` し、
 lint や仕様の読み取りで拒否されたら `_pending/` に戻して理由を表示する。却下は候補を削除する。CDN や外部リソースは使わない。
 
+### 曖昧の記録
+
+候補は正しいか間違っているかだけではなく、仕様そのものが決まっていないこともある。承認画面（とリモート承認のダイアログ）の各候補には
+**「曖昧」ボタン**がある。押すと理由を入力させ、候補を `claims/_ambiguous/` に移して先頭に `# ambiguous: <理由>` を書く。
+`_ambiguous/` は `_pending/` と同じく check の対象外。`coverage` は、それらの claim が参照する仕様の単位を「要確認」（`?`）として出す。
+要確認は仕様が決まっていないことの記録なので、coverage の exit code には数えない。
+
 ### リモート承認（Claude Code の質問ダイアログ）
 
 Claude Code をリモートセッション（スマホなど）だけで操作しているときは、このローカル画面を開けない。
@@ -248,7 +434,8 @@ Claude Code をリモートセッション（スマホなど）だけで操作�
 
 2. エージェントに「`spec-gate review ask` の結果で AskUserQuestion を出して」と頼む。`review ask [--limit N]` は
    `claims/_pending/` の候補を最大 4 件、ダイアログに渡す `questions` の JSON にして出す（候補が無ければ空配列と stderr の案内）。
-3. 候補ごとにボタンを選ぶ。仕様が決まっていない理由を残したいときは「Other」に書く。自由入力は、その文を理由にした「曖昧」として記録される。
+3. 候補ごとにボタンを選ぶ。仕様が決まっていない理由を残したいときは「Other」に書く。自由入力は、その文を理由にした「曖昧」として記録される
+   （[曖昧の記録](#曖昧の記録)）。
 
 `review record` は、表示された質問が spec-gate がその候補から今作る質問（preview を含む）と完全に一致するときだけ反映する。
 エージェントが内容をすり替えた質問は反映されない。回答は `tool_response` からだけ読み、`tool_input.answers` は使わない
@@ -265,14 +452,16 @@ Claude Code をリモートセッション（スマホなど）だけで操作�
 - `structure` の依存違反の検出は depgraph の全件スキャンに依存する。claim の層以外（循環・重複など）の負債は
   gate の `depgraph gate`（セッションで増えた分だけ）と depgraph の UI で見る
 - `ui` の strings 検証は Storybook/アプリが起動している前提で `--ui` を付ける。CI でやるなら別ジョブ
-- `extract` は `claude -p` を前提にしている。`SPEC_GATE_EXTRACT_CMD` で差し替え可
-- `reverse` は `claude -p` を前提にしている。`SPEC_GATE_REVERSE_CMD` で差し替え可。人間のレビュー補助なので既定は常に exit 0 で、
-  精度はモデル次第
+- `extract` と `reverse` の精度は、プロンプトに答えるモデル（サブエージェント、または `SPEC_GATE_EXTRACT_CMD` /
+  `SPEC_GATE_REVERSE_CMD` のコマンド）次第。`reverse` は人間のレビュー補助なので既定は常に exit 0
+- holdout が隠すのは期待値で、入力ではない（`in` は binding に流すので平文）。`holdout/` の読み取り拒否は Claude Code の権限と
+  hook-gate のルールに依存する
+- `fuzz` が生成するのは範囲内の数値（`number` / `integer`）だけ
 - Miro は書き出し画像頼みになるので最も弱い。Mermaid 書き出しを運用で推奨した方がよい
 
 ## hook-gate / depgraph との役割分担
 
-- hook-gate: 歩き方。Stop / PostToolUse / PreToolUse の実行基盤、claims と verify 行の保護
+- hook-gate: 歩き方。Stop / PostToolUse / PreToolUse の実行基盤、claims・verify 行・holdout の保護
 - depgraph: 依存の検出器。循環・レイヤー違反・重複
 - spec-gate: 「何を作るか」が守られているか。example / ui / plan が本体。structure は図と depgraph 設定の整合のみ
 

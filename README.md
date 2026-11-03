@@ -27,13 +27,14 @@ Natural language is never compared with code directly. A **claim (a verifiable s
 
 | Step | Command | Who | What happens |
 |---|---|---|---|
-| Extract | `spec-gate extract <ref> --runs 3` | AI | Reads the same spec N times independently; agreed claims go to `claims/_pending/` with high confidence (consensus) |
-| Lint | `spec-gate lint` | machine | Do examples satisfy properties; do claims contradict each other |
+| Extract | `spec-gate extract <ref> --runs 3 --emit` / `--collect` | AI (subagents) | The same spec is read N times by independent subagents; agreed claims go to `claims/_pending/` with high confidence (consensus). See [Delegating extract and reverse](#delegating-extract-and-reverse-to-subagents) |
+| Lint | `spec-gate lint` | machine | Do examples satisfy properties; are holdouts well-formed; do claims contradict each other |
 | Approve | `spec-gate approve <id>` | **human** | Shows the spec excerpt and freezes its hash. Refused when lint fails |
-| Review | `spec-gate review` | **human** | A local web page (127.0.0.1) listing `claims/_pending/` in plain language with the spec excerpt; ticking and approving moves each claim into `claims/<area>/` and runs `approve` |
-| Check | `spec-gate check` | machine | approval → spec drift → per-kind check → plan verify |
-| Coverage | `spec-gate coverage` | machine | Lists the parts of the specs no claim covers |
-| Reverse | `spec-gate reverse [<id>...]` | AI | Rewrites each claim as spec prose without seeing the spec, then compares it with the original excerpt and lists what the claim adds, misses or contradicts (review aid; `--strict` exits 1 on a mismatch) |
+| Review | `spec-gate review` | **human** | A local web page (127.0.0.1) listing `claims/_pending/` in plain language with the spec excerpt; approve / reject / ambiguous per candidate. Approving moves the claim into `claims/<area>/` and runs `approve` |
+| Remote approval | `spec-gate review ask` → question dialog | **human** answers | The same three buttons in Claude Code's question dialog, for remote sessions. See [Remote approval](#remote-approval-claude-codes-question-dialog) |
+| Check | `spec-gate check` | machine | approval → spec drift → per-kind check (examples, holdout, fuzz) → plan verify |
+| Coverage | `spec-gate coverage` | machine | Lists the parts of the specs no claim covers, and the parts marked ambiguous ("to confirm") |
+| Reverse | `spec-gate reverse [<id>...] --emit` / `--collect` | AI (subagents) | Rewrites each claim as spec prose without seeing the spec, then compares it with the original excerpt and lists what the claim adds, misses or contradicts (review aid; `--strict` exits 1 on a mismatch) |
 
 ### Order of the verdict and states
 
@@ -49,17 +50,44 @@ pass
 
 Any blocking result exits 1. With `--hook` it writes a report of only what the agent must fix to stderr and exits 2.
 
+For `kind: example`, "fail" covers the examples, the [holdout](#holdout-examples-hidden-from-the-agent) and the
+[random inputs](#fuzz-and-relations--random-inputs) alike. When a Markdown claim's heading is gone from the spec
+(`source.ref` points to a heading that no longer exists), the claim fails with "spec cannot be read", and the
+detail suggests the closest heading as "もしかして" (did you mean). Closeness is the character edit distance, only
+headings within half the missing heading's length are suggested, and ties go to the heading that appears first.
+It is only a suggestion: the claim is not rewritten (fixing it is a human's job).
+
+### Who does what
+
+| Human only | Agent (or anyone) |
+|---|---|
+| `approve`, `review` (approve / reject / ambiguous in the browser) | `status`, `lint`, `check`, `coverage`, `metrics`, `trace`, `leak` |
+| answering the remote-approval dialog | `review ask` (printing the questions for the dialog) |
+| `plan freeze` | writing plans with `verify:` lines, `plan check`, `plan mutate` |
+| `holdout add` | `extract` / `reverse` with `--emit` / `--collect` (the LLM work goes to subagents) |
+| editing `claims/**` (except `_pending/`), `.spec-gate/`, `holdout/`, `.claude/settings*.json` | putting a proposed fix for a wrong claim in `claims/_pending/` and telling a human |
+
+The human-only column is enforced, not just asked for: hook-gate rules (`.claude/feedback/`) deny the agent
+running those commands and editing those paths, and `review record` (the remote-approval hook) is started only by
+the harness.
+
 ### A structure that cannot lie
 
 - **The AI cannot touch claims.** Editing `claims/**` and `.spec-gate/`, and running `approve` / `plan freeze`,
-  are denied by hook-gate `pre_edit` / `pre_bash` rules (`.claude/feedback/protect_spec_claims.md`)
+  are denied by hook-gate `pre_edit` / `pre_bash` rules (`.claude/feedback/protect_spec_claims.md`). The same file
+  denies running `review record` directly and calling the review page's `/api/approve`, `/api/reject` and
+  `/api/ambiguous` from the shell
 - **Plan verify lines are frozen first.** `spec-gate plan freeze` records the hash of the verify lines; loosening
   them after implementation makes the plan `stale`. On top of that, right after a plan is edited, a hook-gate
   `post_edit` rule runs `spec-gate plan check` and stops the agent on the spot when a frozen verify line changed
-  (`.claude/feedback/protect_plan_verify.md`)
+  (`.claude/feedback/protect_plan_verify.md`). A plan can also demand that its verify lines catch broken code
+  before it may be frozen ([mutation score](#plan-mutate-and-the-mutation-threshold))
 - **A changed spec becomes stale automatically**, so the spec cannot be rewritten to make things fit
 - **A claim without a means of verification is unverified, not fail.** Nothing "passes without being checked";
   instead it is surfaced as something a human should look at
+- **Passing only the examples is not enough.** Holdout examples the agent cannot read, random inputs, a warning
+  when example values are written into the implementation, and a log of how each claim came to pass close the
+  usual shortcuts (see [Closing the shortcuts](#closing-the-shortcuts))
 
 ## Install
 
@@ -100,10 +128,15 @@ pnpm install --frozen-lockfile             # the sample TS side (for tools/call.
 
 ./spec-gate status                         # list claims and plans
 ./spec-gate lint                           # internal consistency
-./spec-gate approve ROUND-001 ROUND-002 CLOSE-001 ARCH-001 UI-001
+./spec-gate approve ROUND-001 ROUND-002 CLOSE-001 ARCH-001 UI-001   # human
 ./spec-gate check                          # full verdict
-./spec-gate coverage                       # what is missing
+./spec-gate check --changed                # only the claims related to changed files
+./spec-gate coverage                       # what is missing / what is ambiguous
 ./spec-gate plan check plans/x.md          # has a frozen plan's verify changed
+./spec-gate plan mutate plans/x.md         # how many injected bugs the verify lines catch
+./spec-gate leak src/payroll/round.ts      # are example values written into the code
+./spec-gate metrics                        # claims per kind and the unverified rate
+./spec-gate trace                          # how each claim came to pass
 ```
 
 The sample ships already approved, so `check` passes right after cloning. Breaking it shows the idea:
@@ -129,6 +162,8 @@ The checks run from hook-gate (feedback-gate) through `.claude/gate.yaml`. spec-
 
 - On every edit, depending on the changed file: gofmt / go vet / go test (Go), `depgraph gate` (Go / TS / JS),
   `spec-gate lint` (claims), `spec-gate check --changed` (specs, plans, the sample app)
+- After editing an implementation file (`.go` / `.ts` / `.js` and friends; tests, `claims/`, `holdout/` and `docs/`
+  excluded), the `post_edit` rule in `.claude/feedback/detect_literal_leak.md` runs `spec-gate leak` on it and warns
 - At stop, the `consistency_checks` `go-all` (build / golangci-lint / all tests) and `spec-gate`
   (`check --changed --hook`) run and block the stop on failure. Giving up after repeated failures (5 times)
   is hook-gate's job
@@ -137,7 +172,40 @@ depgraph uses the Neo4j started by `docker compose up -d` (`localhost:17687`); t
 `mise.toml`, and depgraph is always called through `mise exec --` (hooks and gate). The SessionStart hook in `.claude/settings.json`
 (`depgraph hook session-start`) records the baseline at session start, and `depgraph gate` fails only on debt added since then.
 
-`CLAUDE.md` holds the rules for the agent.
+`CLAUDE.md` holds the rules for the agent. The subagent definition and skills for extract / reverse ship in
+`.claude/agents/` and `.claude/skills/` (next section).
+
+### Delegating extract and reverse to subagents
+
+spec-gate itself never calls an LLM. `extract` (consensus extraction) and `reverse` (reverse check) only **write
+prompts** (`--emit`) and **read answers** (`--collect`); the agent running spec-gate hands each prompt to a fresh
+subagent.
+
+- `extract <ref> --runs N --emit` writes N self-contained prompts under `.spec-gate-llm/extract/<ref>/run-<k>.prompt.md`
+  and prints their paths. `extract <ref> --collect` reads the N answers (`run-<k>.answer.md`), runs the same consensus
+  as before and puts the result in `claims/_pending/`. Missing answers are listed and the command fails
+- `reverse [<id>...] --emit` writes one restatement prompt per claim. `reverse --collect` then writes the comparison
+  prompts once all restatements are in, and prints the report once all comparisons are in (`--strict` exits 1 on a
+  mismatch or error)
+- `.spec-gate-llm/` is git-ignored and removed when collect finishes (it is not under `.spec-gate/`, which the agent
+  may not write)
+- `.claude/agents/spec-gate-llm-worker.md` is a single-use worker with only Read / Write: it reads its one prompt
+  file and writes its one answer file, nothing else. The skills `spec-gate-extract` and `spec-gate-reverse`
+  (`.claude/skills/`) describe the steps: emit → start one new worker per prompt, all in parallel, with only the
+  message `Read <prompt path> and follow it.` → collect. Never reuse a worker and never add hints, so the runs stay
+  independent
+
+Only when `SPEC_GATE_EXTRACT_CMD` / `SPEC_GATE_REVERSE_CMD` is set does spec-gate call that command (for example
+`claude -p`; prompt on stdin, answer on stdout), as it used to. Without the variable and without `--emit` /
+`--collect`, the command prints how to delegate and exits 1, so no LLM is called by accident.
+
+```sh
+spec-gate extract docs/spec/rounding.md#端数処理 --runs 3 --emit
+#   (one spec-gate-llm-worker per printed prompt)
+spec-gate extract docs/spec/rounding.md#端数処理 --collect
+
+SPEC_GATE_EXTRACT_CMD='claude -p' spec-gate extract --type mermaid docs/arch/layers.mmd --runs 5
+```
 
 ## Layout
 
@@ -148,30 +216,82 @@ Figma / *.png / *.pdf  UI and others                   ─┘
 sources.yaml          registry of watched sources (for coverage)
 claims/<area>/*.yaml  claims. Format: claims/SCHEMA.md
 claims/_pending/      extract output. Not checked until approved
+claims/_ambiguous/    candidates recorded as "the spec is not decided". Not checked; shown by coverage
+holdout/<id>.yaml     holdout examples (inputs + hashes of the expected outputs). Written by humans only
 plans/*.md            plans. Checked when the front matter says status: active
-.spec-gate/           plan locks (committed)
+.spec-gate/           plan locks (committed); trace.jsonl and review-decisions.jsonl (git-ignored)
+.spec-gate-llm/       prompts and answers while extract / reverse are delegated (git-ignored, temporary)
 .depgraph.yml         depgraph's layer definition. The structure claim checks it matches the diagram
 .claude/gate.yaml     hook-gate quality gate
-.claude/feedback/     hook-gate protection rules (claims, verify lines)
+.claude/feedback/     hook-gate rules (protect claims, verify lines and holdout; literal-leak warning)
+.claude/agents/       spec-gate-llm-worker (subagent for extract / reverse)
+.claude/skills/       spec-gate-extract / spec-gate-reverse (the delegation steps)
 tools/call.ts         binding wrapper for example claims (TS functions)
+tools/bind            bindings for the examples in docs/spec/harness.md (spec-gate's own spec)
 
 main.go               entry point
-pkg/domain            Claim / Plan / Result, ports, lint (pure)
-pkg/services          check / approve / coverage / extract / plan
-pkg/infrastructure    claimrepo, adapter(markdown/mermaid/figma/image), checker, planfile, vcs, extractor
-pkg/interfaces/cli    cobra commands, reports, hook output
+pkg/domain            Claim / Plan / Result, ports, lint, fuzz, mutation, leak, relink (pure)
+pkg/services          check / approve / coverage / extract / reverse / plan / mutate / holdout / metrics / trace / review
+pkg/infrastructure    claimrepo, adapter(markdown/mermaid/figma/image), checker, planfile, vcs, extractor, reverser, llmwork, tracelog, workspace
+pkg/interfaces        cli (cobra commands, reports, hook output), handler/review (the review page)
 ```
 
 ## Claim kinds and what can be enforced mechanically
 
 | kind | example source | verification | confidence |
 |---|---|---|---|
-| `example` | detailed specs (rounding, closing dates) | Feeds input/output examples to the binding command and evaluates properties (expr) | high, deterministic |
-| `structure` | Mermaid diagram | Checks that the diagram's edges (= allowed) agree with `layers` / `forbidden` in `.depgraph.yml`; detecting violations is left to `depgraph gate` | the comparison is deterministic; detection depends on depgraph |
+| `example` | detailed specs (rounding, closing dates) | Feeds input/output examples (and holdout inputs) to the binding command and evaluates properties (expr); optionally random inputs and metamorphic relations | high, deterministic |
+| `structure` | Mermaid diagram | Checks that the diagram's edges (= allowed) agree with `layers` / `forbidden` in `.depgraph.yml`, then has `depgraph scan` detect violations | the comparison is deterministic; detection depends on depgraph |
 | `ui` | Figma | A story export with the same name as each variant / with `--ui`, Playwright checks the strings | medium |
 | `manual` | anything | none; always unverified | — |
 
 The `example` binding is any command honouring "stdin JSON → stdout JSON", so the same claim verifies TS, Go or Python.
+
+### fuzz and relations — random inputs
+
+To catch implementations that satisfy only the handful of examples, an `example` claim can have `fuzz:` and
+`relations:` (format: `claims/SCHEMA.md`).
+
+```yaml
+fuzz:
+  runs: 200            # 1–10000 generated inputs
+  seed: 42             # optional; defaults to the 64-bit FNV-1a hash of the claim ID
+  input: { type: number, min: -100000, max: 100000 }   # number | integer; both ends inclusive
+relations:             # metamorphic relations; x = the generated input, f(...) = a binding call
+  - "f(x + 1) == f(x) + 1"
+```
+
+After all examples match, `check` generates `runs` inputs deterministically from the seed (same seed, same inputs),
+feeds them to the binding, and evaluates the properties (`input` = x, `output` = the result) and the relations for
+each x. The first input that breaks one makes the claim fail with the counterexample and the seed, so writing that
+`seed:` reproduces it. `lint` requires fuzz for relations, properties or relations for fuzz, and relations that
+return a boolean.
+
+### Holdout examples hidden from the agent
+
+A holdout is a set of input/output examples the agent never sees, kept apart from the claim's examples in
+`holdout/<claim-id>.yaml`. An agent with a shell can read anything you can read, so a plain-text holdout could not
+stay hidden; instead **the expected output is stored only as a hash**:
+
+```yaml
+examples:
+  - in: 98765.43
+    out_sha256: 3f1c…   # SHA-256 of the canonical JSON of the expected output (64 lowercase hex chars)
+```
+
+- `check` feeds the holdout inputs to the binding after the examples and compares the SHA-256 of the canonical JSON
+  of the output with `out_sha256`. Properties are evaluated on the holdout input and the actual output. Any
+  mismatch fails the claim, and reports show **only the count** ("holdout 2 件中 1 件が不一致（値は表示しない）"),
+  never the input, the expected value or the actual value
+- A plain `out`, a missing `in` / `out_sha256` or a malformed hash is rejected when the file is read. `lint` checks
+  only the shape (the claim exists and is `kind: example`)
+- **Only humans add holdouts**: `spec-gate holdout add <claim-id> --in <json> --out <json>` appends `in` and
+  `out_sha256`, creating the file if needed; the plain `out` is neither stored nor printed. (It still passes through
+  your shell's command line, so mind your shell history)
+- The agent can neither read nor write `holdout/`: `.claude/settings.json` has `permissions.deny` for
+  `Read` / `Edit` / `Write(./holdout/**)`, and hook-gate denies shell commands that read or write it
+  (`.claude/feedback/protect_holdout.md`) and running `holdout add` (`.claude/feedback/protect_holdout_add.md`).
+  Only spec-gate itself (`check` / `lint`) reads it
 
 ### structure and depgraph
 
@@ -195,6 +315,88 @@ Diagram = spec, depgraph = detector, spec-gate = agreement between the two.
 
 For sources the AI cannot read directly, such as Figma or images, `extract` accuracy is not guaranteed.
 Since a human approves, low-quality candidates cannot slip mistakes in.
+
+### What `check --changed` re-checks
+
+`check --changed` judges only the claims related to the files changed in git, leaning towards checking too much
+rather than missing something. A claim touches its spec file, its claim file, its `story`, its `layers`, and every
+word of its `binding` that names a file or directory that actually exists in the repository. A changed file is
+related when it is
+
+- a touched file itself, or under a touched directory
+- in the same directory as a touched file and with the same extension (another file of the same package)
+- in a Go package that a touched Go package imports, directly or indirectly, within this module (so a binding like
+  `go run ./tools/bind relink` is re-checked when the implementation it calls changes). When the imports cannot be
+  resolved, nothing is added and the original paths stay
+- `holdout/<claim-id>.yaml` of that claim (when a human adds a holdout)
+
+## Closing the shortcuts
+
+An agent may try to satisfy a claim by writing the example values into the code, by passing only the few examples,
+or by weakening the checks. These features block that mechanically, or at least make it visible to a human
+(spec: `docs/spec/harness.md`).
+
+| Shortcut | What catches it |
+|---|---|
+| passing only the examples | [holdout](#holdout-examples-hidden-from-the-agent), [fuzz / relations](#fuzz-and-relations--random-inputs) |
+| writing example values into the code | `spec-gate leak` |
+| weak verify lines in a plan | `plan mutate` and the `mutation:` threshold |
+| forcing a claim through after many failures | `spec-gate trace` |
+
+### `leak` — example values written into the implementation
+
+`spec-gate leak <file>...` looks for the claims' example `in` / `out` values and the holdout `in` values in the given
+files and exits 1 with the value and line number when one appears (for values found only in a holdout, only the
+line number). Numbers count only with 3 or more digits (sign and decimal point excluded) and only as a whole token
+(the `1234` inside `1234.56` does not count); strings count from 4 characters. Test files (`_test.go`, `.test.ts`,
+`.spec.ts`) and `claims/`, `holdout/`, `docs/` are skipped. hook-gate runs it after each edit of an implementation
+file and warns.
+
+### `plan mutate` and the mutation threshold
+
+`spec-gate plan mutate <plans/x.md>` injects one mutation at a time into the files the plan's claims touch (binding
+paths, layers, story), runs the plan's verify lines, and prints the share of mutations they catch (mutation score)
+and the ones that survived. The mutations are: arithmetic `+`↔`-`, `*`↔`/`; comparisons `>` → `>=` / `<`,
+`<` → `<=` / `>`, `>=` → `>`, `<=` → `<`, `==`↔`!=`; an integer literal n ≥ 2 → n+1 (never inside strings or
+comments). The verify lines must pass before any mutation; at most `--max` mutations (default 50) are picked evenly.
+The files are always restored, whether the run succeeds, fails or is interrupted (Ctrl-C).
+
+With a threshold in the plan's front matter, `plan freeze` (human) runs the same score first and refuses to freeze
+below it, or when no mutation can be made at all:
+
+```yaml
+---
+status: draft
+claims: [ROUND-001]
+mutation: 0.8   # 0–1
+---
+```
+
+`plan mutate` exits 1 when the plan has a threshold that is not met. The agent can run it to strengthen the verify
+lines before asking a human to freeze.
+
+### `trace` — how a claim came to pass
+
+Every `check --hook` appends one line per claim to `.spec-gate/trace.jsonl` (time, claim id, status, and the number
+of changed lines = added + deleted in `git diff --numstat HEAD`, 0 outside git; the file is git-ignored).
+`spec-gate trace` (`--json` for JSON) shows, for the last time each claim passed, how many failures came right
+before it and how many lines were changed at that point. A claim that failed many times and then passed with a large
+change is worth a human look.
+
+## CI output and role reports
+
+- `check --json` prints the verdict as JSON: `id`, `kind`, `status`, `title`, `detail`, `spec` (file:line) per claim,
+  plus the plans and the counts. The exit code is the same as plain `check` (1 when anything blocks)
+- `spec-gate metrics` judges every claim like `check` (no plans, no `--ui`) and prints the count and share per kind and
+  the unverified rate (unverified / all claims; 0 when there are no claims). `--json` for JSON. It never exits 1 on a
+  failing claim; use `check` to gate
+- `check --role <role>` prints only what that person has to act on; the exit code does not change:
+
+| role | shows |
+|---|---|
+| `engineer` | `fail`, with the spec location (file:line) |
+| `designer` | `kind: ui` claims that are `unverified` or `fail` |
+| `pm` | `stale` and `unapproved` |
 
 ## The UI layer
 
@@ -226,6 +428,14 @@ claim in plain language (examples as a table, layers, screen states and strings)
 file to `claims/spec|arch|ui/` and runs `approve`; when lint or the spec rejects it, the file goes back to `_pending/`
 and the reason is shown. Rejecting deletes the candidate. The page uses no CDN or external resources.
 
+### Recording ambiguity
+
+Not every candidate is right or wrong: sometimes the spec itself is not decided. Each candidate on the review page
+(and in the remote-approval dialog) has an **ambiguous** button ("曖昧"). It asks for the reason, moves the
+candidate to `claims/_ambiguous/` and writes `# ambiguous: <reason>` at the top. Like `_pending/`, `_ambiguous/` is
+not checked. `coverage` shows the spec units those claims point to as "to confirm" (`?`); they are a record that the
+spec is undecided, so they do not count towards coverage's exit code.
+
 ### Remote approval (Claude Code's question dialog)
 
 When you drive Claude Code only through a remote session (for example from a phone), you cannot open that local page.
@@ -256,7 +466,7 @@ live Claude Code session. Check the result after your first real approval.
    prints up to 4 candidates from `claims/_pending/` as the `questions` JSON for the dialog (an empty array, with a
    note on stderr, when there are none).
 3. Pick a button for each candidate. To record the reason the spec is undecided, type it into "Other": free text is
-   recorded as ambiguous with that text as the reason.
+   recorded as ambiguous with that text as the reason (see [Recording ambiguity](#recording-ambiguity)).
 
 `review record` applies an answer only when the question shown is exactly the one spec-gate builds from the
 candidate now (including the preview), so a question whose content the agent altered is ignored. Answers are read
@@ -276,14 +486,17 @@ hook-gate denies the agent running `review record` itself and calling the review
 - Detecting `structure` violations relies on a full depgraph scan. Debt outside the claim's layers (cycles,
   duplication, ...) is watched by `depgraph gate` in the quality gate (only what the session added) and depgraph's UI
 - `ui` string verification assumes Storybook or the app is running and needs `--ui`. In CI, use a separate job
-- `extract` assumes `claude -p`. Override with `SPEC_GATE_EXTRACT_CMD`
-- `reverse` assumes `claude -p`. Override with `SPEC_GATE_REVERSE_CMD`. It is a review aid for humans: by default it
-  always exits 0, and its quality depends on the model
+- `extract` and `reverse` depend on the model that answers the prompts (a subagent, or the command in
+  `SPEC_GATE_EXTRACT_CMD` / `SPEC_GATE_REVERSE_CMD`). `reverse` is a review aid for humans: by default it always
+  exits 0
+- Holdout hides expected values, not inputs: `in` is plain text so it can be fed to the binding. The read protection
+  of `holdout/` relies on Claude Code permissions and hook-gate rules
+- `fuzz` generates numbers only (`number` / `integer` in a range)
 - Miro depends on exported images and is the weakest. Prefer Mermaid exports in practice
 
 ## Division of roles with hook-gate / depgraph
 
-- hook-gate: how to walk. The runtime for Stop / PostToolUse / PreToolUse, protection of claims and verify lines
+- hook-gate: how to walk. The runtime for Stop / PostToolUse / PreToolUse, protection of claims, verify lines and holdout
 - depgraph: the dependency detector. Cycles, layer violations, duplication
 - spec-gate: whether "what to build" is honoured. example / ui / plan are the core; structure only checks the diagram against the depgraph settings
 
