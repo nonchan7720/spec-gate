@@ -66,8 +66,8 @@ HANDOFF.md は人間の引き継ぎ文書なので触らず、エージェント
       （`depgraph check --claude-md ''` の exit code / 出力仕様を確認して決める）
 - [ ] `protect_spec_claims` の `pre_bash` 正規表現は、コマンド文字列中の文言にも反応する
       （例: ドキュメントに `spec-gate plan freeze` と書く sed が deny された）。安全側に倒しているので現状維持にしてある
-- [ ] hook モードで spec-gate 自体がエラーになったとき（`check` の内部エラー）は exit 0 で通す設計のまま。
-      gate から呼ぶ今の構成で、ハーネス故障を素通りさせてよいか
+- [x] hook モードで spec-gate 自体がエラーになったとき（`check` の内部エラー）に exit 0 で通していた（2026-11-04 修正）。
+      理由付きで exit 2 にした。止め続けるループは gate 側（5 回）が打ち切る
 
 ## 外部ツールの不具合（このリポジトリ外）
 

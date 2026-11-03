@@ -1,7 +1,6 @@
 package cli
 
 import (
-	"fmt"
 	"io"
 	"os"
 	"strings"
@@ -35,14 +34,12 @@ func newCheckCmd(a **app) *cobra.Command {
 			rep, err := (*a).check.Run(cmd.Context(), req)
 			if err != nil {
 				if hook {
-					// ハーネス自体の故障でエージェントを止め続けるのは避ける
-					fmt.Fprintln(os.Stderr, "spec-gate 内部エラー（判定スキップ）:", err)
-					return nil
+					exitHook(hookError(err))
 				}
 				return err
 			}
 			if hook {
-				runHook(rep)
+				exitHook(hookResult(rep))
 				return nil
 			}
 			writeReport(os.Stdout, rep, false)
@@ -75,8 +72,19 @@ func hookResult(rep services.CheckReport) (int, string) {
 	return 2, b.String()
 }
 
-func runHook(rep services.CheckReport) {
-	code, msg := hookResult(rep)
+// hookError はハーネス自体が判定できなかった（claim が読めない等）ときの hook の結果。
+// exit 0 で通すと「検証していないのに通った」になるので止める。止め続けるループは
+// feedback-gate の gate 側が打ち切る。
+func hookError(err error) (int, string) {
+	var b strings.Builder
+	b.WriteString("spec-gate: 内部エラーで仕様準拠を判定できなかった。原因を直してから終了すること。\n")
+	b.WriteString("claims/ と plans の verify: 行が原因ならエージェントは直さず、内容をユーザーに伝えて止まる。\n\n")
+	b.WriteString(err.Error())
+	b.WriteString("\n")
+	return 2, b.String()
+}
+
+func exitHook(code int, msg string) {
 	if code == 0 {
 		return
 	}

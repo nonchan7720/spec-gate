@@ -1,6 +1,7 @@
 package cli
 
 import (
+	"errors"
 	"strings"
 	"testing"
 
@@ -20,6 +21,20 @@ func TestHookResult_UnverifiedIsNotBlocking(t *testing.T) {
 	rep := services.CheckReport{Claims: domain.Results{{ID: "M-1", Status: domain.StatusUnverified}}}
 	if code, _ := hookResult(rep); code != 0 {
 		t.Fatalf("unverified はエージェントを止めない: code=%d", code)
+	}
+}
+
+func TestHookError_BlocksWithReason(t *testing.T) {
+	// ハーネス自体が判定できなかったときに exit 0 で通すと「検証していないのに通った」になる。
+	// 止め続けるループは gate（feedback-gate）が 5 回で打ち切るので、ここでは止める。
+	code, msg := hookError(errors.New("claims/spec/A.yaml: yaml: line 3: mapping values are not allowed"))
+	if code != 2 {
+		t.Fatalf("内部エラーは exit 2 で止める: code=%d", code)
+	}
+	for _, want := range []string{"spec-gate", "判定できなかった", "claims/spec/A.yaml"} {
+		if !strings.Contains(msg, want) {
+			t.Fatalf("メッセージに %q が無い: %q", want, msg)
+		}
 	}
 }
 
