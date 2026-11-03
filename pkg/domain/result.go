@@ -21,7 +21,9 @@ func (s Status) Blocking() bool {
 
 // Result は判定 1 件。
 type Result struct {
-	ID     string
+	ID string
+	// Kind は claim の種類（役割別レポート・metrics 用）。プラン項目では空
+	Kind   ClaimKind
 	Title  string
 	Status Status
 	Detail string // 失敗理由・補足。複数行可
