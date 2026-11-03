@@ -12,7 +12,11 @@ import (
 type ReverseService struct {
 	Claims   domain.ClaimRepository
 	Adapters map[domain.SourceType]domain.SourceAdapter
+	// Reverser は LLM を直接呼ぶ逆変換（SPEC_GATE_REVERSE_CMD のコマンドモード）。委譲（Emit / Collect）では使わない
 	Reverser domain.Reverser
+	// Prompter と Work は委譲（Emit / Collect）で使う
+	Prompter domain.ReversePrompter
+	Work     domain.LLMWorkspace
 }
 
 // ReverseReport は逆変換チェックの結果一覧。
@@ -45,26 +49,10 @@ var textSources = map[domain.SourceType]bool{
 
 // Reverse は ids の claim（空なら全 claim。_pending は ClaimRepository が返さないので対象外）を逆変換チェックする。
 func (s *ReverseService) Reverse(ctx context.Context, ids []string) (ReverseReport, error) {
-	all, err := s.Claims.All()
+	targets, err := s.targets(ids)
 	if err != nil {
 		return ReverseReport{}, err
 	}
-	targets := all
-	if len(ids) > 0 {
-		byID := map[string]domain.Claim{}
-		for _, c := range all {
-			byID[c.ID] = c
-		}
-		targets = nil
-		for _, id := range ids {
-			c, ok := byID[id]
-			if !ok {
-				return ReverseReport{}, fmt.Errorf("claim %s が見つからない（_pending の claim は対象外）", id)
-			}
-			targets = append(targets, c)
-		}
-	}
-
 	var rep ReverseReport
 	for _, c := range targets {
 		rep.Results = append(rep.Results, s.reverseOne(ctx, c))
@@ -72,34 +60,33 @@ func (s *ReverseService) Reverse(ctx context.Context, ids []string) (ReverseRepo
 	return rep, nil
 }
 
-func (s *ReverseService) reverseOne(ctx context.Context, c domain.Claim) domain.ReverseResult {
-	res := domain.ReverseResult{ID: c.ID, Title: c.Title}
-	if !textSources[c.Source.Type] {
-		res.Status = domain.ReverseSkipped
-		res.Detail = fmt.Sprintf("source type %s はテキストを持たないので比べられない", c.Source.Type)
-		return res
-	}
-	ad, ok := s.Adapters[c.Source.Type]
-	if !ok {
-		res.Status = domain.ReverseSkipped
-		res.Detail = fmt.Sprintf("source type %s の adapter が未登録", c.Source.Type)
-		return res
-	}
-	snap, err := ad.Snapshot(ctx, c.Source.Ref)
+// targets は ids の claim（空なら全 claim）。
+func (s *ReverseService) targets(ids []string) ([]domain.Claim, error) {
+	all, err := s.Claims.All()
 	if err != nil {
-		res.Status = domain.ReverseError
-		res.Detail = fmt.Sprintf("仕様を読めない: %v", err)
-		return res
+		return nil, err
 	}
-	res.Spec = snap.Location
-	if snap.Skipped != "" {
-		res.Status = domain.ReverseSkipped
-		res.Detail = "仕様を読めない: " + snap.Skipped
-		return res
+	if len(ids) == 0 {
+		return all, nil
 	}
-	if snap.Excerpt == "" {
-		res.Status = domain.ReverseSkipped
-		res.Detail = "仕様の抜粋が空"
+	byID := map[string]domain.Claim{}
+	for _, c := range all {
+		byID[c.ID] = c
+	}
+	var targets []domain.Claim
+	for _, id := range ids {
+		c, ok := byID[id]
+		if !ok {
+			return nil, fmt.Errorf("claim %s が見つからない（_pending の claim は対象外）", id)
+		}
+		targets = append(targets, c)
+	}
+	return targets, nil
+}
+
+func (s *ReverseService) reverseOne(ctx context.Context, c domain.Claim) domain.ReverseResult {
+	res, excerpt, ok := s.prepare(ctx, c)
+	if !ok {
 		return res
 	}
 
@@ -112,12 +99,18 @@ func (s *ReverseService) reverseOne(ctx context.Context, c domain.Claim) domain.
 	}
 	res.Restated = restated
 
-	cmp, err := s.Reverser.Compare(ctx, restated, snap.Excerpt)
+	cmp, err := s.Reverser.Compare(ctx, restated, excerpt)
+	settleCompare(&res, cmp, err)
+	return res
+}
+
+// settleCompare は比較の結果（または失敗）を res に反映する。
+func settleCompare(res *domain.ReverseResult, cmp domain.Comparison, err error) {
 	if err != nil {
 		// 解釈できない応答を一致とみなすと、確認していないのに通ってしまう
 		res.Status = domain.ReverseError
 		res.Detail = fmt.Sprintf("比較に失敗: %v", err)
-		return res
+		return
 	}
 	res.Differences = cmp.Differences
 	if cmp.Match {
@@ -125,5 +118,39 @@ func (s *ReverseService) reverseOne(ctx context.Context, c domain.Claim) domain.
 	} else {
 		res.Status = domain.ReverseMismatch
 	}
-	return res
+}
+
+// prepare は LLM に渡す前の判定。テキストを持たない・読めない claim は ok=false で、res に skipped / error が入る。
+// ok=true のとき excerpt は元の仕様の抜粋。
+func (s *ReverseService) prepare(ctx context.Context, c domain.Claim) (res domain.ReverseResult, excerpt string, ok bool) {
+	res = domain.ReverseResult{ID: c.ID, Title: c.Title}
+	if !textSources[c.Source.Type] {
+		res.Status = domain.ReverseSkipped
+		res.Detail = fmt.Sprintf("source type %s はテキストを持たないので比べられない", c.Source.Type)
+		return res, "", false
+	}
+	ad, found := s.Adapters[c.Source.Type]
+	if !found {
+		res.Status = domain.ReverseSkipped
+		res.Detail = fmt.Sprintf("source type %s の adapter が未登録", c.Source.Type)
+		return res, "", false
+	}
+	snap, err := ad.Snapshot(ctx, c.Source.Ref)
+	if err != nil {
+		res.Status = domain.ReverseError
+		res.Detail = fmt.Sprintf("仕様を読めない: %v", err)
+		return res, "", false
+	}
+	res.Spec = snap.Location
+	if snap.Skipped != "" {
+		res.Status = domain.ReverseSkipped
+		res.Detail = "仕様を読めない: " + snap.Skipped
+		return res, "", false
+	}
+	if snap.Excerpt == "" {
+		res.Status = domain.ReverseSkipped
+		res.Detail = "仕様の抜粋が空"
+		return res, "", false
+	}
+	return res, snap.Excerpt, true
 }

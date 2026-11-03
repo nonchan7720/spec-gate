@@ -134,39 +134,6 @@ func newCoverageCmd(a **app) *cobra.Command {
 	}
 }
 
-func newExtractCmd(a **app) *cobra.Command {
-	var runs int
-	var srcType string
-	cmd := &cobra.Command{
-		Use:   "extract <ref>",
-		Short: "仕様から claim 候補を N 回独立に抽出し、一致数つきで claims/_pending/ に置く（合議）",
-		Long: `例:
-  spec-gate extract docs/spec/rounding.md#端数処理
-  spec-gate extract --type mermaid docs/arch/layers.mmd --runs 5
-
-抽出コマンドは環境変数 SPEC_GATE_EXTRACT_CMD で差し替え可（既定: claude -p）。`,
-		Args: cobra.ExactArgs(1),
-		RunE: func(cmd *cobra.Command, args []string) error {
-			cands, err := (*a).extract.Extract(cmd.Context(), domain.SourceType(srcType), args[0], runs)
-			if err != nil {
-				return err
-			}
-			for _, c := range cands {
-				flag := "  "
-				if c.Agreements < (c.Runs+1)/2 {
-					flag = "? "
-				}
-				fmt.Printf("%s%d/%d  %-12s %s\n      → %s\n", flag, c.Agreements, c.Runs, c.Claim.ID, c.Claim.Title, c.Path)
-			}
-			fmt.Printf("\n%d candidates. 「?」は過半数に満たない（要確認）。承認は内容を見て claims/<領域>/ へ移してから approve。\n", len(cands))
-			return nil
-		},
-	}
-	cmd.Flags().IntVar(&runs, "runs", 3, "独立抽出の回数")
-	cmd.Flags().StringVar(&srcType, "type", "markdown", "source type (markdown|mermaid|figma|image)")
-	return cmd
-}
-
 func newPlanCmd(a **app) *cobra.Command {
 	var by string
 	plan := &cobra.Command{Use: "plan", Short: "プランファイルの操作"}

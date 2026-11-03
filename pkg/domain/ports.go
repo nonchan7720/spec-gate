@@ -99,3 +99,36 @@ type Reverser interface {
 	// Compare は再生成した仕様文と元の仕様テキストを比べる。
 	Compare(ctx context.Context, restated, original string) (Comparison, error)
 }
+
+// LLMWorkspace は LLM 処理をサブエージェントに委譲するときの作業ディレクトリ（.spec-gate-llm/）。
+// パスはプロジェクトルートからの相対（区切りは /）。
+type LLMWorkspace interface {
+	// Write は rel にファイルを書く（親ディレクトリも作る）。
+	Write(rel, content string) error
+	// Read は rel を読む。無ければ ok=false（error ではない）。
+	Read(rel string) (content string, ok bool, err error)
+	// Abs は rel の絶対パス。プロンプトに回答の書き先として書く。
+	Abs(rel string) string
+	// RemoveAll は rel 以下を消す。
+	RemoveAll(rel string) error
+}
+
+// ExtractPrompter は抽出のプロンプトの組み立てと回答の解釈（LLM は呼ばない）。
+type ExtractPrompter interface {
+	// Prompt は抽出のルールと仕様の抜粋をすべて含んだプロンプトを返す。
+	Prompt(ref, excerpt string) string
+	// Parse は回答から claim 候補を読む。source.ref は ref にそろえる。
+	Parse(answer, ref string) ([]Claim, error)
+}
+
+// ReversePrompter は逆変換のプロンプトの組み立てと回答の解釈（LLM は呼ばない）。
+type ReversePrompter interface {
+	// RestatePrompt は claim の内容だけ（元の仕様は含めない）から仕様文を書き起こさせるプロンプト。
+	RestatePrompt(c Claim) (string, error)
+	// ParseRestate は再生成の回答から仕様文を取り出す。空なら error。
+	ParseRestate(answer string) (string, error)
+	// ComparePrompt は再生成した仕様文と元の仕様を比べさせるプロンプト。
+	ComparePrompt(restated, original string) string
+	// ParseCompare は比較の回答を読む。読めなければ error（一致とはみなさない）。
+	ParseCompare(answer string) (Comparison, error)
+}

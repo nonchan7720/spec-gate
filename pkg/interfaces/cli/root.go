@@ -11,6 +11,7 @@ import (
 	"github.com/nonchan7720/spec-gate/pkg/infrastructure/checker"
 	"github.com/nonchan7720/spec-gate/pkg/infrastructure/claimrepo"
 	"github.com/nonchan7720/spec-gate/pkg/infrastructure/extractor"
+	"github.com/nonchan7720/spec-gate/pkg/infrastructure/llmwork"
 	"github.com/nonchan7720/spec-gate/pkg/infrastructure/planfile"
 	"github.com/nonchan7720/spec-gate/pkg/infrastructure/sourceregistry"
 	"github.com/nonchan7720/spec-gate/pkg/infrastructure/vcs"
@@ -30,6 +31,8 @@ type app struct {
 	claims   domain.ClaimRepository
 	// adapters は source type ごとの仕様の読み方。サービスを組み立てるコマンド（reverse など）が共有する
 	adapters map[domain.SourceType]domain.SourceAdapter
+	// work は LLM 処理をサブエージェントに委譲するときの作業ディレクトリ（.spec-gate-llm/）
+	work domain.LLMWorkspace
 }
 
 type utcClock struct{}
@@ -64,9 +67,13 @@ func newApp(root string) *app {
 		}
 		return set, nil
 	}
-	extractCmd := os.Getenv("SPEC_GATE_EXTRACT_CMD")
-	if extractCmd == "" {
-		extractCmd = "claude -p"
+	work := llmwork.New(root)
+	extract := &services.ExtractService{
+		Claims: claims, Adapters: adapters, Prompter: extractor.Prompter{}, Work: work,
+	}
+	// LLM を直接呼ぶのは環境変数でコマンドを指定したときだけ（意図せず LLM を呼ばない）
+	if cmd := os.Getenv("SPEC_GATE_EXTRACT_CMD"); cmd != "" {
+		extract.Extractor = extractor.ClaudeCLI{Command: cmd}
 	}
 
 	return &app{
@@ -79,12 +86,10 @@ func newApp(root string) *app {
 		},
 		approve:  &services.ApproveService{Claims: claims, Adapters: adapters, Clock: utcClock{}},
 		coverage: &services.CoverageService{Claims: claims, Sources: sourceregistry.New(root), Adapters: adapters},
-		extract: &services.ExtractService{
-			Claims: claims, Adapters: adapters,
-			Extractor: extractor.ClaudeCLI{Command: extractCmd, PromptFile: filepath.Join(root, "pkg/infrastructure/extractor/prompt.md")},
-		},
-		plan:   &services.PlanService{Plans: plans, Clock: utcClock{}},
-		status: &services.StatusService{Claims: claims, Plans: plans},
+		extract:  extract,
+		work:     work,
+		plan:     &services.PlanService{Plans: plans, Clock: utcClock{}},
+		status:   &services.StatusService{Claims: claims, Plans: plans},
 	}
 }
 
