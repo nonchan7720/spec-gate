@@ -11,6 +11,8 @@ bin/
 .spec-gate/generated/
 # extract / reverse をサブエージェントに委譲するときのプロンプトと回答（collect が終わったら消える）
 .spec-gate-llm/
+# 通り方のログ（check --hook が追記する。spec-gate trace で要約）
+.spec-gate/trace.jsonl
 test-results/
 
 # 人間の引き継ぎメモ（リポジトリには入れない）
