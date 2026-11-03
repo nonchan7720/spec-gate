@@ -103,7 +103,8 @@ func Execute() {
   approve  → 人間が承認し、仕様のハッシュを凍結
   check    → 承認 → ドリフト → 種類別チェック → プランの verify を実行
   coverage → 仕様のうち claim に紐づかない箇所を列挙
-  reverse  → claim だけから仕様文を再生成し、原文と食い違いがないかを突き合わせる（逆変換）`,
+  reverse  → claim だけから仕様文を再生成し、原文と食い違いがないかを突き合わせる（逆変換）
+  review   → _pending の候補をローカルの Web ページで平易に並べ、人間が承認する（承認 UI）`,
 		Version:       version.Version,
 		SilenceUsage:  true,
 		SilenceErrors: true,

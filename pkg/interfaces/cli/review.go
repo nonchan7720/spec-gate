@@ -36,7 +36,7 @@ approve と同じ手順（lint・仕様のハッシュ記録）で承認する�
 				return err
 			}
 			repo := claimrepo.New((*a).root)
-			svc := &services.ReviewService{Pending: repo, Adapters: (*a).approve.Adapters, Approver: (*a).approve}
+			svc := &services.ReviewService{Pending: repo, Adapters: (*a).adapters, Approver: (*a).approve}
 			srv := &http.Server{Handler: review.New(svc, by), ReadHeaderTimeout: 10 * time.Second}
 
 			ctx, stop := signal.NotifyContext(cmd.Context(), os.Interrupt, syscall.SIGTERM)
