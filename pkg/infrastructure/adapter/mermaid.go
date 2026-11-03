@@ -20,9 +20,35 @@ func NewMermaid(root string) *Mermaid { return &Mermaid{root: root} }
 
 func (Mermaid) Type() domain.SourceType { return domain.SourceMermaid }
 
-// `a --> b`, `a -.-> b`, `a ==> b`, `a -- text --> b`, `a -->|text| b` などに対応。
+// `a --> b`, `a -.-> b`, `a ==> b`, `a -- text --> b`, `a -->|text| b` と、その連鎖 `a --> b --> c` に対応。
 // ノードは `id[label]` / `id(label)` / `id{label}` 形式を許し id だけを取る。
-var edgeRe = regexp.MustCompile(`^\s*([A-Za-z0-9_]+)(?:[\[\(\{][^\]\)\}]*[\]\)\}])?\s*(?:-{1,3}[^-=>]*)?(?:-{2,}|={2,}|-\.-?)>\s*(?:\|[^|]*\|)?\s*([A-Za-z0-9_]+)`)
+var (
+	nodeRe  = regexp.MustCompile(`^\s*([A-Za-z0-9_]+)(?:[\[\(\{][^\]\)\}]*[\]\)\}])?`)
+	arrowRe = regexp.MustCompile(`^\s*(?:-{1,3}[^-=>]*)?(?:-{2,}|={2,}|-\.-?)>\s*(?:\|[^|]*\|)?`)
+)
+
+// lineEdges は 1 行のエッジ（連鎖なら全部）を "from -> to" で返す。
+func lineEdges(line string) []string {
+	m := nodeRe.FindStringSubmatchIndex(line)
+	if m == nil {
+		return nil
+	}
+	prev, rest := line[m[2]:m[3]], line[m[1]:]
+	var out []string
+	for {
+		a := arrowRe.FindStringIndex(rest)
+		if a == nil {
+			return out
+		}
+		n := nodeRe.FindStringSubmatchIndex(rest[a[1]:])
+		if n == nil {
+			return out
+		}
+		next := rest[a[1]+n[2] : a[1]+n[3]]
+		out = append(out, prev+" -> "+next)
+		prev, rest = next, rest[a[1]+n[1]:]
+	}
+}
 
 // Edges は "from -> to" の整列済みリストを返す。
 func (m *Mermaid) Edges(ref string) ([]string, error) {
@@ -35,8 +61,8 @@ func (m *Mermaid) Edges(ref string) ([]string, error) {
 		if strings.HasPrefix(strings.TrimSpace(line), "%%") {
 			continue
 		}
-		if mt := edgeRe.FindStringSubmatch(line); mt != nil {
-			set[mt[1]+" -> "+mt[2]] = true
+		for _, e := range lineEdges(line) {
+			set[e] = true
 		}
 	}
 	out := make([]string, 0, len(set))

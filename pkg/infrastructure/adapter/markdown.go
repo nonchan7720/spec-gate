@@ -67,6 +67,24 @@ func (m *Markdown) sections(file string) ([]section, error) {
 	return out, nil
 }
 
+// withSubsections は secs[i] の本文に、同じかより浅いレベルの次の見出しまでの小見出し（とその本文）を足す。
+// 小見出しの中も仕様の一部なので、そこが変わったら親の節も stale にする。小見出しが無ければ本文そのまま。
+func withSubsections(secs []section, i int) string {
+	var b strings.Builder
+	b.WriteString(secs[i].body)
+	for _, sub := range secs[i+1:] {
+		if sub.level <= secs[i].level {
+			break
+		}
+		b.WriteString(strings.Repeat("#", sub.level))
+		b.WriteString(" ")
+		b.WriteString(sub.heading)
+		b.WriteString("\n")
+		b.WriteString(sub.body)
+	}
+	return b.String()
+}
+
 func (m *Markdown) Snapshot(_ context.Context, ref string) (domain.Snapshot, error) {
 	file, anchor := SplitRef(ref)
 	if anchor == "" {
@@ -81,11 +99,12 @@ func (m *Markdown) Snapshot(_ context.Context, ref string) (domain.Snapshot, err
 		return domain.Snapshot{Skipped: fmt.Sprintf("ファイルが読めない: %v", err)}, nil
 	}
 	var names []string
-	for _, s := range secs {
+	for i, s := range secs {
 		if s.heading == anchor {
+			body := withSubsections(secs, i)
 			return domain.Snapshot{
-				Hash:     sha(normalize(s.heading + "\n" + s.body)),
-				Excerpt:  strings.TrimSpace(s.body),
+				Hash:     sha(normalize(s.heading + "\n" + body)),
+				Excerpt:  strings.TrimSpace(body),
 				Location: fmt.Sprintf("%s:%d", file, s.line),
 			}, nil
 		}

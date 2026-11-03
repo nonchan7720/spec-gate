@@ -175,8 +175,9 @@ TS / Go / Python どれでも同じ claim で検証できる。
 1. claim の各層が `.depgraph.yml` の `layers` に同名であり、同じディレクトリ（`<dir>/**`）を指すこと
 2. claim の層の全順序対 A→B について、図で許可された依存（claim の `forbidden` を除く）は depgraph が禁止しておらず、
    許可されていない依存は depgraph が禁止していること
-3. 一致していれば `depgraph gate --fail-on error`（`SPEC_GATE_DEPGRAPH_CMD` で差し替え可）を実行し、非0 なら fail。
-   depgraph が未インストール、またはストア未起動などで判定できずに通したときは unverified
+3. 一致していれば `depgraph scan --root . --claude-md ''`（`SPEC_GATE_DEPGRAPH_CMD` で差し替え可）で今のツリーを全件スキャンし、
+   claim の層どうしの `layer-violation` が 1 件でもあれば fail（セッション前からある違反も含む。CLAUDE.md は書き換えない）。
+   depgraph が未インストール、Neo4j に届かない、スキャンが完了しないときは unverified
 
 ### source adapter
 
@@ -219,8 +220,8 @@ docs/spec/rounding.md#端数処理 から読み取った主張
 
 - **claim が正しいかは最終的に人間が決める**。合議・lint・coverage は「間違いを人間の前で減らす」
   工夫であって保証ではない。本番でバグが出たら claim に遡って直す（claim の誤り / 欠落 / check の弱さ）
-- `structure` の依存違反の検出は depgraph の `gate` に依存する。depgraph の gate は「セッション中に増えた問題」だけを
-  fail にするので、既存の違反は depgraph 側の `check` / UI で確認する
+- `structure` の依存違反の検出は depgraph の全件スキャンに依存する。claim の層以外（循環・重複など）の負債は
+  gate の `depgraph gate`（セッションで増えた分だけ）と depgraph の UI で見る
 - `ui` の strings 検証は Storybook/アプリが起動している前提で `--ui` を付ける。CI でやるなら別ジョブ
 - `extract` は `claude -p` を前提にしている。`SPEC_GATE_EXTRACT_CMD` で差し替え可
 - 逆変換（claim → 仕様文を再生成して原文と diff）は未実装。合議と lint の次に入れる候補
