@@ -44,6 +44,11 @@ func (s *CoverageService) Report(ctx context.Context) (CoverageReport, error) {
 	refs := map[string]bool{}
 	for _, c := range claims {
 		rep.ByKind[c.Kind]++
+		// structure claim は図ファイル全体を source にするが、検証できるのは layers に含まれるエッジだけ。
+		// ここで全体カバー扱いにすると、層に無いエッジの抜けが見えなくなる（coveredByStructure で判定する）
+		if c.Kind == domain.KindStructure && c.Source.Type == domain.SourceMermaid {
+			continue
+		}
 		refs[c.Source.Ref] = true
 	}
 
