@@ -24,6 +24,31 @@ func manual(id string) string {
 	return "id: " + id + "\nkind: manual\ntitle: t\nsource:\n  type: markdown\n  ref: docs/spec.md#a\n"
 }
 
+func TestDecodeClaim_FuzzAndRelations(t *testing.T) {
+	c, err := decodeClaim([]byte(`id: FZ-1
+kind: example
+title: t
+source: {type: markdown, ref: spec.md#x}
+binding: cmd
+properties: [isInteger(output)]
+fuzz:
+  runs: 100
+  seed: 42
+  input: {type: number, min: -1000, max: 1000.5}
+relations:
+  - f(x + 1) == f(x) + 1
+`))
+	if err != nil {
+		t.Fatal(err)
+	}
+	if c.Fuzz == nil || c.Fuzz.Runs != 100 || *c.Fuzz.Seed != 42 || *c.Fuzz.Input.Min != -1000 || *c.Fuzz.Input.Max != 1000.5 || len(c.Relations) != 1 {
+		t.Fatalf("fuzz / relations を読む: %+v", c)
+	}
+	if err := c.Validate(); err != nil {
+		t.Fatal(err)
+	}
+}
+
 func TestAll_SortedAndSkipsPending(t *testing.T) {
 	root := t.TempDir()
 	writeFile(t, root, "claims/spec/B.yaml", manual("B-1"))
