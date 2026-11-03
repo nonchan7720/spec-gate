@@ -19,7 +19,8 @@ enforce:
     severity: deny
     message: 'claims/**（_pending 以外）と .spec-gate/ はシェル経由でも書き換え禁止。'
   - event: pre_bash
-    when: '(spec-gate|go\s+run\s+\S+)\s+(approve|plan\s+freeze)\b'
+    # コマンドの先頭（行頭・; & | ( の直後）で実行されたときだけ。mise exec / pnpm gate 経由も含む
+    when: '(^|[\n;&|(]\s*)(mise\s+(exec|x)\s+--\s+)?((\S*/)?spec-gate|go\s+run\s+\S+|(pnpm|npm\s+run)\s+gate(\s+--)?)\s+(approve|plan\s+freeze)\b'
     severity: deny
     message: 'claim の承認（approve）とプランの凍結（plan freeze）は人間の操作。エージェントは実行せず、ユーザーに依頼すること。'
 ---
