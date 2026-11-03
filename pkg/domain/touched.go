@@ -11,6 +11,15 @@ type PathChecker interface {
 	Exists(path string) bool
 }
 
+// DependencyResolver は触るパスが依存するパスを答える（ポート）。変更検知で、binding が呼び出す先の
+// 実装の変更を見逃さないために使う。
+type DependencyResolver interface {
+	// Deps は、リポジトリのルートからの相対パス path が Go パッケージのディレクトリ（または Go ファイル）なら、
+	// そのパッケージが直接・間接に import するモジュール内のパッケージのディレクトリ（ルートからの相対パス）を返す。
+	// Go でないパスや、依存を調べられないときは何も返さない。
+	Deps(path string) []string
+}
+
 // IsTouched は、変更ファイル changed が claim の触るパス touches に関係するかを判定する。
 // 実在の確認は済んでいる前提の純粋関数。見逃しを避ける側に倒す。
 //

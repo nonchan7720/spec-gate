@@ -21,6 +21,8 @@ type CheckService struct {
 	Changes  domain.ChangeDetector
 	// Paths は binding の語がリポジトリに実在するかを答える（--changed 用）。nil なら実在を確かめずに語をすべて拾う。
 	Paths domain.PathChecker
+	// Deps は触るパスが import するモジュール内のパッケージを答える（--changed 用）。nil なら依存は加えない。
+	Deps domain.DependencyResolver
 	// DiagramEdges は structure の from-diagram 用に、mermaid ref からエッジ集合を返す。
 	DiagramEdges func(ref string) (map[string]bool, error)
 }
@@ -222,9 +224,13 @@ func (s *CheckService) filter(ctx context.Context, claims []domain.Claim, req Ch
 	if s.Paths != nil {
 		exists = s.Paths.Exists
 	}
+	var deps func(string) []string
+	if s.Deps != nil {
+		deps = s.Deps.Deps
+	}
 	var out []domain.Claim
 	for _, c := range claims {
-		if touched(c, changed, exists) {
+		if touched(c, changed, exists, deps) {
 			out = append(out, c)
 		}
 	}
@@ -233,9 +239,16 @@ func (s *CheckService) filter(ctx context.Context, claims []domain.Claim, req Ch
 
 // touched は claim が触るパス（binding の実在する語・story・layers・仕様ファイル・claim ファイル）の
 // どれかに、変更ファイルのどれかが関係するか。判定そのものは domain.IsTouched。
-func touched(c domain.Claim, changed []string, exists func(string) bool) bool {
+// deps があれば、触るパスが import するモジュール内のパッケージも触るパスに加える（元のパスは外さない）。
+func touched(c domain.Claim, changed []string, exists func(string) bool, deps func(string) []string) bool {
 	srcFile, _ := splitRef(c.Source.Ref)
-	paths := append(c.Touches(exists), srcFile, c.File)
+	paths := c.Touches(exists)
+	if deps != nil {
+		for _, p := range paths {
+			paths = append(paths, deps(p)...)
+		}
+	}
+	paths = append(paths, srcFile, c.File)
 	for _, ch := range changed {
 		if domain.IsTouched(paths, filepath.ToSlash(ch)) {
 			return true

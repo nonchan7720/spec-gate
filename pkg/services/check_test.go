@@ -237,6 +237,50 @@ func TestCheck_ChangedFiltersByTouchedFiles(t *testing.T) {
 	})
 }
 
+// binding が呼び出す先の実装（binding のパッケージが import するモジュール内のパッケージ）の変更も見逃さない。
+func TestCheck_ChangedSelectsByImportedPackages(t *testing.T) {
+	snaps := map[string]domain.Snapshot{"docs/a/spec.md#x": {Hash: "h"}, "docs/b/spec.md#x": {Hash: "h"}}
+	a := mdClaim("A", "docs/a/spec.md#x", domain.KindExample, approved("h"))
+	a.Binding = "go run ./tools/bind relink"
+	b := mdClaim("B", "docs/b/spec.md#x", domain.KindExample, approved("h"))
+	b.Binding = "go run ./tools/other"
+	claims := []domain.Claim{a, b}
+	paths := fakePaths{"tools/bind": true, "tools/other": true}
+	results := map[string]domain.Status{"A": domain.StatusPass, "B": domain.StatusPass}
+
+	cases := []struct {
+		name    string
+		deps    domain.DependencyResolver
+		changed []string
+		want    string
+	}{
+		{"import するパッケージの変更", fakeDeps{"tools/bind": {"pkg/domain"}}, []string{"pkg/domain/relink.go"}, "A"},
+		{"間接に import するパッケージの変更", fakeDeps{"tools/bind": {"pkg/domain", "pkg/version"}}, []string{"pkg/version/v.go"}, "A"},
+		{"import しないパッケージの変更は対象外", fakeDeps{"tools/bind": {"pkg/domain"}}, []string{"pkg/services/x.go"}, ""},
+		{"依存を答えられなくても元の触るパスは外さない", fakeDeps{}, []string{"tools/bind/main.go"}, "A"},
+		{"依存を調べないなら依存の変更は拾わない", nil, []string{"pkg/domain/relink.go"}, ""},
+	}
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			s, _ := newCheck(claims, snaps, results)
+			s.Changes = fakeChanges{files: tc.changed}
+			s.Paths = paths
+			s.Deps = tc.deps
+			rep, err := s.Run(context.Background(), CheckRequest{Changed: true})
+			if err != nil {
+				t.Fatal(err)
+			}
+			var got []string
+			for _, r := range rep.Claims {
+				got = append(got, r.ID)
+			}
+			if strings.Join(got, ",") != tc.want {
+				t.Fatalf("got %q, want %q", strings.Join(got, ","), tc.want)
+			}
+		})
+	}
+}
+
 func TestCheck_Plans(t *testing.T) {
 	frozen := planWith("plans/ok.md", "true", "false && boom")
 	frozen.Status = "active"
