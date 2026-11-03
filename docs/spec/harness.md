@@ -41,7 +41,8 @@ binding: `go run ./tools/bind holdout-summary`（入力は holdout の判定結�
 実装ファイルに、claim の examples・holdout の値がそのまま書き込まれていないかを検知する。
 
 - `spec-gate leak <file>...` は、指定ファイルの内容に examples・holdout の in / out の値が現れるかを調べ、見つかれば値と行番号を出して exit 1
-- 数値は「数字が 3 桁以上」のものだけを対象にする（0・1・10 のようなありふれた値で誤検知しない）。1234.56 は 1234.56 という表記で現れたときに検知する
+- 数値は「数字が 3 桁以上」のものだけを対象にする（0・1・10 のようなありふれた値で誤検知しない）。桁は符号と小数点を除いた数字（0〜9）の個数で数える（1.25 は 3 桁、-12 は 2 桁）
+- 数値は、前後が数字・小数点・英字でない位置に、その値の表記がそのまま現れたときだけ検知する（1234.56 の中の 1234 は 1234 として数えない）
 - 文字列は 4 文字以上のものだけを対象にする
 - テストファイル（`_test.go`、`.test.ts`、`.spec.ts`）と `claims/`・`holdout/`・`docs/` は対象外
 - hook-gate の `post_edit` から実装ファイルの編集ごとに呼び、見つかったら警告する
@@ -61,7 +62,8 @@ examples の数件だけを満たす実装を落とすため、properties をラ
 
 - claim に `fuzz:` を書くと、`check` はその回数だけ入力を生成して binding に流し、properties を評価する
 - `fuzz:` には回数（`runs`）と入力の範囲（`input.type`: number / integer、`input.min`、`input.max`）を書く
-- 入力の生成は乱数の種（`seed`）で決まり、同じ種なら同じ入力列になる。種を省略したら claim ID から決める
+- `input.min` と `input.max` は範囲の両端を含む
+- 入力の生成は乱数の種（`seed`）で決まり、同じ種なら同じ入力列になる。種を省略したら claim ID の FNV-1a（64 bit）を種にする
 - properties を満たさない入力が見つかったら fail にし、その入力（反例）を出す
 - メタモルフィック関係（例: `f(x + 1) == f(x) + 1`）を `relations:` に書ける。`f` は binding の呼び出しを表し、生成した各入力 x について評価する
 
@@ -79,7 +81,11 @@ binding: `go run ./tools/bind relation`（入力は `{"relation": 式, "values":
 - `spec-gate plan mutate <plans/x.md>` は、プランの claims が触るファイル（binding のパス・layers・story）に変異を 1 か所ずつ入れて verify を実行し、落ちた変異の割合（mutation score）を出す
 - 変異を入れたファイルは、成功・失敗・中断に関わらず必ず元に戻す
 - プランの front matter に `mutation: 0.8` のように閾値を書くと、`plan freeze` は score が閾値未満なら凍結を拒否する
-- 変異の種類は次のとおり（1 回に 1 か所だけ変える）
+- 変異の種類は次の一覧で全部とする（1 回に 1 か所だけ変える。文字列リテラルとコメントの中は変えない）
+  - 算術: `+` → `-`、`-` → `+`、`*` → `/`、`/` → `*`
+  - 比較: `>` → `>=` と `<`、`<` → `<=` と `>`、`>=` → `>`、`<=` → `<`、`==` → `!=`、`!=` → `==`
+  - 整数リテラル: 2 以上の整数 n → n+1（0 と 1 は添字や真偽に使われやすいので変えない）
+- 変異が 1 件も作れないときは score を出さず、閾値が書かれたプランの凍結は拒否する（検証できないものを通さない）
 
 binding: `go run ./tools/bind mutate`（入力はコード 1 行、出力はその行に 1 か所だけ変異を入れた行の配列）
 
@@ -139,7 +145,8 @@ binding: `go run ./tools/bind role-filter`（入力は `{"role": 役割, "result
 仕様の見出しが変わって claim の参照先が見つからないとき、近い見出しを提案する。
 
 - claim の `source.ref` の見出しが仕様に無いとき、`check` の fail の説明に、最も近い見出しを「もしかして」として添える
-- 近さは見出しの文字列の編集距離（文字単位）で測り、距離が見出しの長さの半分以下のものだけを提案する
+- 近さは見出しの文字列の編集距離（文字単位）で測り、距離が見つからない見出しの文字数の半分以下のものだけを提案する
+- 距離が同じ候補が複数あるときは、仕様の中で先に現れる見出しを提案する
 - 提案だけで、claim は書き換えない（claim の修正は人間が行う）
 
 binding: `go run ./tools/bind relink`（入力は `{"missing": 見出し, "headings": 見出しの配列}`、出力は提案する見出し、無ければ null）
@@ -172,7 +179,8 @@ binding: `go run ./tools/bind touched`（入力は `{"touches": パスの配列,
 claim がどう通ったかを記録し、無理やり通した形跡を人間が見られるようにする。
 
 - `check --hook` を実行するたびに、claim ごとの判定を `.spec-gate/trace.jsonl` に 1 行ずつ追記する（時刻・claim id・status・その時点の変更行数）
-- `spec-gate trace` は claim ごとに、pass になる前の連続 fail 回数と、pass になったときの変更行数を出す
+- 変更行数は `git diff --numstat HEAD` の追加行と削除行の合計とする。git リポジトリでなければ 0
+- `spec-gate trace` は claim ごとに、最後に pass になったときについて、その直前の連続 fail 回数と、その pass の時点の変更行数を出す
 - `.spec-gate/trace.jsonl` は git の管理対象外にする
 
 binding: `go run ./tools/bind trace-summary`（入力は 1 つの claim の判定履歴（古い順）、出力は `{"fails_before_pass": 回数, "lines_at_pass": 行数}`。pass していなければ null）
@@ -209,3 +217,4 @@ binding: `go run ./tools/bind llm-paths`（入力は `{"ref": ref, "runs": 回�
 
 - 2026-11-04 初版
 - 2026-11-04 LLM 処理のサブエージェント委譲を追加
+- 2026-11-04 合議抽出で【要確認】になった箇所（漏れ検知の桁数、乱数の種と範囲、変異の一覧、再リンクの長さと同点、変更行数と pass の基準）を確定
