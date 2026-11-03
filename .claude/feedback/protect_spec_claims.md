@@ -23,6 +23,17 @@ enforce:
     when: '(^|[\n;&|(]\s*)(mise\s+(exec|x)\s+--\s+)?((\S*/)?spec-gate|go\s+run\s+\S+|(pnpm|npm\s+run)\s+gate(\s+--)?)\s+(approve|plan\s+freeze)\b'
     severity: deny
     message: 'claim の承認（approve）とプランの凍結（plan freeze）は人間の操作。エージェントは実行せず、ユーザーに依頼すること。'
+  - event: pre_bash
+    # review record は PostToolUse hook（ハーネス）だけが起動する。直接実行すると偽の stdin で承認できてしまう。
+    # コマンドの位置（行頭・; & | ( の直後・sh -c の引数の先頭）で実行されたときだけ。環境変数・env・mise exec・-C/--root を挟んでも拾う
+    when: '(^|[\n;&|(]\s*|\b(ba|z)?sh\s+-c\s+["'']\s*)(\w+=\S*\s+)*(env\s+(\w+=\S*\s+)*)?(mise\s+(exec|x)\s+--\s+)?((\S*/)?spec-gate|go\s+run\s+\S+|(pnpm|npm\s+run)\s+gate(\s+--)?)((\s+(-C|--root)(\s+|=)\S+)*)\s+review((\s+(-C|--root)(\s+|=)\S+)*)\s+record\b'
+    severity: deny
+    message: 'spec-gate review record はリモート承認の PostToolUse hook 専用（ハーネスが AskUserQuestion の回答を渡す）。エージェントが直接実行してはいけない。承認は review ask の結果で AskUserQuestion を出し、ユーザーに選んでもらうこと。'
+  - event: pre_bash
+    # 承認画面（spec-gate review）の変更系 API をシェルから叩かない。curl などがコマンドの位置にあるときだけ（grep や git log の検索語は対象外）
+    when: '(^|[\n;&|(]\s*)(\w+=\S*\s+)*((curl|wget|https?|xh|xhs)\s[^\n;&|]*|(python3?|node|deno|bun|ruby|perl)\s[^\n]*)/api/(approve|reject|ambiguous)\b'
+    severity: deny
+    message: '承認画面の /api/approve・/api/reject・/api/ambiguous は人間がブラウザで押すためのもの。エージェントがシェルから叩いてはいけない。ユーザーに依頼すること。'
 ---
 
 承認済みの claim（`claims/**`、`_pending/` を除く）とハーネスの状態（`.spec-gate/`）はエージェントが書き換えない。

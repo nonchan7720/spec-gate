@@ -1,7 +1,7 @@
 # spec-gate ハーネス拡張仕様
 
 本書は spec-gate 自身に追加する機能（holdout・リテラル漏れ検知・ランダム検証・mutation score・
-CI 出力・役割別レポート・再リンク提案・通り方のログ）の仕様を定める。
+CI 出力・役割別レポート・再リンク提案・通り方のログ・リモート承認）の仕様を定める。
 各節の「binding」は、その節の入出力例を検証するコマンドである（stdin に `{"in": ...}`、stdout に `{"out": ...}`）。
 
 ## 背景
@@ -224,6 +224,44 @@ binding: `go run ./tools/bind llm-paths`（入力は `{"ref": ref, "runs": 回�
 | `{"ref": "docs/spec/rounding.md#端数処理", "runs": 2}` | `[".spec-gate-llm/extract/docs_spec_rounding.md_端数処理/run-1.prompt.md", ".spec-gate-llm/extract/docs_spec_rounding.md_端数処理/run-2.prompt.md"]` |
 | `{"ref": "docs/arch/layers.mmd", "runs": 1}` | `[".spec-gate-llm/extract/docs_arch_layers.mmd/run-1.prompt.md"]` |
 
+## リモート承認
+
+利用者がスマホなどから Claude Code のリモートセッションだけで操作しているときは、承認画面（`review`）を開けない。
+そこで Claude Code の質問ダイアログ（AskUserQuestion）にボタンと候補の内容を出し、押された結果を PostToolUse hook で
+spec-gate が受け取って反映する。回答はハーネスが作り、hook はハーネスが起動するので、エージェントは回答を偽造できない。
+外部サービス・サーバ・ネットワークは使わない。
+
+**実機未検証**: AskUserQuestion の hook に渡る回答の形は実機で確かめていない。最初の実際の承認で確認する。
+
+- `spec-gate review ask [--limit N]` は `claims/_pending/` の候補から、AskUserQuestion の `questions` にそのまま渡せる JSON 配列を stdout に出す。N は 1〜4（既定 4）で、範囲外はエラー
+  - 質問 1 つが候補 1 つ。question は「候補 <ID> をどうしますか？」、header は候補 ID（12 文字を超えたら先頭 12 文字）、multiSelect は false
+  - 選択肢は「承認」「却下」「曖昧」の 3 つ。各選択肢の description に操作の意味を平易に書き、preview に候補の内容（タイトル・仕様の場所・種類・例の入出力の表・確かめるコマンドなど）を Markdown で書く。3 つとも同じ preview
+  - 読めない候補と、同じ ID が複数のファイルにある候補は出さない（stderr に案内）。候補が無ければ `[]` を出し、stderr に案内する
+- `spec-gate review record` は PostToolUse hook（matcher `AskUserQuestion`）から呼ぶ。stdin の hook の JSON（`tool_name`・`tool_input.questions`・`tool_response`）を読む
+  - `tool_name` が AskUserQuestion でない、または候補 ID を含む質問が 1 つも無いときは、何も出さずに終わる
+  - 回答は `tool_response` だけから読む: `tool_response.answers`（{質問文: 回答} の map。配列の回答は `, ` でつなぐ）→ 文字列の `tool_response`（`"質問文"="回答"` の並び）。どれでも読めなければ何もしない（stderr に理由）
+  - `tool_input.answers` は使わない。tool_input はエージェントが呼び出し時に埋められる欄で、承認の偽造経路になるため。回答が tool_input にだけあるときは何も反映せず、stderr と additionalContext に「回答が tool_response に無いため反映しない（tool_input の回答は偽造できるので使わない）」と出す
+  - 各質問について question 文から候補 ID を取り、spec-gate がその候補から今作る質問（question・header・multiSelect・選択肢のラベル・description・preview）と、表示された質問が完全に一致するときだけ反映する。一致しない・候補が無い・回答が空の質問は反映しない（エージェントが内容をすり替えた質問を出しても通らない）
+  - 回答が「承認」なら承認画面の承認と同じ処理（`claims/<領域>/` へ移して approve）、「却下」なら却下、「曖昧」なら理由「リモート承認で曖昧と判断（理由未記入）」で曖昧の記録、それ以外（Other の自由入力）ならその文を理由にした曖昧の記録
+  - 反映した判定は `.spec-gate/review-decisions.jsonl` に 1 件 1 行で追記する（時刻・候補 ID・判定・理由・承認者・表示した preview の sha256）。リポジトリには入れない（.gitignore）
+  - 反映結果と反映しなかった理由を、Claude に伝える JSON（`hookSpecificOutput.additionalContext`）として stdout に出す。hook はダイアログの操作を壊さないよう、何があっても exit 0
+- エージェントが `review record` を直接実行すること（偽の stdin で承認できてしまう）と、承認画面の変更系 API（`/api/approve`・`/api/reject`・`/api/ambiguous`）をシェルから叩くことは hook-gate の `pre_bash` で拒否する
+- hook の設定（`.claude/settings.json`）は利用者が自分で書く。エージェントは書き換えない
+
+binding: `go run ./tools/bind remote-decisions`（入力は `{"hook": hook の stdin, "previews": {候補 ID: spec-gate が今作る preview}}`、出力は反映する判定の配列 `[{"id", "verdict", "reason"}]`。verdict は approve / reject / ambiguous、reason は ambiguous のときだけ）
+
+| 入力 | 出力 |
+|---|---|
+| `{"hook": {"tool_name": "AskUserQuestion", "tool_input": {"questions": [{"question": "候補 R-1 をどうしますか？", "header": "R-1", "multiSelect": false, "options": [{"label": "承認", "description": "内容は正しい。このまま仕様として確定する", "preview": "P"}, {"label": "却下", "description": "内容が間違っている。この候補を捨てる", "preview": "P"}, {"label": "曖昧", "description": "仕様がまだ決まっていない。保留として記録する（理由は Other に書ける）", "preview": "P"}]}]}, "tool_response": {"answers": {"候補 R-1 をどうしますか？": "承認"}}}, "previews": {"R-1": "P"}}` | `[{"id": "R-1", "verdict": "approve"}]` |
+| `{"hook": {"tool_name": "AskUserQuestion", "tool_input": {"questions": [{"question": "候補 R-1 をどうしますか？", "header": "R-1", "multiSelect": false, "options": [{"label": "承認", "description": "内容は正しい。このまま仕様として確定する", "preview": "P"}, {"label": "却下", "description": "内容が間違っている。この候補を捨てる", "preview": "P"}, {"label": "曖昧", "description": "仕様がまだ決まっていない。保留として記録する（理由は Other に書ける）", "preview": "P"}]}]}, "tool_response": "User has answered your questions: \"候補 R-1 をどうしますか？\"=\"却下\". You can now continue with the user's answers in mind."}, "previews": {"R-1": "P"}}` | `[{"id": "R-1", "verdict": "reject"}]` |
+| `{"hook": {"tool_name": "AskUserQuestion", "tool_input": {"questions": [{"question": "候補 R-1 をどうしますか？", "header": "R-1", "multiSelect": false, "options": [{"label": "承認", "description": "内容は正しい。このまま仕様として確定する", "preview": "P"}, {"label": "却下", "description": "内容が間違っている。この候補を捨てる", "preview": "P"}, {"label": "曖昧", "description": "仕様がまだ決まっていない。保留として記録する（理由は Other に書ける）", "preview": "P"}]}], "answers": {"候補 R-1 をどうしますか？": "曖昧"}}}, "previews": {"R-1": "P"}}` | `[]` |
+| `{"hook": {"tool_name": "AskUserQuestion", "tool_input": {"questions": [{"question": "候補 R-1 をどうしますか？", "header": "R-1", "multiSelect": false, "options": [{"label": "承認", "description": "内容は正しい。このまま仕様として確定する", "preview": "P"}, {"label": "却下", "description": "内容が間違っている。この候補を捨てる", "preview": "P"}, {"label": "曖昧", "description": "仕様がまだ決まっていない。保留として記録する（理由は Other に書ける）", "preview": "P"}]}]}, "tool_response": "User has answered your questions: \"候補 R-1 をどうしますか？\"=\"曖昧\". You can now continue with the user's answers in mind."}, "previews": {"R-1": "P"}}` | `[{"id": "R-1", "verdict": "ambiguous", "reason": "リモート承認で曖昧と判断（理由未記入）"}]` |
+| `{"hook": {"tool_name": "AskUserQuestion", "tool_input": {"questions": [{"question": "候補 R-1 をどうしますか？", "header": "R-1", "multiSelect": false, "options": [{"label": "承認", "description": "内容は正しい。このまま仕様として確定する", "preview": "P"}, {"label": "却下", "description": "内容が間違っている。この候補を捨てる", "preview": "P"}, {"label": "曖昧", "description": "仕様がまだ決まっていない。保留として記録する（理由は Other に書ける）", "preview": "P"}]}]}, "tool_response": {"answers": {"候補 R-1 をどうしますか？": "締め日の扱いが決まっていない"}}}, "previews": {"R-1": "P"}}` | `[{"id": "R-1", "verdict": "ambiguous", "reason": "締め日の扱いが決まっていない"}]` |
+| `{"hook": {"tool_name": "AskUserQuestion", "tool_input": {"questions": [{"question": "候補 R-1 をどうしますか？", "header": "R-1", "multiSelect": false, "options": [{"label": "承認", "description": "内容は正しい。このまま仕様として確定する", "preview": "P"}, {"label": "却下", "description": "内容が間違っている。この候補を捨てる", "preview": "P"}, {"label": "曖昧", "description": "仕様がまだ決まっていない。保留として記録する（理由は Other に書ける）", "preview": "P"}]}]}, "tool_response": {"answers": {"候補 R-1 をどうしますか？": "承認"}}}, "previews": {"R-1": "Q"}}` | `[]` |
+| `{"hook": {"tool_name": "AskUserQuestion", "tool_input": {"questions": [{"question": "候補 R-1 をどうしますか？", "header": "R-1", "multiSelect": false, "options": [{"label": "承認", "description": "内容は正しい。このまま仕様として確定する", "preview": "P"}, {"label": "却下", "description": "内容が間違っている。この候補を捨てる", "preview": "P"}, {"label": "曖昧", "description": "仕様がまだ決まっていない。保留として記録する（理由は Other に書ける）", "preview": "P"}]}]}, "tool_response": {"answers": {"候補 R-1 をどうしますか？": "承認"}}}, "previews": {}}` | `[]` |
+| `{"hook": {"tool_name": "Bash", "tool_input": {"questions": [{"question": "候補 R-1 をどうしますか？", "header": "R-1", "multiSelect": false, "options": [{"label": "承認", "description": "内容は正しい。このまま仕様として確定する", "preview": "P"}, {"label": "却下", "description": "内容が間違っている。この候補を捨てる", "preview": "P"}, {"label": "曖昧", "description": "仕様がまだ決まっていない。保留として記録する（理由は Other に書ける）", "preview": "P"}]}]}, "tool_response": {"answers": {"候補 R-1 をどうしますか？": "承認"}}}, "previews": {"R-1": "P"}}` | `[]` |
+| `{"hook": {"tool_name": "AskUserQuestion", "tool_input": {"questions": [{"question": "候補 R-1 をどうしますか？", "header": "R-1", "multiSelect": false, "options": [{"label": "承認", "description": "内容は正しい。このまま仕様として確定する", "preview": "P"}, {"label": "却下", "description": "内容が間違っている。この候補を捨てる", "preview": "P"}, {"label": "曖昧", "description": "仕様がまだ決まっていない。保留として記録する（理由は Other に書ける）", "preview": "P"}]}]}, "tool_response": {}}, "previews": {"R-1": "P"}}` | `[]` |
+
 ## 変更履歴
 
 - 2026-11-04 初版
@@ -231,3 +269,4 @@ binding: `go run ./tools/bind llm-paths`（入力は `{"ref": ref, "runs": 回�
 - 2026-11-04 合議抽出で【要確認】になった箇所（漏れ検知の桁数、乱数の種と範囲、変異の一覧、再リンクの長さと同点、変更行数と pass の基準）を確定
 - 2026-11-04 変更検知の精度に、触る Go パッケージが import するモジュール内のパッケージも触るパスに加える規則を追加
 - 2026-11-04 holdout の期待値を平文ではなく SHA-256（`out_sha256`）で持つように変更。`spec-gate holdout add` を追加し、properties は check 時に実際の出力で評価、lint は形だけを確かめる。漏れ検知が holdout から調べるのは in だけ
+- 2026-11-04 リモート承認を追加（実機未検証）

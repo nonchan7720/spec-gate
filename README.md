@@ -226,6 +226,48 @@ claim in plain language (examples as a table, layers, screen states and strings)
 file to `claims/spec|arch|ui/` and runs `approve`; when lint or the spec rejects it, the file goes back to `_pending/`
 and the reason is shown. Rejecting deletes the candidate. The page uses no CDN or external resources.
 
+### Remote approval (Claude Code's question dialog)
+
+When you drive Claude Code only through a remote session (for example from a phone), you cannot open that local page.
+Remote approval shows each candidate in Claude Code's question dialog (the `AskUserQuestion` tool) with
+"承認" (approve) / "却下" (reject) / "曖昧" (ambiguous) buttons and a preview of the candidate, and a PostToolUse hook
+hands your answers to spec-gate. The harness produces the answers and starts the hook, so the agent cannot forge
+them. No external service, server or network is involved.
+
+**Not yet verified on a real session**: the shape of the answers passed to the hook has not been checked against a
+live Claude Code session. Check the result after your first real approval.
+
+1. Add the hook to `.claude/settings.json` yourself (the agent must not edit settings files):
+
+   ```json
+   {
+     "hooks": {
+       "PostToolUse": [
+         {
+           "matcher": "AskUserQuestion",
+           "hooks": [{ "type": "command", "command": "spec-gate review record" }]
+         }
+       ]
+     }
+   }
+   ```
+
+2. Ask the agent: "Run `spec-gate review ask` and show its output with AskUserQuestion." `review ask [--limit N]`
+   prints up to 4 candidates from `claims/_pending/` as the `questions` JSON for the dialog (an empty array, with a
+   note on stderr, when there are none).
+3. Pick a button for each candidate. To record the reason the spec is undecided, type it into "Other": free text is
+   recorded as ambiguous with that text as the reason.
+
+`review record` applies an answer only when the question shown is exactly the one spec-gate builds from the
+candidate now (including the preview), so a question whose content the agent altered is ignored. Answers are read
+only from `tool_response`; `tool_input.answers` is never used, because the agent fills `tool_input` itself and could
+forge an approval there (when the answers are only in `tool_input`, nothing is applied). Approve, reject and
+ambiguous go through the same steps as the review page. Applied decisions are appended to
+`.spec-gate/review-decisions.jsonl` (time, candidate id, decision, reason, approver, sha256 of the preview shown), and
+the result is passed back to Claude as `additionalContext`. The hook always exits 0 so it never breaks the dialog.
+hook-gate denies the agent running `review record` itself and calling the review page's `/api/approve`,
+`/api/reject` and `/api/ambiguous` from the shell.
+
 ## Design limits and what is not implemented
 
 - **Whether a claim is right is finally a human decision.** Consensus, lint and coverage reduce mistakes before

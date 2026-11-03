@@ -23,20 +23,25 @@ func New(root string) *JSONL { return &JSONL{path: filepath.Join(root, RelPath)}
 
 // Append は判定を 1 件 1 行で追記する。1 回の書き込みにまとめ、途中の行だけが残りにくくする。
 func (l *JSONL) Append(entries []domain.TraceEntry) error {
-	if len(entries) == 0 {
+	return appendJSONL(l.path, entries)
+}
+
+// appendJSONL は値を 1 件 1 行の JSON にして path に追記する。1 回の書き込みにまとめる。
+func appendJSONL[T any](path string, values []T) error {
+	if len(values) == 0 {
 		return nil
 	}
 	var buf bytes.Buffer
 	enc := json.NewEncoder(&buf)
-	for _, e := range entries {
-		if err := enc.Encode(e); err != nil {
+	for _, v := range values {
+		if err := enc.Encode(v); err != nil {
 			return err
 		}
 	}
-	if err := os.MkdirAll(filepath.Dir(l.path), 0o755); err != nil {
+	if err := os.MkdirAll(filepath.Dir(path), 0o755); err != nil {
 		return err
 	}
-	f, err := os.OpenFile(l.path, os.O_WRONLY|os.O_CREATE|os.O_APPEND, 0o644)
+	f, err := os.OpenFile(path, os.O_WRONLY|os.O_CREATE|os.O_APPEND, 0o644)
 	if err != nil {
 		return err
 	}
