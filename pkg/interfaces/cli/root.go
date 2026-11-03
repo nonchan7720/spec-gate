@@ -28,6 +28,8 @@ type app struct {
 	plan     *services.PlanService
 	status   *services.StatusService
 	claims   domain.ClaimRepository
+	// adapters は source type ごとの仕様の読み方。サービスを組み立てるコマンド（reverse など）が共有する
+	adapters map[domain.SourceType]domain.SourceAdapter
 }
 
 type utcClock struct{}
@@ -68,8 +70,9 @@ func newApp(root string) *app {
 	}
 
 	return &app{
-		root:   root,
-		claims: claims,
+		root:     root,
+		claims:   claims,
+		adapters: adapters,
 		check: &services.CheckService{
 			Claims: claims, Plans: plans, Adapters: adapters, Checkers: checkers,
 			Runner: runner, Changes: vcs.Git{Dir: root}, DiagramEdges: diagramEdges,
@@ -99,7 +102,8 @@ func Execute() {
   lint     → claim の内部整合（examples vs properties、claim 間の矛盾）
   approve  → 人間が承認し、仕様のハッシュを凍結
   check    → 承認 → ドリフト → 種類別チェック → プランの verify を実行
-  coverage → 仕様のうち claim に紐づかない箇所を列挙`,
+  coverage → 仕様のうち claim に紐づかない箇所を列挙
+  reverse  → claim だけから仕様文を再生成し、原文と食い違いがないかを突き合わせる（逆変換）`,
 		Version:       version.Version,
 		SilenceUsage:  true,
 		SilenceErrors: true,

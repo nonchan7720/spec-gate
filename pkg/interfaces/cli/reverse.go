@@ -8,7 +8,6 @@ import (
 	"time"
 
 	"github.com/nonchan7720/spec-gate/pkg/domain"
-	"github.com/nonchan7720/spec-gate/pkg/infrastructure/adapter"
 	"github.com/nonchan7720/spec-gate/pkg/infrastructure/reverser"
 	"github.com/nonchan7720/spec-gate/pkg/services"
 	"github.com/spf13/cobra"
@@ -47,19 +46,16 @@ stdin に prompt を受け取り、stdout に応答を返すコマンドであ�
 	return cmd
 }
 
-// newReverseService は reverse の依存を組み立てる。root.go の newApp を変えずに済むようここで作る。
-// テキストを持つ source（markdown / mermaid）の adapter だけを渡す。figma / image は service 側で skipped になる。
+// newReverseService は reverse の依存を組み立てる。adapter は newApp と共有する。
+// figma / image はテキストを持たないので service 側で skipped になる。
 func newReverseService(a *app) *services.ReverseService {
 	command := os.Getenv("SPEC_GATE_REVERSE_CMD")
 	if command == "" {
 		command = "claude -p"
 	}
 	return &services.ReverseService{
-		Claims: a.claims,
-		Adapters: map[domain.SourceType]domain.SourceAdapter{
-			domain.SourceMarkdown: adapter.NewMarkdown(a.root),
-			domain.SourceMermaid:  adapter.NewMermaid(a.root),
-		},
+		Claims:   a.claims,
+		Adapters: a.adapters,
 		Reverser: reverser.Command{Command: command, Dir: a.root, Timeout: 5 * time.Minute},
 	}
 }
