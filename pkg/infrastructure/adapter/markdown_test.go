@@ -78,6 +78,38 @@ func TestMarkdownSnapshot_MissingHeadingListsHeadings(t *testing.T) {
 	}
 }
 
+func TestMarkdownSnapshot_MissingHeadingSuggestsClosest(t *testing.T) {
+	root := t.TempDir()
+	writeSpec(t, root, "spec.md", specMD)
+	s, err := NewMarkdown(root).Snapshot(context.Background(), "spec.md#端数の処理")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if s.Skipped == "" || s.Suggestion != "端数処理" {
+		t.Fatalf("見出しが無いときは最も近い見出しを提案する: %+v", s)
+	}
+
+	s, err = NewMarkdown(root).Snapshot(context.Background(), "spec.md#変更履歴")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if s.Suggestion != "" {
+		t.Fatalf("遠い見出ししか無ければ提案しない: %q", s.Suggestion)
+	}
+}
+
+func TestMarkdownSnapshot_FoundHeadingHasNoSuggestion(t *testing.T) {
+	root := t.TempDir()
+	writeSpec(t, root, "spec.md", specMD)
+	s, err := NewMarkdown(root).Snapshot(context.Background(), "spec.md#端数処理")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if s.Skipped != "" || s.Suggestion != "" {
+		t.Fatalf("見出しがあれば提案は付けない: %+v", s)
+	}
+}
+
 func TestMarkdownSnapshot_HeadingInCodeFenceIsNotASection(t *testing.T) {
 	root := t.TempDir()
 	writeSpec(t, root, "spec.md", "## A\n\n```sh\n# comment\n```\n\nbody\n")

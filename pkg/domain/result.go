@@ -56,6 +56,8 @@ type Snapshot struct {
 	Excerpt  string // 人間向け抜粋
 	Location string // file:line など
 	Skipped  string // 取得できなかった理由
+	// Suggestion は参照先の見出しが無いときの再リンク候補（最も近い見出し）。無ければ空。
+	Suggestion string
 }
 
 // SourceEntry は sources.yaml の 1 行。

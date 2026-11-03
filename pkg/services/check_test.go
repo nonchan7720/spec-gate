@@ -74,6 +74,31 @@ func TestCheck_OrderOfStages(t *testing.T) {
 	}
 }
 
+func TestCheck_MissingHeadingFailSuggestsRelink(t *testing.T) {
+	snaps := map[string]domain.Snapshot{
+		"s.md#端数の処理": {Skipped: "見出し「端数の処理」が s.md にない", Suggestion: "端数処理"},
+		"s.md#締め":    {Skipped: "見出し「締め」が s.md にない"},
+	}
+	moved := mdClaim("MOVED", "s.md#端数の処理", domain.KindExample, approved("h"))
+	gone := mdClaim("GONE", "s.md#締め", domain.KindExample, approved("h"))
+	s, _ := newCheck([]domain.Claim{moved, gone}, snaps, map[string]domain.Status{"MOVED": domain.StatusPass, "GONE": domain.StatusPass})
+	claims := s.Claims.(*fakeClaims)
+	rep, err := s.Run(context.Background(), CheckRequest{})
+	if err != nil {
+		t.Fatal(err)
+	}
+	r := statusOf(t, rep, "MOVED")
+	if r.Status != domain.StatusFail || !strings.Contains(r.Detail, "もしかして: 「端数処理」") {
+		t.Fatalf("見出しが無い fail には近い見出しを「もしかして」で添える: %+v", r)
+	}
+	if r := statusOf(t, rep, "GONE"); r.Status != domain.StatusFail || strings.Contains(r.Detail, "もしかして") {
+		t.Fatalf("提案が無ければ「もしかして」は付けない: %+v", r)
+	}
+	if len(claims.saved) != 0 {
+		t.Fatalf("提案だけで claim は書き換えない: %+v", claims.saved)
+	}
+}
+
 func TestCheck_DriftOptionalPassesWithNote(t *testing.T) {
 	c := mdClaim("OPT", "s.md#c", domain.KindExample, approved("x"))
 	c.Source.Drift = "optional"
