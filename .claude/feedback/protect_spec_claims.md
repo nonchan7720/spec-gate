@@ -14,7 +14,8 @@ enforce:
     severity: deny
     message: '.spec-gate/ はハーネスのロック・状態ファイルで編集禁止。'
   - event: pre_bash
-    when: '(\bsed\s+-i|\btee\b|>{1,2}|\bmv\b|\bcp\b|\brm\b|\btruncate\b|\bgit\s+(checkout|restore)\b)[^|;&]*(^|[\s"''=/])(claims/(?!_pending/)|\.spec-gate/)'
+    # リダイレクトは書き込み先そのもの、コマンドは同じ行の引数だけを見る（ヒアドキュメント本文や文字列中の言及は対象外）
+    when: '(>{1,2}\s*["'']?|(\bsed\s+-i|\btee\b|\bmv\b|\bcp\b|\brm\b|\btruncate\b|\bgit\s+(checkout|restore)\b)[^|;&\n]*[\s"''=])(\./)?(claims/(?!_pending/)|\.spec-gate/)'
     severity: deny
     message: 'claims/**（_pending 以外）と .spec-gate/ はシェル経由でも書き換え禁止。'
   - event: pre_bash
