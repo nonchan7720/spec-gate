@@ -3,6 +3,7 @@ package planfile
 
 import (
 	"encoding/json"
+	"fmt"
 	"os"
 	"path/filepath"
 	"regexp"
@@ -62,6 +63,17 @@ func (r *Repo) Load(path string) (domain.Plan, error) {
 			}
 			_ = yaml.Unmarshal([]byte(body[4:4+end]), &fm)
 			p.Title, p.Claims = fm.Title, fm.Claims
+			// mutation は凍結の可否に効くので、読めない値を黙って無視せずエラーにする
+			var mfm struct {
+				Mutation *float64 `yaml:"mutation"`
+			}
+			if err := yaml.Unmarshal([]byte(body[4:4+end]), &mfm); err != nil {
+				return p, fmt.Errorf("%s: front matter の mutation が読めない: %w", path, err)
+			}
+			if m := mfm.Mutation; m != nil && (*m < 0 || *m > 1) {
+				return p, fmt.Errorf("%s: mutation は 0〜1 で書く（%v）", path, *m)
+			}
+			p.Mutation = mfm.Mutation
 			if fm.Status != "" {
 				p.Status = fm.Status
 			}

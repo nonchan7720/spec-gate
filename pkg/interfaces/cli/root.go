@@ -13,6 +13,7 @@ import (
 	"github.com/nonchan7720/spec-gate/pkg/infrastructure/extractor"
 	"github.com/nonchan7720/spec-gate/pkg/infrastructure/llmwork"
 	"github.com/nonchan7720/spec-gate/pkg/infrastructure/planfile"
+	"github.com/nonchan7720/spec-gate/pkg/infrastructure/sourcefile"
 	"github.com/nonchan7720/spec-gate/pkg/infrastructure/sourceregistry"
 	"github.com/nonchan7720/spec-gate/pkg/infrastructure/vcs"
 	"github.com/nonchan7720/spec-gate/pkg/infrastructure/workspace"
@@ -29,6 +30,8 @@ type app struct {
 	extract  *services.ExtractService
 	plan     *services.PlanService
 	status   *services.StatusService
+	mutation *services.MutationService
+	plans    domain.PlanRepository
 	claims   domain.ClaimRepository
 	// adapters は source type ごとの仕様の読み方。サービスを組み立てるコマンド（reverse など）が共有する
 	adapters map[domain.SourceType]domain.SourceAdapter
@@ -77,9 +80,13 @@ func newApp(root string) *app {
 		extract.Extractor = extractor.ClaudeCLI{Command: cmd}
 	}
 
+	mutation := &services.MutationService{Plans: plans, Claims: claims, Files: sourcefile.New(root), Runner: runner, Paths: workspace.Paths{Root: root}}
+
 	return &app{
 		root:     root,
 		claims:   claims,
+		plans:    plans,
+		mutation: mutation,
 		adapters: adapters,
 		check: &services.CheckService{
 			Claims: claims, Plans: plans, Adapters: adapters, Checkers: checkers,
@@ -89,7 +96,7 @@ func newApp(root string) *app {
 		coverage: &services.CoverageService{Claims: claims, Sources: sourceregistry.New(root), Adapters: adapters},
 		extract:  extract,
 		work:     work,
-		plan:     &services.PlanService{Plans: plans, Clock: utcClock{}},
+		plan:     &services.PlanService{Plans: plans, Clock: utcClock{}, Mutation: mutation},
 		status:   &services.StatusService{Claims: claims, Plans: plans},
 	}
 }

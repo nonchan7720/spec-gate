@@ -145,11 +145,17 @@ func newPlanCmd(a **app) *cobra.Command {
 			if by == "" {
 				by = currentUser()
 			}
-			p, err := (*a).plan.Freeze(args[0], by)
+			// mutation score の計算中に中断されても、変異を入れたファイルを戻してから終わる
+			ctx, stop := interruptible(cmd.Context())
+			defer stop()
+			p, res, err := (*a).plan.Freeze(ctx, args[0], by)
 			if err != nil {
 				return err
 			}
 			fmt.Printf("✓ %s frozen (%d items)\n", p.Path, len(p.Items))
+			if res != nil {
+				fmt.Printf("  mutation score %.2f（%d/%d 件を検出、閾値 %v）\n", res.Score(), res.Killed, res.Total, *p.Mutation)
+			}
 			for _, it := range p.Items {
 				fmt.Printf("  L%-3d %s\n       verify: %s\n", it.Line, it.Text, it.Verify)
 			}
@@ -175,7 +181,7 @@ func newPlanCmd(a **app) *cobra.Command {
 			return nil
 		},
 	}
-	plan.AddCommand(freeze, check)
+	plan.AddCommand(freeze, check, newPlanMutateCmd(a))
 	return plan
 }
 

@@ -22,6 +22,8 @@ type Plan struct {
 	Status string   // draft | active | done
 	Claims []string // 満たすべき claim の ID
 	Items  []PlanItem
+	// Mutation は front matter の mutation（0〜1）。nil なら freeze で mutation score を計算しない。
+	Mutation *float64
 }
 
 // Active は check の対象になるプランか。

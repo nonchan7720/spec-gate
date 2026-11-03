@@ -73,6 +73,37 @@ func TestLoad_WithoutFrontMatterIsDraft(t *testing.T) {
 	}
 }
 
+func TestLoad_MutationThreshold(t *testing.T) {
+	root := t.TempDir()
+	writeFile(t, root, "plans/a.md", "---\ntitle: a\nmutation: 0.8\n---\n- [ ] x\n  verify: true\n")
+	writeFile(t, root, "plans/b.md", "---\ntitle: b\n---\n- [ ] x\n  verify: true\n")
+	r := New(root)
+	a, err := r.Load("plans/a.md")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if a.Mutation == nil || *a.Mutation != 0.8 {
+		t.Fatalf("mutation: 0.8 を読む: %v", a.Mutation)
+	}
+	b, err := r.Load("plans/b.md")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if b.Mutation != nil {
+		t.Fatalf("mutation が無ければ nil（freeze で score を計算しない）: %v", *b.Mutation)
+	}
+}
+
+func TestLoad_MutationThresholdInvalid(t *testing.T) {
+	for _, v := range []string{"abc", "1.5", "-0.1"} {
+		root := t.TempDir()
+		writeFile(t, root, "plans/a.md", "---\ntitle: a\nmutation: "+v+"\n---\n- [ ] x\n  verify: true\n")
+		if _, err := New(root).Load("plans/a.md"); err == nil {
+			t.Errorf("mutation: %s は 0〜1 の数でないのでエラーにする", v)
+		}
+	}
+}
+
 func TestAll_SkipsTemplateAndSorts(t *testing.T) {
 	root := t.TempDir()
 	writeFile(t, root, "plans/b.md", "- [ ] b\n")
