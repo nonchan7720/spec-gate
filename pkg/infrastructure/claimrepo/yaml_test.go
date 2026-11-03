@@ -119,3 +119,44 @@ func TestSavePending_HeaderAndExcludedFromAll(t *testing.T) {
 		t.Fatalf("_pending は check 対象外: %+v", claims)
 	}
 }
+
+// 同じ ID の候補を続けて置いても上書きせず、別名で残す（前回の extract の候補も消さない）。
+func TestSavePending_NeverOverwrites(t *testing.T) {
+	root := t.TempDir()
+	r := New(root)
+	titles := []string{"一つ目", "二つ目", "三つ目"}
+	var paths []string
+	for _, title := range titles {
+		p, err := r.SavePending(domain.Claim{ID: "HOLDOUT-003", Kind: domain.KindManual, Title: title, Source: domain.Source{Type: "markdown", Ref: "a.md"}}, "1/3")
+		if err != nil {
+			t.Fatal(err)
+		}
+		paths = append(paths, p)
+	}
+	want := []string{
+		filepath.Join("claims", "_pending", "HOLDOUT-003.yaml"),
+		filepath.Join("claims", "_pending", "HOLDOUT-003-2.yaml"),
+		filepath.Join("claims", "_pending", "HOLDOUT-003-3.yaml"),
+	}
+	for i := range want {
+		if paths[i] != want[i] {
+			t.Fatalf("実際に書いたパスを返す: got %v want %v", paths, want)
+		}
+	}
+	got, err := r.Pending()
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(got) != 3 {
+		t.Fatalf("3 件とも残る: %+v", got)
+	}
+	seen := map[string]bool{}
+	for _, pc := range got {
+		seen[pc.Claim.Title] = true
+	}
+	for _, title := range titles {
+		if !seen[title] {
+			t.Fatalf("%s が上書きで消えた: %+v", title, got)
+		}
+	}
+}

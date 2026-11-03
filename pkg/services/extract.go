@@ -6,6 +6,7 @@ import (
 	"regexp"
 	"sort"
 	"strings"
+	"unicode"
 
 	"github.com/nonchan7720/spec-gate/pkg/domain"
 )
@@ -43,6 +44,7 @@ func (s *ExtractService) Extract(ctx context.Context, srcType domain.SourceType,
 		hits  int
 	}
 	buckets := map[string]*bucket{}
+	var order []*bucket // 初出順。ID の付け替えを決定的にする
 	for i := range runs {
 		claims, err := s.Extractor.Extract(ctx, ref, snap.Excerpt)
 		if err != nil {
@@ -61,13 +63,37 @@ func (s *ExtractService) Extract(ctx context.Context, srcType domain.SourceType,
 					b.claim = c
 				}
 			} else {
-				buckets[key] = &bucket{claim: c, hits: 1}
+				b := &bucket{claim: c, hits: 1}
+				buckets[key] = b
+				order = append(order, b)
 			}
 		}
 	}
 
+	// LLM は節・実行ごとに ID を振るので、別の主張が同じ ID を持つことがある。
+	// 最初の 1 件はそのまま、以降は -2, -3 … を付けて一意にする（承認時に衝突させない）。
+	used := map[string]bool{}
+	for _, b := range order {
+		used[b.claim.ID] = true
+	}
+	taken := map[string]bool{}
+	for _, b := range order {
+		id := b.claim.ID
+		if taken[id] {
+			for n := 2; ; n++ {
+				cand := fmt.Sprintf("%s-%d", id, n)
+				if !used[cand] && !taken[cand] {
+					id = cand
+					break
+				}
+			}
+		}
+		taken[id] = true
+		b.claim.ID = id
+	}
+
 	var out []Candidate
-	for _, b := range buckets {
+	for _, b := range order {
 		conf := fmt.Sprintf("%d/%d", b.hits, runs)
 		b.claim.Approved = nil
 		b.claim.Source.Type = srcType
@@ -77,7 +103,7 @@ func (s *ExtractService) Extract(ctx context.Context, srcType domain.SourceType,
 		}
 		out = append(out, Candidate{Claim: b.claim, Agreements: b.hits, Runs: runs, Path: p})
 	}
-	sort.Slice(out, func(i, j int) bool {
+	sort.SliceStable(out, func(i, j int) bool {
 		if out[i].Agreements != out[j].Agreements {
 			return out[i].Agreements > out[j].Agreements
 		}
@@ -86,17 +112,43 @@ func (s *ExtractService) Extract(ctx context.Context, srcType domain.SourceType,
 	return out, nil
 }
 
-var nonWord = regexp.MustCompile(`[\s　、。,.「」()（）【】]+`)
-
-// fingerprint は「同じ主張」を同定するキー。kind + 正規化した title + 例の入力集合。
-// 完全ではないが、表記揺れ程度なら同一とみなせる。
+// fingerprint は「同じ主張」を同定するキー。
+// 例があれば kind + (in, out) の組の集合で決める（title の言い回しは実行ごとに揺れるので見ない）。
+// 例が無ければ kind + 正規化した title。
 func fingerprint(c domain.Claim) string {
-	t := strings.ToLower(nonWord.ReplaceAllString(c.Title, ""))
-	t = strings.Split(t, "要確認")[0]
-	var ins []string
-	for _, e := range c.Examples {
-		ins = append(ins, fmt.Sprint(e.In))
+	if len(c.Examples) > 0 {
+		set := map[string]bool{}
+		for _, e := range c.Examples {
+			set[fmt.Sprintf("%#v=>%#v", e.In, e.Out)] = true
+		}
+		pairs := make([]string, 0, len(set))
+		for p := range set {
+			pairs = append(pairs, p)
+		}
+		sort.Strings(pairs)
+		return string(c.Kind) + "|ex|" + strings.Join(pairs, "\x00")
 	}
-	sort.Strings(ins)
-	return string(c.Kind) + "|" + t + "|" + strings.Join(ins, ",")
+	return string(c.Kind) + "|title|" + normalizeTitle(c.Title)
+}
+
+var (
+	// 【要確認: …】 の注記。閉じ括弧が無ければ末尾まで。
+	reviewNote = regexp.MustCompile(`【\s*要確認[^】]*(】|$)`)
+	// [M-1] / (HOLDOUT-003) / 【R-2】 のような括弧つきの ID。
+	bracketedID = regexp.MustCompile(`[\[(（【]\s*[A-Za-z][A-Za-z0-9_]*(-[A-Za-z0-9_]+)+\s*[\])）】]`)
+)
+
+// normalizeTitle は注記・括弧つき ID・句読点・記号・空白を落として小文字にする。
+func normalizeTitle(t string) string {
+	t = reviewNote.ReplaceAllString(t, "")
+	t = strings.Split(t, "要確認")[0]
+	t = bracketedID.ReplaceAllString(t, "")
+	var b strings.Builder
+	for _, r := range t {
+		if unicode.IsPunct(r) || unicode.IsSymbol(r) || unicode.IsSpace(r) {
+			continue
+		}
+		b.WriteRune(unicode.ToLower(r))
+	}
+	return b.String()
 }
