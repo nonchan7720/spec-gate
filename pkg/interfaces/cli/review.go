@@ -60,6 +60,8 @@ Ctrl+C で終了。`,
 	}
 	cmd.Flags().StringVar(&by, "by", "", "承認者（既定: OS ユーザー名）")
 	cmd.Flags().StringVar(&addr, "addr", "127.0.0.1:7790", "待ち受けアドレス（ループバックのみ）")
+	// リモート承認（質問ダイアログ + PostToolUse hook）
+	cmd.AddCommand(newReviewAskCmd(a), newReviewRecordCmd(a))
 	return cmd
 }
 

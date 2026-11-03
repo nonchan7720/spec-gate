@@ -1,11 +1,10 @@
 package review
 
 import (
-	"encoding/json"
-	"fmt"
 	"sort"
 	"strings"
 
+	"github.com/nonchan7720/spec-gate/pkg/domain"
 	"github.com/nonchan7720/spec-gate/pkg/services"
 )
 
@@ -82,7 +81,7 @@ func toView(it services.ReviewItem) itemView {
 		FromDiagram: c.Allowed == "from-diagram",
 	}
 	for _, ex := range c.Examples {
-		v.Examples = append(v.Examples, exampleView{In: formatInput(ex.In), Out: formatValue(ex.Out), Note: ex.Note})
+		v.Examples = append(v.Examples, exampleView{In: domain.FormatExampleInput(ex.In), Out: domain.FormatExampleValue(ex.Out), Note: ex.Note})
 	}
 	for name, dir := range c.Layers {
 		v.Layers = append(v.Layers, layerView{Name: name, Dir: dir})
@@ -97,28 +96,4 @@ func toView(it services.ReviewItem) itemView {
 		v.Forbidden = append(v.Forbidden, edgeView{From: strings.TrimSpace(from), To: strings.TrimSpace(to)})
 	}
 	return v
-}
-
-// formatInput は入力を表示用にする。配列は「引数が複数」の意味なので , で並べる。
-func formatInput(v any) string {
-	if args, ok := v.([]any); ok {
-		parts := make([]string, len(args))
-		for i, a := range args {
-			parts[i] = formatValue(a)
-		}
-		return strings.Join(parts, ", ")
-	}
-	return formatValue(v)
-}
-
-// formatValue は値を表示用にする。文字列は数値と区別できるよう "" で囲む。
-func formatValue(v any) string {
-	if v == nil {
-		return "なし"
-	}
-	b, err := json.Marshal(v)
-	if err != nil {
-		return fmt.Sprint(v)
-	}
-	return string(b)
 }
