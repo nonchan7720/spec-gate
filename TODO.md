@@ -88,4 +88,21 @@ HANDOFF.md は人間の引き継ぎ文書なので触らず、エージェント
 - [ ] 実プロジェクトの Markdown 仕様 1 本で `extract → lint → approve → check` を回す
 - [x] 承認 UI（`spec-gate review`。2026-11-04 実装。実ブラウザでの見た目の確認は未実施）
 - [ ] figma adapter を実トークンで検証
-- [x] 逆変換（`spec-gate reverse`。2026-11-04 実装。LLM は `SPEC_GATE_REVERSE_CMD`、本物の LLM でのプロンプト品質は未検証）
+- [x] 逆変換（`spec-gate reverse`。2026-11-04 実装。LLM は `--emit` / `--collect` でサブエージェントに委譲、`SPEC_GATE_REVERSE_CMD` を設定したときだけコマンドを呼ぶ。本物の LLM でのプロンプト品質は未検証）
+
+## docs/spec/harness.md（ハーネス拡張）— 実装済み
+
+- [x] extract / reverse のサブエージェント委譲（`--emit` / `--collect`、`spec-gate-llm-worker`、skills）
+- [x] ランダム入力による検証（`fuzz:` / `relations:`）
+- [x] 見出し変更時の再リンク提案（「もしかして」）
+- [x] 変更検知の精度（binding の実在パス、Go パッケージの依存）
+- [x] mutation score（`plan mutate`、front matter の `mutation:` で `plan freeze` を拒否）
+- [x] holdout（`out_sha256`、`holdout add`、エージェントの読み書き拒否）
+- [x] リテラル漏れ検知（`spec-gate leak`、hook-gate の post_edit で警告）
+- [x] CI 用の出力と指標（`check --json`、`metrics`）
+- [x] 役割別レポート（`check --role`）
+- [x] 曖昧の記録（承認 UI の「曖昧」、`claims/_ambiguous/`、coverage の要確認）
+- [x] 通り方のログ（`.spec-gate/trace.jsonl`、`spec-gate trace`）
+- [x] リモート承認（`review ask` / `review record`）
+- [ ] リモート承認を実際の Claude Code セッションで確認する（hook に渡る回答の形が未検証）
+- [x] README（英語・日本語）を上記の機能に合わせて更新
