@@ -1,0 +1,20 @@
+node_modules/
+/spec-gate
+bin/
+.DS_Store
+.env
+
+# goreleaser output
+/dist/
+
+# spec-gate
+.spec-gate/generated/
+test-results/
+
+# 人間の引き継ぎメモ（リポジトリには入れない）
+HANDOFF.md
+
+# feedback-gate（hook-gate）の状態とログ
+.claude/.gate-status/
+# git worktrees created by Claude Code
+.claude/worktrees/

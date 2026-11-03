@@ -1,0 +1,23 @@
+id: ROUND-001
+kind: example
+title: 円未満は切り捨て
+source:
+    type: markdown
+    ref: docs/spec/rounding.md#端数処理
+approved:
+    by: nonchan
+    at: "2026-11-03T15:20:34Z"
+    source_hash: sha256:ac595bbdcc60a1988b57ade0cbab03ccd8a6b66cfe728d6c4c238a00e79747b9
+binding: npx tsx tools/call.ts src/payroll/round.ts roundYen
+examples:
+    - in: 1234.56
+      out: 1234
+    - in: 1234.99
+      out: 1234
+    - in: 0.01
+      out: 0
+    - in: 100
+      out: 100
+properties:
+    - isInteger(output)
+    - output <= max(input, 0)

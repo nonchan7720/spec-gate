@@ -1,0 +1,35 @@
+# depgraph（依存の検出器）の設定。
+
+layers:
+  # --- spec-gate 本体（Go）。HANDOFF「依存は domain ← services ← infrastructure/interfaces」 ---
+  # サンプルアプリの層名（domain など）と衝突しないよう core- を付ける。
+  core-domain: ["pkg/domain/**"]
+  core-services: ["pkg/services/**"]
+  core-infrastructure: ["pkg/infrastructure/**"]
+  core-interfaces: ["pkg/interfaces/**", "."]
+
+  # --- サンプルアプリ（TS）。docs/arch/layers.mmd（仕様）と一致させる ---
+  # 一致しているかは spec-gate の structure claim（ARCH-001）が照合する:
+  #   図のエッジ = 許可、それ以外の層間依存 = forbidden に書く。
+  app: ["src/app/**"]
+  domain: ["src/domain/**"]
+  infra: ["src/infra/**"]
+
+forbidden:
+  core-domain: [core-services, core-infrastructure, core-interfaces]
+  core-services: [core-infrastructure, core-interfaces]
+  core-infrastructure: [core-services, core-interfaces]
+
+  domain: [app, infra]
+  infra: [app]
+
+
+rules:
+  # Repo は claimrepo.Repo / planfile.Repo のようにパッケージ名で区別する Go の慣用名なので重複扱いしない。
+  # （ignore は既定を置き換えるので、depgraph の既定の名前も並べる）
+  duplicate-symbol:
+    ignore: [main, init, New, String, Error, Close, Run, Validate, default, index, setup, teardown, handler, render, App, Repo]
+  # サンプルアプリの入口。src/app はハンドラ（アプリの入口）、src/payroll は claim の binding
+  # （tools/call.ts が実行時に動的 import する）から呼ばれる。
+  unreachable-file:
+    entries: ["src/app/**", "src/payroll/**"]

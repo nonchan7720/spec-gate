@@ -1,0 +1,74 @@
+# feedback-gate の品質ゲート。CI はまだ無いので、mise.toml のツール（go / golangci-lint）と
+# HANDOFF.md の「動作確認済み」手順を基準にしている。CI を足したらここと揃えること。
+#
+# golangci-lint は mise.toml の 2.15.0 を明示的に使う（PATH 上の go/bin に v1 が残っていると
+# v1 が先に解決され、typecheck が誤検出するため）。
+
+rules:
+  # Go: パッケージ（=ディレクトリ）単位で fmt / vet / test
+  - match: "pkg/**/*.go"
+    per_file_dir: file
+    timeout: 120
+    run:
+      - { name: gofmt, cmd: 'test -z "$(gofmt -l .)" || { gofmt -l .; exit 1; }' }
+      - { name: go-vet, cmd: "go vet ." }
+      - { name: go-test, cmd: "go test ." }
+    run_checks: [go-all, spec-gate]
+
+  # ルートの main.go（エントリポイント）
+  - match: ["*.go", "cmd/**/*.go"]
+    run:
+      - { name: gofmt-root, cmd: 'test -z "$(gofmt -l $CLAUDE_GATE_FILES)" || { gofmt -l $CLAUDE_GATE_FILES; exit 1; }' }
+    run_checks: [go-all, spec-gate]
+
+  # depgraph: このセッションで増えた負債（循環・層違反・重複など）。depgraph README「品質ゲート」と同じ形。
+  # 基準は .claude/settings.json の SessionStart hook（depgraph hook session-start）が記録する。
+  # Neo4j は docker-compose.yml（docker compose up -d）。接続先は mise.toml の [env] にあるので mise exec 経由で呼ぶ。
+  # 未起動・未インストールなら depgraph が通す。
+  - match: ["**/*.go", "**/*.{ts,tsx,js,jsx,mjs,cjs}", ".depgraph.yml"]
+    timeout: 60
+    run:
+      - { name: depgraph, cmd: "mise exec -- sh -c 'command -v depgraph >/dev/null || exit 0; depgraph gate'" }
+
+  # 依存の整合（go.sum の取り残し）
+  - match: ["go.mod", "go.sum", "mise.toml", ".golangci.y*ml"]
+    run:
+      - { name: go-mod-tidy, cmd: "go mod tidy -diff" }
+    run_checks: [go-all, spec-gate]
+
+  # claim の内部整合（examples vs properties、claim 間の矛盾）。HANDOFF「spec-gate lint」
+  - match: ["claims/**/*.yaml"]
+    run:
+      - { name: spec-lint, cmd: "go run . lint", files: false }
+    run_checks: [spec-gate]
+
+  # 仕様・プラン・サンプルアプリ（claim の検証対象）
+  - match:
+      - "docs/**"
+      - "plans/*.md"
+      - sources.yaml
+      - .depgraph.yml
+      - "src/**"
+      - "tools/**"
+      - package.json
+    run:
+      # CLAUDE.md「実装後は check --changed が通るまで作業を終えない」
+      - { name: spec-check-changed, cmd: "go run . check --changed", files: false }
+    run_checks: [spec-gate]
+
+consistency_checks:
+  - name: go-all
+    timeout: 300
+    run:
+      - { name: go-build, cmd: "go build ./...", files: false }
+      - parallel:
+          - { name: golangci-lint, cmd: '"$(mise where golangci-lint)/bin/golangci-lint" run ./...', files: false }
+          - { name: go-test-all, cmd: "go test ./...", files: false }
+
+  # 仕様準拠の判定。旧 .claude/settings.json の Stop hook をここへ移した（HANDOFF「最初に直すこと 1」）。
+  # structure claim が内部で depgraph gate を呼ぶので、Neo4j の接続先（mise.toml [env]）が渡るよう mise exec 経由にする。
+  # --hook は pass/unverified を省き、blocking があれば exit 2。連続失敗で諦める処理は gate 側（5 回）に任せる。
+  - name: spec-gate
+    timeout: 300
+    run:
+      - { name: spec-check, cmd: "mise exec -- go run . check --changed --hook", files: false }

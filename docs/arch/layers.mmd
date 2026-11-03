@@ -1,0 +1,6 @@
+%% アーキテクチャ図。ノードIDは claims/arch/*.yaml の layers のキーと一致させること。
+%% ここに描かれたエッジだけが「許可された依存」として扱われる。
+graph TD
+  app[app: 画面・ハンドラ] --> domain[domain: 業務ロジック]
+  app --> infra[infra: DB・外部API]
+  infra --> domain

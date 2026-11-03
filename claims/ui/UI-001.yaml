@@ -1,0 +1,20 @@
+id: UI-001
+kind: ui
+title: 支払一覧画面は Figma の4状態を持ち、見出し文言が一致する
+source:
+    type: figma
+    ref: figma://REPLACE_WITH_FILE_KEY/REPLACE_WITH_NODE_ID
+    drift: optional
+approved:
+    by: nonchan
+    at: "2026-11-03T15:20:34Z"
+    source_hash: ""
+story: src/ui/PaymentList.stories.tsx
+states:
+    - Default
+    - Empty
+    - Loading
+    - Error
+url: http://localhost:6006/iframe.html?id=paymentlist--default
+strings:
+    - 支払一覧

@@ -1,0 +1,128 @@
+[tool_alias]
+golangci-lint = "go:github.com/golangci/golangci-lint/v2/cmd/golangci-lint"
+
+[tools]
+go = "1.27.3"
+golangci-lint = "2.15.0"
+node = "26.13.0"
+pnpm = "12.14.0"
+# release builds (.goreleaser.yaml); the release workflow uses this same pin
+"aqua:goreleaser/goreleaser" = "2.19.0"
+# .github/workflows の検査
+actionlint = "1.7.12"
+
+[env]
+# pure Go: build and test without cgo so cross builds stay plain `go build`
+CGO_ENABLED = "0"
+# depgraph の接続先（docker-compose.yml の neo4j。ローカル開発用の資格情報）
+NEO4J_URI = "bolt://localhost:17687"
+NEO4J_USER = "neo4j"
+NEO4J_PASSWORD = "spec-gate123"
+NEO4J_DATABASE = "neo4j"
+# depgraph の UI。depgraph 本体（127.0.0.1:7777）と衝突しないようずらす
+DEPGRAPH_ADDR = "127.0.0.1:17777"
+
+# ---------------------------------------------------------------------------
+# setup / build
+# ---------------------------------------------------------------------------
+
+[tasks.setup]
+description = "ツールチェーンと依存を入れてバイナリをビルドする"
+run = [
+  "mise install",
+  "go mod download",
+  "mise run node:install",
+  "mise run build",
+]
+
+[tasks."node:install"]
+description = "サンプルアプリの npm 依存（example claim の binding が使う tsx など）を lockfile どおりに入れる"
+run = "pnpm install --frozen-lockfile"
+
+[tasks.deps]
+description = "go mod tidy"
+run = "go mod tidy"
+
+[tasks.build]
+description = "./bin/spec-gate をビルドする"
+sources = ["main.go", "pkg/**/*.go", "go.mod", "go.sum", "mise.toml"]
+outputs = ["bin/spec-gate"]
+run = "go build -o bin/spec-gate ."
+
+[tasks.test]
+description = "ユニットテスト"
+run = "go test ./..."
+
+[tasks.vet]
+description = "go vet + gofmt チェック"
+run = [
+  "go vet ./...",
+  "test -z \"$(gofmt -l main.go pkg)\" || (echo 'gofmt needed:' && gofmt -l main.go pkg && exit 1)",
+]
+
+[tasks.lint]
+description = "golangci-lint（[tools] で固定した版）"
+# 固定版をパスで呼ぶ: Go ツールチェーンの bin に `go install` された別版があると PATH で先に解決されるため
+run = '"$(mise where golangci-lint)/bin/golangci-lint" run ./...'
+
+[tasks."lint:actions"]
+description = "GitHub Actions のワークフローを actionlint で検査する"
+run = "actionlint"
+
+[tasks.fmt]
+description = "gofmt -w"
+run = "gofmt -w main.go pkg"
+
+[tasks.licenses]
+description = "THIRD_PARTY_NOTICES.md をバイナリに入る Go モジュールから再生成する"
+run = "scripts/third-party-notices.sh"
+
+[tasks."licenses:check"]
+description = "THIRD_PARTY_NOTICES.md が古ければ失敗する"
+run = "scripts/third-party-notices.sh --check"
+
+[tasks."spec:check"]
+description = "このリポジトリ自身の claim とプランを spec-gate で判定する（ドッグフーディング）"
+depends = ["node:install"]
+run = "go run . lint && go run . check"
+
+[tasks."release:check"]
+description = ".goreleaser.yaml と .goreleaser.prerelease.yaml を検証する"
+run = [
+  "goreleaser check --config .goreleaser.yaml",
+  "goreleaser check --config .goreleaser.prerelease.yaml",
+]
+
+[tasks."release:snapshot"]
+description = "リリース用アーカイブを公開せずに dist/ へビルドする（goreleaser --snapshot）"
+run = "goreleaser release --snapshot --clean --skip=publish --config .goreleaser.yaml"
+
+[tasks.ci]
+description = "vet + lint + lint:actions + test + build + licenses:check + release:check + spec:check"
+depends = ["vet", "lint", "lint:actions", "test", "build", "licenses:check", "release:check", "spec:check"]
+
+[tasks.clean]
+description = "ビルド成果物を消す"
+run = "rm -rf bin dist"
+
+# ---------------------------------------------------------------------------
+# depgraph（依存解析。Neo4j は docker-compose.yml）
+# ---------------------------------------------------------------------------
+
+[tasks.neo4j]
+description = "depgraph 用の Neo4j（docker-compose.yml）を起動して healthy まで待つ"
+run = "docker compose up -d --wait"
+
+[tasks."neo4j:down"]
+description = "Neo4j を止める（データボリュームは残す）"
+run = "docker compose down"
+
+[tasks."depgraph:scan"]
+description = "このリポジトリを depgraph でスキャンして Neo4j に保存し、CLAUDE.md を更新する"
+depends = ["neo4j"]
+run = "depgraph scan --root ."
+
+[tasks."depgraph:serve"]
+description = "depgraph のブラウザ UI を起動（http://127.0.0.1:17777）"
+depends = ["neo4j"]
+run = "depgraph serve --root ."

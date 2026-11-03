@@ -1,0 +1,24 @@
+# ハーネスが監視する仕様ソースの登録簿。
+# coverage コマンドはここに登録されたソースについて「claim に紐づいていない部分」を列挙する。
+#
+# type: markdown | mermaid | figma | image
+# non_normative: 規範ではない部分（説明文・背景・履歴）。coverage の対象外にする。
+
+sources:
+  - type: markdown
+    path: docs/spec/rounding.md
+    non_normative:
+      - 背景
+      - 変更履歴
+
+  - type: mermaid
+    path: docs/arch/layers.mmd
+
+  # Figma はファイルキーとノードIDで指す。snapshot には FIGMA_TOKEN が必要。
+  # - type: figma
+  #   ref: figma://<fileKey>/<nodeId>
+  #   label: 支払一覧画面
+
+  # 画像/PDF（Miro の書き出しなど）はハッシュ監視のみ。claim 候補の抽出は Vision 経由で手動。
+  # - type: image
+  #   path: docs/arch/overview.png

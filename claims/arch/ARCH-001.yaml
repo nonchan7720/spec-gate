@@ -1,0 +1,18 @@
+id: ARCH-001
+kind: structure
+title: 層間の依存は図に描かれたものに限る
+source:
+    type: mermaid
+    ref: docs/arch/layers.mmd
+approved:
+    by: nonchan
+    at: "2026-11-03T15:20:34Z"
+    source_hash: sha256:50556a0c3d1272146fce0bf3581986f532486aeb6e4bc8cab427a9aa758cf9dc
+layers:
+    app: src/app
+    domain: src/domain
+    infra: src/infra
+allowed: from-diagram
+forbidden:
+    - domain -> infra
+    - domain -> app

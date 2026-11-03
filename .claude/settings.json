@@ -1,0 +1,26 @@
+{
+  "hooks": {
+    "SessionStart": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "timeout": 10,
+            "command": "command -v mise >/dev/null && mise exec -- depgraph hook session-start; exit 0"
+          }
+        ]
+      }
+    ],
+    "UserPromptSubmit": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "timeout": 10,
+            "command": "command -v mise >/dev/null && mise exec -- depgraph hook prompt; exit 0"
+          }
+        ]
+      }
+    ]
+  }
+}

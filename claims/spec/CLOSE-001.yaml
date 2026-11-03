@@ -1,0 +1,10 @@
+id: CLOSE-001
+kind: manual
+title: 月次締めは月末日に実行し、休日でも前倒ししない
+source:
+    type: markdown
+    ref: docs/spec/rounding.md#月末処理
+approved:
+    by: nonchan
+    at: "2026-11-03T15:20:34Z"
+    source_hash: sha256:73fb7ff244e6ebfef16729e5e22245f83e89a0f58286ba1eedd7e5dc9ae94c1b
