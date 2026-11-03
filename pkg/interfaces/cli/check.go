@@ -29,6 +29,7 @@ func newCheckCmd(a **app) *cobra.Command {
   --only     claim ID をカンマ区切りで指定（プランは見ない）
   --ui       Playwright を実行して strings を検証する（アプリ/Storybook を起動しておくこと）
   --hook     Claude Code の Stop hook 用。失敗時は stderr にレポートを出し exit 2 でエージェントを止める
+             claim ごとの判定を .spec-gate/trace.jsonl に追記する（spec-gate trace で要約）
   --json     CI 用に判定結果（各 claim の id・kind・status・title・detail・spec と件数）を JSON で出す。exit code は同じ
   --role     見る人が対応すべきものだけを出す。exit code は同じ
                engineer: fail（仕様の位置 file:line つき）
@@ -55,6 +56,8 @@ func newCheckCmd(a **app) *cobra.Command {
 				return err
 			}
 			if hook {
+				// 通り方のログ。書けなくても hook の結果は変えない
+				recordHookTrace((*a).trace, rep)
 				exitHook(hookResult(rep))
 				return nil
 			}
