@@ -66,3 +66,11 @@ type Extractor interface {
 type Clock interface {
 	Now() string
 }
+
+// Reverser は claim を仕様文に逆変換し、元の仕様と突き合わせる（LLM）。
+type Reverser interface {
+	// Restate は claim の内容だけ（元の仕様テキストは見せない）から仕様文を書き起こす。
+	Restate(ctx context.Context, c Claim) (string, error)
+	// Compare は再生成した仕様文と元の仕様テキストを比べる。
+	Compare(ctx context.Context, restated, original string) (Comparison, error)
+}

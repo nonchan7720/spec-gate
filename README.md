@@ -32,6 +32,7 @@ Natural language is never compared with code directly. A **claim (a verifiable s
 | Approve | `spec-gate approve <id>` | **human** | Shows the spec excerpt and freezes its hash. Refused when lint fails |
 | Check | `spec-gate check` | machine | approval → spec drift → per-kind check → plan verify |
 | Coverage | `spec-gate coverage` | machine | Lists the parts of the specs no claim covers |
+| Reverse | `spec-gate reverse [<id>...]` | AI | Rewrites each claim as spec prose without seeing the spec, then compares it with the original excerpt and lists what the claim adds, misses or contradicts (review aid; `--strict` exits 1 on a mismatch) |
 
 ### Order of the verdict and states
 
@@ -228,8 +229,8 @@ not decided yet, which is valuable in itself. The approval UI is not part of thi
   duplication, ...) is watched by `depgraph gate` in the quality gate (only what the session added) and depgraph's UI
 - `ui` string verification assumes Storybook or the app is running and needs `--ui`. In CI, use a separate job
 - `extract` assumes `claude -p`. Override with `SPEC_GATE_EXTRACT_CMD`
-- Reverse conversion (regenerate the spec text from claims and diff it with the original) is not implemented.
-  It is the next candidate after consensus and lint
+- `reverse` assumes `claude -p`. Override with `SPEC_GATE_REVERSE_CMD`. It is a review aid for humans: by default it
+  always exits 0, and its quality depends on the model
 - Miro depends on exported images and is the weakest. Prefer Mermaid exports in practice
 
 ## Division of roles with hook-gate / depgraph

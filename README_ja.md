@@ -30,6 +30,7 @@ Figma / PNG / PDF                    ↑ 人間承認はここ 1 回だけ
 | 承認 | `spec-gate approve <id>` | **人間** | 仕様の該当箇所を表示し、ハッシュを凍結。lint 失敗なら拒否 |
 | 判定 | `spec-gate check` | 機械 | 承認 → 仕様ドリフト → 種類別チェック → プランの verify |
 | 漏れ | `spec-gate coverage` | 機械 | 仕様のうち claim に紐づかない箇所を列挙 |
+| 逆変換 | `spec-gate reverse [<id>...]` | AI | 仕様を見せずに claim だけから仕様文を書き起こし、原文の該当箇所と比べて、claim にだけある主張・抜けている規範・矛盾を列挙（レビュー補助。`--strict` で食い違いがあれば exit 1） |
 
 ### 判定の順序と状態
 
@@ -224,7 +225,8 @@ docs/spec/rounding.md#端数処理 から読み取った主張
   gate の `depgraph gate`（セッションで増えた分だけ）と depgraph の UI で見る
 - `ui` の strings 検証は Storybook/アプリが起動している前提で `--ui` を付ける。CI でやるなら別ジョブ
 - `extract` は `claude -p` を前提にしている。`SPEC_GATE_EXTRACT_CMD` で差し替え可
-- 逆変換（claim → 仕様文を再生成して原文と diff）は未実装。合議と lint の次に入れる候補
+- `reverse` は `claude -p` を前提にしている。`SPEC_GATE_REVERSE_CMD` で差し替え可。人間のレビュー補助なので既定は常に exit 0 で、
+  精度はモデル次第
 - Miro は書き出し画像頼みになるので最も弱い。Mermaid 書き出しを運用で推奨した方がよい
 
 ## hook-gate / depgraph との役割分担

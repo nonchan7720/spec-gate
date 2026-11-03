@@ -88,4 +88,4 @@ HANDOFF.md は人間の引き継ぎ文書なので触らず、エージェント
 - [ ] 実プロジェクトの Markdown 仕様 1 本で `extract → lint → approve → check` を回す
 - [ ] 承認 UI（`_pending/*.yaml` を HTML 1 枚に並べてチェック → approve）
 - [ ] figma adapter を実トークンで検証
-- [ ] 逆変換
+- [x] 逆変換（`spec-gate reverse`。2026-11-04 実装。LLM は `SPEC_GATE_REVERSE_CMD`、本物の LLM でのプロンプト品質は未検証）
