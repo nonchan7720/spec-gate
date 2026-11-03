@@ -28,8 +28,9 @@ HANDOFF.md は人間の引き継ぎ文書なので触らず、エージェント
 - `pkg/infrastructure/checker/depgraph.go` を追加（テスト `depgraph_test.go` 12 件）
   1. claim の各層が `.depgraph.yml` の `layers` に同名であり、`<dir>/**` を指すこと
   2. claim の層の全順序対 A→B で「図で許可（claim の forbidden を除く）⇔ depgraph が禁止していない」こと
-  3. 一致していれば `depgraph gate --fail-on error`（`SPEC_GATE_DEPGRAPH_CMD` で差し替え可）。非0 → fail、
-     未インストール（exit 127）や判定不能（stderr に `depgraph gate:`）→ unverified
+  3. 一致していれば `depgraph scan --root . --claude-md ''`（`SPEC_GATE_DEPGRAPH_CMD` で差し替え可）で全件スキャンし、
+     claim の層どうしの layer-violation があれば fail（既存の違反も含む）。未インストール（exit 127）・
+     scan の非0（Neo4j に届かない等）・スキャン完了表示なし → unverified
 - `.depgraph.yml` を新規作成: spec-gate 本体（`core-domain` / `core-services` / `core-infrastructure` / `core-interfaces`）と
   サンプルアプリ（`app` / `domain` / `infra`、ARCH-001 の照合対象）の両方
 - depgraph のグラフはこの PJ の `docker-compose.yml` の Neo4j（`spec-gate-neo4j`、bolt `localhost:17687`）に保存。
@@ -60,12 +61,10 @@ HANDOFF.md は人間の引き継ぎ文書なので触らず、エージェント
 
 ## 判断が必要な課題
 
-- [ ] **structure が既存の層違反を検出できない**。`depgraph gate` は「セッション中に増えた Findings」だけで fail するため、
-      すでにある違反は ARCH-001 が pass になる。HANDOFF の「spec-gate は全件 fail（既存の違反も通さない）」と矛盾する。
-      案: `depgraph gate` ではなく、ストアの全 Findings から claim の層にかかる `layer-violation` を見る
-      （`depgraph check --claude-md ''` の exit code / 出力仕様を確認して決める）
-- [ ] `protect_spec_claims` の `pre_bash` 正規表現は、コマンド文字列中の文言にも反応する
-      （例: ドキュメントに `spec-gate plan freeze` と書く sed が deny された）。安全側に倒しているので現状維持にしてある
+- [x] **structure が既存の層違反を検出できない**（2026-11-04 修正）。`depgraph gate` をやめ、`depgraph scan --claude-md ''` の
+      全件スキャンから claim の層どうしの layer-violation を拾うようにした。既存の違反を仕込んだコピーで fail になることを確認
+- [x] `protect_spec_claims` の `pre_bash` 正規表現が、コマンド文字列中の文言にも反応していた（PR #2 で修正。
+      書き込みはリダイレクト先・同じ行の引数だけ、approve / plan freeze はコマンド位置での実行だけを見る）
 - [ ] hook モードで spec-gate 自体がエラーになったとき（`check` の内部エラー）は exit 0 で通す設計のまま。
       gate から呼ぶ今の構成で、ハーネス故障を素通りさせてよいか
 

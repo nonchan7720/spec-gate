@@ -178,8 +178,9 @@ Diagram = spec, depgraph = detector, spec-gate = agreement between the two.
 1. Every layer of the claim exists under the same name in `layers` of `.depgraph.yml` and points to the same directory (`<dir>/**`)
 2. For every ordered pair A→B of the claim's layers: a dependency the diagram allows (minus the claim's `forbidden`)
    is not forbidden by depgraph, and one it does not allow is forbidden by depgraph
-3. When they agree, `depgraph gate --fail-on error` runs (override with `SPEC_GATE_DEPGRAPH_CMD`); non-zero is fail.
-   When depgraph is not installed, or passed without deciding (no running store, etc.), the result is unverified
+3. When they agree, `depgraph scan --root . --claude-md ''` (override with `SPEC_GATE_DEPGRAPH_CMD`) scans the current tree;
+   any `layer-violation` between two of the claim's layers is fail, including violations that existed before the session
+   (CLAUDE.md is left untouched). When depgraph is not installed, cannot reach Neo4j or does not finish the scan, the result is unverified
 
 ### Source adapters
 
@@ -223,8 +224,8 @@ not decided yet, which is valuable in itself. The approval UI is not part of thi
 - **Whether a claim is right is finally a human decision.** Consensus, lint and coverage reduce mistakes before
   a human sees them; they are not a guarantee. When a bug reaches production, trace it back to the claim
   (wrong claim / missing claim / weak check)
-- Detecting `structure` violations relies on depgraph's `gate`, which fails only on problems added during the
-  session; check existing violations with depgraph's own `check` / UI
+- Detecting `structure` violations relies on a full depgraph scan. Debt outside the claim's layers (cycles,
+  duplication, ...) is watched by `depgraph gate` in the quality gate (only what the session added) and depgraph's UI
 - `ui` string verification assumes Storybook or the app is running and needs `--ui`. In CI, use a separate job
 - `extract` assumes `claude -p`. Override with `SPEC_GATE_EXTRACT_CMD`
 - Reverse conversion (regenerate the spec text from claims and diff it with the original) is not implemented.

@@ -7,6 +7,7 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
+	"regexp"
 	"sort"
 	"strings"
 
@@ -15,32 +16,38 @@ import (
 	"gopkg.in/yaml.v3"
 )
 
-// DefaultDepgraphGateCmd は依存違反の検出を depgraph に任せるときのコマンド。
-// spec-gate は仕様違反を通さないので、layer-violation（error）だけで落とす。
-const DefaultDepgraphGateCmd = "depgraph gate --fail-on error"
+// DefaultDepgraphCmd は依存違反の検出を depgraph に任せるときのコマンド。
+// depgraph gate は「セッション中に増えた Findings」しか見ないので、既存の違反も通さない
+// spec-gate では今のツリーを全件スキャンする。--claude-md ” で CLAUDE.md は書き換えない。
+const DefaultDepgraphCmd = "depgraph scan --root . --claude-md ''"
 
-// depgraphSkipMarker は depgraph gate が判定できずに exit 0 で通したときに stderr に出す接頭辞。
-const depgraphSkipMarker = "depgraph gate:"
+// scanDoneRe は depgraph scan が最後まで走ったときの出力（"scanned 39 files in 771ms"）。
+var scanDoneRe = regexp.MustCompile(`(?m)^scanned \d+ files\b`)
+
+// layerViolationRe は depgraph の layer-violation の Finding 1 行。
+// 例: "  [error] layer-violation: src/domain -> src/infra (domain must not import infra)"
+var layerViolationRe = regexp.MustCompile(`(?m)^\s*\[\w+\] layer-violation: (.+ \((\S+) must not import (\S+)\))\s*$`)
 
 // Depgraph は structure claim を検証する。import の走査は depgraph（検出器）に任せ、
-// spec-gate は「図（仕様）と .depgraph.yml（検出器の設定）が一致しているか」だけを照合する。
+// spec-gate は「図（仕様）と .depgraph.yml（検出器の設定）が一致しているか」を照合する。
 //
 //  1. claim の各層が .depgraph.yml の layers に同名で存在し、同じディレクトリを指すこと
 //  2. claim の層の全順序対 A→B について、図で許可された依存（claim の forbidden を除く）なら
 //     depgraph が禁止しておらず、許可されていないなら depgraph が禁止していること
-//  3. 一致していれば depgraph gate を実行し、その exit code を結果にする。
-//     depgraph が判定できずに通した（未インストール・ストア未起動など）ときは unverified
+//  3. 一致していれば depgraph で今のツリーを全件スキャンし、claim の層どうしの layer-violation が
+//     1 件でもあれば fail（セッション前からある違反も含む）。depgraph が判定できなかった
+//     （未インストール・Neo4j に届かない・スキャンが完了しない）ときは unverified
 type Depgraph struct {
-	root    string
-	runner  domain.CommandRunner
-	gateCmd string
+	root   string
+	runner domain.CommandRunner
+	cmd    string
 }
 
-func NewDepgraph(root string, runner domain.CommandRunner, gateCmd string) *Depgraph {
-	if gateCmd == "" {
-		gateCmd = DefaultDepgraphGateCmd
+func NewDepgraph(root string, runner domain.CommandRunner, cmd string) *Depgraph {
+	if cmd == "" {
+		cmd = DefaultDepgraphCmd
 	}
-	return &Depgraph{root: root, runner: runner, gateCmd: gateCmd}
+	return &Depgraph{root: root, runner: runner, cmd: cmd}
 }
 
 func (Depgraph) Kind() domain.ClaimKind { return domain.KindStructure }
@@ -71,18 +78,38 @@ func (d *Depgraph) Check(ctx context.Context, c domain.Claim, opt domain.CheckOp
 		return fail("図（仕様）と .depgraph.yml が一致しない。.depgraph.yml を図に合わせること:\n" + strings.Join(issues, "\n"))
 	}
 
-	out, err := d.runner.Run(ctx, d.gateCmd)
+	out, err := d.runner.Run(ctx, d.cmd)
+	unverified := func(why string) domain.Result {
+		res.Status = domain.StatusUnverified
+		res.Detail = "図と .depgraph.yml は一致。" + why + "ため依存違反は未検証:\n$ " + d.cmd + "\n" + textutil.Tail(out, 30)
+		return res
+	}
 	switch {
 	case isCommandNotFound(err):
-		res.Status = domain.StatusUnverified
-		res.Detail = "図と .depgraph.yml は一致。depgraph が見つからないため依存違反は未検証: " + out
+		return unverified("depgraph が見つからない")
 	case err != nil:
-		return fail(fmt.Sprintf("$ %s\n%s", d.gateCmd, textutil.Tail(out, 30)))
-	case strings.Contains(out, depgraphSkipMarker):
-		res.Status = domain.StatusUnverified
-		res.Detail = "図と .depgraph.yml は一致。depgraph が判定できなかったため依存違反は未検証:\n" + out
+		// scan の非0は Findings ではなく環境の問題（Neo4j に届かない等）
+		return unverified("depgraph が判定できなかった")
+	case !scanDoneRe.MatchString(out):
+		return unverified("depgraph のスキャン完了を確認できなかった")
+	}
+	if v := claimViolations(out, c.Layers); len(v) > 0 {
+		return fail("層の依存違反（depgraph scan、既存の違反も含む）:\n" + strings.Join(v, "\n"))
 	}
 	return res
+}
+
+// claimViolations は scan の出力から、両端が claim の層である layer-violation を返す。
+func claimViolations(out string, layers map[string]string) []string {
+	var v []string
+	for _, m := range layerViolationRe.FindAllStringSubmatch(out, -1) {
+		_, from := layers[m[2]]
+		_, to := layers[m[3]]
+		if from && to {
+			v = append(v, m[1])
+		}
+	}
+	return v
 }
 
 func (d *Depgraph) loadConfig() (depgraphConfig, error) {
