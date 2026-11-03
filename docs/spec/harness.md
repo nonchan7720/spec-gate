@@ -183,6 +183,29 @@ binding: `go run ./tools/bind trace-summary`（入力は 1 つの claim の判�
 | `[{"status": "pass", "lines": 5}]` | `{"fails_before_pass": 0, "lines_at_pass": 5}` |
 | `[{"status": "fail", "lines": 3}]` | `null` |
 
+## LLM 処理のサブエージェント委譲
+
+`extract`（合議抽出）と `reverse`（逆変換）の LLM 処理は、spec-gate を動かしているエージェントのサブエージェントに任せる。
+spec-gate 自身は LLM を呼ばず、プロンプトの書き出し（emit）と、回答の取り込み（collect）だけを行う。
+
+- `spec-gate extract <ref> --runs N --emit` は、抽出のプロンプトを N 個書き出し、そのパスを表示する。LLM は呼ばない
+- `spec-gate extract <ref> --collect` は、N 個の回答を読み、これまでと同じ合議で `claims/_pending/` に置く。回答が欠けていれば、欠けている run を表示してエラーにする
+- `spec-gate reverse [<id>...] --emit` は、claim ごとに再生成のプロンプトを書き出す。`--collect` は、再生成の回答がそろっていれば比較のプロンプトを書き出し、比較の回答もそろっていればレポートを出す
+- プロンプトと回答は作業ディレクトリ `.spec-gate-llm/` に置く（`.spec-gate/` はエージェントの書き込みを禁止しているので使わない）。git の管理対象外にし、collect が終わったら消す
+- 回答は、各プロンプトと同じ場所の `run-<k>.answer.md`（reverse は `<claim-id>.restate.answer.md` / `<claim-id>.compare.answer.md`）に書く
+- 各サブエージェントは自分のプロンプトだけを読み、他の run の回答を読まない（合議の独立性）。サブエージェントの定義（`.claude/agents/`）と、emit → 並列起動 → collect の手順（`.claude/skills/`）を同梱する
+- 環境変数 `SPEC_GATE_EXTRACT_CMD` / `SPEC_GATE_REVERSE_CMD` を設定したときだけ、これまでどおりコマンド（`claude -p` など）を呼ぶ。設定せず `--emit` / `--collect` も付けなければ、委譲の手順を案内してエラーにする（意図せず LLM を呼ばない）
+
+作業ディレクトリ内のパスは、ref の `/`・`#`・空白を `_` に置き換えた名前を使う。
+
+binding: `go run ./tools/bind llm-paths`（入力は `{"ref": ref, "runs": 回数}`、出力は extract のプロンプトのパスの配列）
+
+| 入力 | 出力 |
+|---|---|
+| `{"ref": "docs/spec/rounding.md#端数処理", "runs": 2}` | `[".spec-gate-llm/extract/docs_spec_rounding.md_端数処理/run-1.prompt.md", ".spec-gate-llm/extract/docs_spec_rounding.md_端数処理/run-2.prompt.md"]` |
+| `{"ref": "docs/arch/layers.mmd", "runs": 1}` | `[".spec-gate-llm/extract/docs_arch_layers.mmd/run-1.prompt.md"]` |
+
 ## 変更履歴
 
 - 2026-11-04 初版
+- 2026-11-04 LLM 処理のサブエージェント委譲を追加
