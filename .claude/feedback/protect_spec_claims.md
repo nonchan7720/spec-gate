@@ -14,11 +14,13 @@ enforce:
     severity: deny
     message: '.spec-gate/ はハーネスのロック・状態ファイルで編集禁止。'
   - event: pre_bash
-    when: '(\bsed\s+-i|\btee\b|>{1,2}|\bmv\b|\bcp\b|\brm\b|\btruncate\b|\bgit\s+(checkout|restore)\b)[^|;&]*(^|[\s"''=/])(claims/(?!_pending/)|\.spec-gate/)'
+    # リダイレクトは書き込み先そのもの、コマンドは同じ行の引数だけを見る（ヒアドキュメント本文や文字列中の言及は対象外）
+    when: '(>{1,2}\s*["'']?|(\bsed\s+-i|\btee\b|\bmv\b|\bcp\b|\brm\b|\btruncate\b|\bgit\s+(checkout|restore)\b)[^|;&\n]*[\s"''=])(\./)?(claims/(?!_pending/)|\.spec-gate/)'
     severity: deny
     message: 'claims/**（_pending 以外）と .spec-gate/ はシェル経由でも書き換え禁止。'
   - event: pre_bash
-    when: '(spec-gate|go\s+run\s+\S+)\s+(approve|plan\s+freeze)\b'
+    # コマンドの先頭（行頭・; & | ( の直後）で実行されたときだけ。mise exec / pnpm gate 経由も含む
+    when: '(^|[\n;&|(]\s*)(mise\s+(exec|x)\s+--\s+)?((\S*/)?spec-gate|go\s+run\s+\S+|(pnpm|npm\s+run)\s+gate(\s+--)?)\s+(approve|plan\s+freeze)\b'
     severity: deny
     message: 'claim の承認（approve）とプランの凍結（plan freeze）は人間の操作。エージェントは実行せず、ユーザーに依頼すること。'
 ---
