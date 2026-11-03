@@ -30,6 +30,7 @@ type app struct {
 	extract  *services.ExtractService
 	plan     *services.PlanService
 	status   *services.StatusService
+	lint     *services.LintService
 	mutation *services.MutationService
 	plans    domain.PlanRepository
 	claims   domain.ClaimRepository
@@ -45,6 +46,7 @@ func (utcClock) Now() string { return time.Now().UTC().Format(time.RFC3339) }
 
 func newApp(root string) *app {
 	claims := claimrepo.New(root)
+	holdout := claimrepo.NewHoldout(root)
 	plans := planfile.New(root)
 	runner := checker.ShellRunner{Dir: root, Timeout: 5 * time.Minute}
 	mermaid := adapter.NewMermaid(root)
@@ -90,8 +92,9 @@ func newApp(root string) *app {
 		adapters: adapters,
 		check: &services.CheckService{
 			Claims: claims, Plans: plans, Adapters: adapters, Checkers: checkers,
-			Runner: runner, Changes: vcs.Git{Dir: root}, Paths: workspace.Paths{Root: root}, Deps: workspace.NewGoDeps(root), DiagramEdges: diagramEdges,
+			Runner: runner, Changes: vcs.Git{Dir: root}, Paths: workspace.Paths{Root: root}, Deps: workspace.NewGoDeps(root), Holdout: holdout, DiagramEdges: diagramEdges,
 		},
+		lint:     &services.LintService{Claims: claims, Holdout: holdout},
 		approve:  &services.ApproveService{Claims: claims, Adapters: adapters, Clock: utcClock{}},
 		coverage: &services.CoverageService{Claims: claims, Sources: sourceregistry.New(root), Adapters: adapters},
 		extract:  extract,

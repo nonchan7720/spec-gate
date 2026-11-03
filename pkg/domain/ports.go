@@ -35,6 +35,15 @@ type PendingRepository interface {
 	DiscardPending(name string) error
 }
 
+// HoldoutRepository は holdout/<claim-id>.yaml（エージェントに見せない入出力例）の読み込み。
+// 読み込みエラーにも holdout の値を含めない（エラー文はエージェントに見える）。
+type HoldoutRepository interface {
+	// Holdout は claim の holdout を返す。ファイルが無ければ nil, nil。
+	Holdout(claimID string) ([]Example, error)
+	// All は holdout のある claim ID → examples。lint 用。
+	All() (map[string][]Example, error)
+}
+
 // SourceRegistry は sources.yaml。
 type SourceRegistry interface {
 	All() ([]SourceEntry, error)
@@ -62,6 +71,9 @@ type CheckOptions struct {
 	UI bool
 	// DiagramEdges は structure の allowed: from-diagram 用に service が渡す。
 	DiagramEdges map[string]bool
+	// Holdout は kind: example の holdout。service が HoldoutRepository から読んで渡す。
+	// checker は examples に続けて流し、結果は件数だけを出す。
+	Holdout []Example
 }
 
 // PlanRepository はプランファイルの読み込みと凍結記録。

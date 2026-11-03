@@ -23,6 +23,8 @@ type CheckService struct {
 	Paths domain.PathChecker
 	// Deps は触るパスが import するモジュール内のパッケージを答える（--changed 用）。nil なら依存は加えない。
 	Deps domain.DependencyResolver
+	// Holdout は kind: example の holdout（エージェントに見せない入出力例）。nil なら holdout を使わない。
+	Holdout domain.HoldoutRepository
 	// DiagramEdges は structure の from-diagram 用に、mermaid ref からエッジ集合を返す。
 	DiagramEdges func(ref string) (map[string]bool, error)
 }
@@ -132,6 +134,17 @@ func (s *CheckService) checkOne(ctx context.Context, c domain.Claim, req CheckRe
 		return res
 	}
 	opt := domain.CheckOptions{UI: req.UI}
+	if c.Kind == domain.KindExample && s.Holdout != nil {
+		// 読めない holdout を飛ばすと検証していないのに pass になるので fail にする。
+		// エラー文は repository 側で値を含めない
+		holdout, err := s.Holdout.Holdout(c.ID)
+		if err != nil {
+			res.Status = domain.StatusFail
+			res.Detail = err.Error()
+			return res
+		}
+		opt.Holdout = holdout
+	}
 	if c.Kind == domain.KindStructure && c.Allowed == "from-diagram" && s.DiagramEdges != nil {
 		edges, err := s.DiagramEdges(c.Source.Ref)
 		if err != nil {
@@ -249,8 +262,13 @@ func touched(c domain.Claim, changed []string, exists func(string) bool, deps fu
 		}
 	}
 	paths = append(paths, srcFile, c.File)
+	// holdout はエージェントが触れないが、人間が足したときに claim を判定し直す。
+	// IsTouched は同じディレクトリ・同じ拡張子を同じパッケージとみなすので、
+	// 他の claim の holdout まで拾わないよう、holdout は完全一致で比べる
+	holdout := map[string]bool{"holdout/" + c.ID + ".yaml": true, "holdout/" + c.ID + ".yml": true}
 	for _, ch := range changed {
-		if domain.IsTouched(paths, filepath.ToSlash(ch)) {
+		ch = strings.TrimPrefix(filepath.ToSlash(ch), "./")
+		if holdout[ch] || domain.IsTouched(paths, ch) {
 			return true
 		}
 	}
