@@ -36,12 +36,19 @@ type PendingRepository interface {
 }
 
 // HoldoutRepository は holdout/<claim-id>.yaml（エージェントに見せない入出力例）の読み込み。
+// 期待値は out_sha256（ハッシュ）でしか持たない。平文の out があるファイルはエラー。
 // 読み込みエラーにも holdout の値を含めない（エラー文はエージェントに見える）。
 type HoldoutRepository interface {
 	// Holdout は claim の holdout を返す。ファイルが無ければ nil, nil。
-	Holdout(claimID string) ([]Example, error)
-	// All は holdout のある claim ID → examples。lint 用。
-	All() (map[string][]Example, error)
+	Holdout(claimID string) ([]HoldoutExample, error)
+	// All は holdout のある claim ID → holdout。lint・leak 用。
+	All() (map[string][]HoldoutExample, error)
+}
+
+// HoldoutWriter は holdout への追記（spec-gate holdout add。人間だけが使う）。
+type HoldoutWriter interface {
+	// Append は claim の holdout の末尾に 1 件足し、書いたファイルのルート相対パスを返す。
+	Append(claimID string, ex HoldoutExample) (path string, err error)
 }
 
 // SourceRegistry は sources.yaml。
@@ -73,7 +80,7 @@ type CheckOptions struct {
 	DiagramEdges map[string]bool
 	// Holdout は kind: example の holdout。service が HoldoutRepository から読んで渡す。
 	// checker は examples に続けて流し、結果は件数だけを出す。
-	Holdout []Example
+	Holdout []HoldoutExample
 }
 
 // PlanRepository はプランファイルの読み込みと凍結記録。

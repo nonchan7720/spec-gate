@@ -8,7 +8,7 @@ import (
 	"unicode/utf8"
 )
 
-// リテラル漏れ検知: 実装に claim の examples・holdout の値がそのまま書き込まれていないかを調べる
+// リテラル漏れ検知: 実装に claim の examples・holdout（in だけ）の値がそのまま書き込まれていないかを調べる
 // （docs/spec/harness.md「リテラル漏れ検知」）。例の値を直書きして通す実装を見つけるため。
 
 const (

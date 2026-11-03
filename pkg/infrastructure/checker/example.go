@@ -140,9 +140,11 @@ func (e *ExampleChecker) fuzz(ctx context.Context, c domain.Claim) string {
 }
 
 // checkHoldout は holdout を binding に流し、1 件ごとの一致だけを返す。
+// 期待値は平文で持たないので、実際の出力の正規化 JSON の SHA-256 を out_sha256 と比べ、
+// properties は holdout の in と実際の出力で評価する。
 // 入力・期待値・実際の値・binding の出力（エラー出力に入力が混ざることがある）は返さない。
 // binding が落ちたら残りは流さず不一致として数える（壊れた binding を何度も呼ばない）。
-func (e *ExampleChecker) checkHoldout(ctx context.Context, c domain.Claim, holdout []domain.Example) []domain.HoldoutResult {
+func (e *ExampleChecker) checkHoldout(ctx context.Context, c domain.Claim, holdout []domain.HoldoutExample) []domain.HoldoutResult {
 	results := make([]domain.HoldoutResult, len(holdout))
 	for i, ex := range holdout {
 		in, _ := json.Marshal(map[string]any{"in": ex.In})
@@ -153,7 +155,10 @@ func (e *ExampleChecker) checkHoldout(ctx context.Context, c domain.Claim, holdo
 		var got struct {
 			Out any `json:"out"`
 		}
-		if json.Unmarshal([]byte(lastJSONLine(out)), &got) != nil || !domain.Equal(ex.Out, got.Out) {
+		if json.Unmarshal([]byte(lastJSONLine(out)), &got) != nil {
+			continue
+		}
+		if h, err := domain.OutputHash(got.Out); err != nil || h != ex.OutSHA256 {
 			continue
 		}
 		pass := true

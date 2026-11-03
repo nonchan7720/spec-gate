@@ -13,11 +13,19 @@ AI エージェントは、仕様の例の値を実装に直接書き込む・�
 
 claim の examples とは別に、エージェントに見せない入出力例（holdout）を持てる。
 
-- holdout は `holdout/<claim-id>.yaml` に置き、`examples:`（in / out の配列）だけを書く
-- `check` は examples に続けて holdout も binding に流して比べる
+シェルを使えるエージェントは、利用者が読めるファイルを読めてしまう（リポジトリ全体の grep、`git log -p` など）。
+平文の holdout を隠し切ることはできないので、holdout には期待値を平文で持たず、ハッシュだけを持つ。読まれても期待値はわからない。
+
+- holdout は `holdout/<claim-id>.yaml` に置き、`examples:`（`in` / `out_sha256` の配列）だけを書く
+- `in` は binding に流すので平文で書く。`out_sha256` は期待する出力の正規化 JSON の SHA-256（16 進小文字 64 文字）
+- 正規化 JSON は、値を JSON として読み直した値（数値は float64）を encoding/json で書いたもの。オブジェクトのキーは辞書順、HTML エスケープ（`<` `>` `&`）はしない、末尾に改行を付けない
+- holdout に平文の `out` を書くとエラー（読み込みで拒否する）。`in` が無い、`out_sha256` が無い、`out_sha256` が 16 進小文字 64 文字でない、もエラー
+- `check` は examples に続けて holdout の `in` も binding に流し、binding の出力の正規化 JSON の SHA-256 を `out_sha256` と比べる
+- properties は、期待値の平文が無いので、holdout の `in` と binding の実際の出力に対して `check` のときに評価する。満たさなければその holdout は不一致
 - holdout が不一致でも、レポートとエージェントへの出力に holdout の入力・期待値・実際の値を出してはならない。件数だけを出す
 - holdout が 1 件でも不一致なら、その claim は fail
-- `lint` は holdout も examples と同じく properties との整合を確かめる
+- `lint` は holdout の形だけを確かめる（対応する claim があり kind: example であること、各要素に `in` と正しい形の `out_sha256` があること）。期待値が無いので properties との整合は見ない
+- holdout を書くのは人間だけ。`spec-gate holdout add <claim-id> --in <json> --out <json>` は out の正規化 JSON の SHA-256 を計算し、`holdout/<claim-id>.yaml` の `examples:` の末尾に `in` と `out_sha256` を足す（ファイルが無ければ作る）。out の平文はどこにも保存も表示もしない。エージェントには実行させない（「holdout の読み取り拒否」）
 
 binding: `go run ./tools/bind holdout-summary`（入力は holdout の判定結果の配列、出力はレポートに出す 1 行）
 
@@ -34,13 +42,14 @@ binding: `go run ./tools/bind holdout-summary`（入力は holdout の判定結�
 - `.claude/settings.json` の `permissions.deny` に `Read(./holdout/**)` を入れる
 - `holdout/` を読む・表示するシェルコマンド（cat / less / head / tail / grep / git show / git log -p など）を hook-gate の `pre_bash` で拒否する
 - `holdout/` への書き込み（Edit / Write、シェルからの書き込み）も `claims/` と同じく拒否する
+- `spec-gate holdout add` の実行（`spec-gate holdout add`、`go run . holdout add` など）も hook-gate の `pre_bash` で拒否する。holdout を足すのは人間だけ
 - spec-gate 本体（`check` / `lint`）は holdout を読める
 
 ## リテラル漏れ検知
 
-実装ファイルに、claim の examples・holdout の値がそのまま書き込まれていないかを検知する。
+実装ファイルに、claim の examples・holdout の値がそのまま書き込まれていないかを検知する。holdout は期待値をハッシュでしか持たないので、holdout から調べるのは `in` の値だけ。
 
-- `spec-gate leak <file>...` は、指定ファイルの内容に examples・holdout の in / out の値が現れるかを調べ、見つかれば値と行番号を出して exit 1
+- `spec-gate leak <file>...` は、指定ファイルの内容に examples の in / out の値と holdout の in の値が現れるかを調べ、見つかれば値と行番号を出して exit 1。holdout だけにある値は値を出さず、行番号だけを出す
 - 数値は「数字が 3 桁以上」のものだけを対象にする（0・1・10 のようなありふれた値で誤検知しない）。桁は符号と小数点を除いた数字（0〜9）の個数で数える（1.25 は 3 桁、-12 は 2 桁）
 - 数値は、前後が数字・小数点・英字でない位置に、その値の表記がそのまま現れたときだけ検知する（1234.56 の中の 1234 は 1234 として数えない）
 - 文字列は 4 文字以上のものだけを対象にする
@@ -221,3 +230,4 @@ binding: `go run ./tools/bind llm-paths`（入力は `{"ref": ref, "runs": 回�
 - 2026-11-04 LLM 処理のサブエージェント委譲を追加
 - 2026-11-04 合議抽出で【要確認】になった箇所（漏れ検知の桁数、乱数の種と範囲、変異の一覧、再リンクの長さと同点、変更行数と pass の基準）を確定
 - 2026-11-04 変更検知の精度に、触る Go パッケージが import するモジュール内のパッケージも触るパスに加える規則を追加
+- 2026-11-04 holdout の期待値を平文ではなく SHA-256（`out_sha256`）で持つように変更。`spec-gate holdout add` を追加し、properties は check 時に実際の出力で評価、lint は形だけを確かめる。漏れ検知が holdout から調べるのは in だけ
