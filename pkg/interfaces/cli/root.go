@@ -15,6 +15,7 @@ import (
 	"github.com/nonchan7720/spec-gate/pkg/infrastructure/planfile"
 	"github.com/nonchan7720/spec-gate/pkg/infrastructure/sourceregistry"
 	"github.com/nonchan7720/spec-gate/pkg/infrastructure/vcs"
+	"github.com/nonchan7720/spec-gate/pkg/infrastructure/workspace"
 	"github.com/nonchan7720/spec-gate/pkg/services"
 	"github.com/nonchan7720/spec-gate/pkg/version"
 	"github.com/spf13/cobra"
@@ -82,7 +83,7 @@ func newApp(root string) *app {
 		adapters: adapters,
 		check: &services.CheckService{
 			Claims: claims, Plans: plans, Adapters: adapters, Checkers: checkers,
-			Runner: runner, Changes: vcs.Git{Dir: root}, DiagramEdges: diagramEdges,
+			Runner: runner, Changes: vcs.Git{Dir: root}, Paths: workspace.Paths{Root: root}, DiagramEdges: diagramEdges,
 		},
 		approve:  &services.ApproveService{Claims: claims, Adapters: adapters, Clock: utcClock{}},
 		coverage: &services.CoverageService{Claims: claims, Sources: sourceregistry.New(root), Adapters: adapters},

@@ -71,6 +71,11 @@ type fakeChanges struct {
 
 func (f fakeChanges) ChangedFiles() ([]string, error) { return f.files, f.err }
 
+// fakePaths はリポジトリに実在するパスの集合。
+type fakePaths map[string]bool
+
+func (f fakePaths) Exists(p string) bool { return f[p] }
+
 type fixedClock string
 
 func (c fixedClock) Now() string { return string(c) }

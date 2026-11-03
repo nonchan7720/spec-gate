@@ -145,50 +145,91 @@ func TestCheck_OnlyFiltersAndSkipsPlans(t *testing.T) {
 }
 
 func TestCheck_ChangedFiltersByTouchedFiles(t *testing.T) {
-	snaps := map[string]domain.Snapshot{"docs/a.md#x": {Hash: "h"}, "docs/b.md#x": {Hash: "h"}}
-	a := mdClaim("A", "docs/a.md#x", domain.KindExample, approved("h"))
-	a.Binding = "npx tsx tools/call.ts src/a.ts f"
-	b := mdClaim("B", "docs/b.md#x", domain.KindExample, approved("h"))
-	b.Binding = "npx tsx tools/call.ts src/b.ts f"
-	results := map[string]domain.Status{"A": domain.StatusPass, "B": domain.StatusPass}
+	snaps := map[string]domain.Snapshot{"docs/a/spec.md#x": {Hash: "h"}, "docs/b/spec.md#x": {Hash: "h"}, "docs/c/spec.md#x": {Hash: "h"}}
+	a := mdClaim("A", "docs/a/spec.md#x", domain.KindExample, approved("h"))
+	a.Binding = "npx tsx tools/call.ts src/a/round.ts f"
+	b := mdClaim("B", "docs/b/spec.md#x", domain.KindExample, approved("h"))
+	b.Binding = "go run ./src/b close src/gone.ts" // src/b はディレクトリ、src/gone.ts は実在しない
+	c := mdClaim("C", "docs/c/spec.md#x", domain.KindExample, approved("h"))
+	c.Binding = ""
+	c.Story = "src/ui/List.stories.tsx"
+	claims := []domain.Claim{a, b, c}
+	paths := fakePaths{"tools/call.ts": true, "src/a/round.ts": true, "src/b": true}
+	results := map[string]domain.Status{"A": domain.StatusPass, "B": domain.StatusPass, "C": domain.StatusPass}
+
+	ids := func(rep CheckReport) string {
+		var got []string
+		for _, r := range rep.Claims {
+			got = append(got, r.ID)
+		}
+		return strings.Join(got, ",")
+	}
 
 	cases := []struct {
 		name    string
 		changed []string
-		want    []string
+		want    string
 	}{
-		{"binding のファイル", []string{"src/a.ts"}, []string{"A"}},
-		{"仕様ファイル", []string{"docs/b.md"}, []string{"B"}},
-		{"無関係", []string{"README.md"}, nil},
+		{"binding のファイル", []string{"src/a/round.ts"}, "A"},
+		{"binding のファイルと同じパッケージの別ファイル", []string{"src/a/util.ts"}, "A"},
+		{"同じディレクトリでも拡張子が違えば対象外", []string{"src/a/README.md"}, ""},
+		{"binding のディレクトリの配下", []string{"src/b/inner/x.go"}, "B"},
+		{"binding の語でも実在しないパスは触るパスにしない", []string{"src/gone.ts"}, ""},
+		{"複数の claim が触るファイル", []string{"tools/call.ts"}, "A"},
+		{"仕様ファイル", []string{"docs/b/spec.md"}, "B"},
+		{"story はこれまでどおり", []string{"src/ui/List.stories.tsx"}, "C"},
+		{"無関係", []string{"README.md"}, ""},
+		{"変更が複数なら当たった claim をすべて", []string{"README.md", "src/a/util.ts", "src/b/x.go"}, "A,B"},
 	}
 	for _, tc := range cases {
 		t.Run(tc.name, func(t *testing.T) {
-			s, _ := newCheck([]domain.Claim{a, b}, snaps, results)
+			s, _ := newCheck(claims, snaps, results)
 			s.Changes = fakeChanges{files: tc.changed}
+			s.Paths = paths
 			rep, err := s.Run(context.Background(), CheckRequest{Changed: true})
 			if err != nil {
 				t.Fatal(err)
 			}
-			var got []string
-			for _, r := range rep.Claims {
-				got = append(got, r.ID)
+			if got := ids(rep); got != tc.want {
+				t.Fatalf("got %q, want %q", got, tc.want)
 			}
-			if strings.Join(got, ",") != strings.Join(tc.want, ",") {
-				t.Fatalf("got %v, want %v", got, tc.want)
+			if rep.Skipped != len(claims)-len(rep.Claims) {
+				t.Fatalf("対象外の件数: %d", rep.Skipped)
 			}
 		})
 	}
 
+	t.Run("実在を確かめられなければ binding の語をすべて触るパスにする", func(t *testing.T) {
+		s, _ := newCheck(claims, snaps, results)
+		s.Changes = fakeChanges{files: []string{"src/gone.ts"}}
+		rep, err := s.Run(context.Background(), CheckRequest{Changed: true})
+		if err != nil {
+			t.Fatal(err)
+		}
+		if got := ids(rep); got != "B" {
+			t.Fatalf("見逃さない側に倒す: got %q", got)
+		}
+	})
 	t.Run("git でなければ全件", func(t *testing.T) {
-		s, _ := newCheck([]domain.Claim{a, b}, snaps, results)
+		s, _ := newCheck(claims, snaps, results)
 		s.Changes = fakeChanges{files: nil}
+		s.Paths = paths
 		rep, _ := s.Run(context.Background(), CheckRequest{Changed: true})
-		if len(rep.Claims) != 2 {
+		if len(rep.Claims) != len(claims) || rep.Skipped != 0 {
 			t.Fatalf("変更一覧が取れなければ見逃さないよう全件: %+v", rep.Claims)
 		}
 	})
+	t.Run("--changed でなければ全件", func(t *testing.T) {
+		s, _ := newCheck(claims, snaps, results)
+		s.Changes = fakeChanges{files: []string{"README.md"}}
+		s.Paths = paths
+		rep, _ := s.Run(context.Background(), CheckRequest{})
+		if len(rep.Claims) != len(claims) {
+			t.Fatalf("--changed なしは絞り込まない: %+v", rep.Claims)
+		}
+	})
 	t.Run("変更一覧の取得エラーは返す", func(t *testing.T) {
-		s, _ := newCheck([]domain.Claim{a, b}, snaps, results)
+		s, _ := newCheck(claims, snaps, results)
 		s.Changes = fakeChanges{err: errors.New("git broke")}
 		if _, err := s.Run(context.Background(), CheckRequest{Changed: true}); err == nil {
 			t.Fatal("取得エラーを握りつぶさない")
