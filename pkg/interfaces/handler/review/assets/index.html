@@ -1,0 +1,30 @@
+<!doctype html>
+<html lang="ja">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>spec-gate 承認</title>
+<link rel="stylesheet" href="/assets/style.css">
+<script src="/assets/app.js" defer></script>
+</head>
+<body>
+<header class="bar">
+  <div class="bar-inner">
+    <div>
+      <h1>承認待ちの仕様</h1>
+      <p class="lead">AI が仕様から読み取った「守るべきこと」です。内容が仕様どおりなら選んで承認してください。</p>
+    </div>
+    <div class="actions">
+      <span id="who" class="who"></span>
+      <label class="selall"><input type="checkbox" id="select-all"> すべて選択</label>
+      <button type="button" id="reject" class="btn danger" disabled>却下</button>
+      <button type="button" id="approve" class="btn primary" disabled>承認</button>
+    </div>
+  </div>
+</header>
+<main>
+  <div id="notice" class="notice" hidden></div>
+  <div id="list" class="list" aria-live="polite"><p class="empty">読み込み中…</p></div>
+</main>
+</body>
+</html>

@@ -28,6 +28,7 @@ Figma / PNG / PDF                    ↑ 人間承認はここ 1 回だけ
 | 抽出 | `spec-gate extract <ref> --runs 3` | AI | 同じ仕様を独立に N 回読み、一致した主張だけ高信頼にして `claims/_pending/` へ（合議） |
 | 整合 | `spec-gate lint` | 機械 | examples が properties を満たすか、claim 同士が矛盾しないか |
 | 承認 | `spec-gate approve <id>` | **人間** | 仕様の該当箇所を表示し、ハッシュを凍結。lint 失敗なら拒否 |
+| 承認 UI | `spec-gate review` | **人間** | `claims/_pending/` を仕様の抜粋つきで平易に並べるローカルの Web ページ（127.0.0.1）。チェックして承認すると `claims/<領域>/` に移して `approve` する |
 | 判定 | `spec-gate check` | 機械 | 承認 → 仕様ドリフト → 種類別チェック → プランの verify |
 | 漏れ | `spec-gate coverage` | 機械 | 仕様のうち claim に紐づかない箇所を列挙 |
 | 逆変換 | `spec-gate reverse [<id>...]` | AI | 仕様を見せずに claim だけから仕様文を書き起こし、原文の該当箇所と比べて、claim にだけある主張・抜けている規範・矛盾を列挙（レビュー補助。`--strict` で食い違いがあれば exit 1） |
@@ -214,8 +215,12 @@ docs/spec/rounding.md#端数処理 から読み取った主張
 ```
 
 `extract` の出力をこの形で見せ、チェックを入れる = `approve`。「要確認」は仕様が決まっていない
-ことの発見なので、それ自体が価値になる。承認 UI はこの雛形には含まれていない（`_pending/` を
-読んで並べるだけなので薄い Web でも Slack でもよい）。
+ことの発見なので、それ自体が価値になる。
+
+この画面が `spec-gate review` で、`claims/_pending/` を `http://127.0.0.1:7790` で配信する（`--addr`、ループバックのみ。
+`--by` で承認者名、既定は OS ユーザー）。候補ごとに一致数（confidence）、仕様の抜粋、claim の中身を平易に出す
+（入出力例は表、層、画面の状態と文言）。YAML は見せない。承認すると `claims/spec|arch|ui/` に移して `approve` し、
+lint や仕様の読み取りで拒否されたら `_pending/` に戻して理由を表示する。却下は候補を削除する。CDN や外部リソースは使わない。
 
 ## 設計上の制約と未実装
 

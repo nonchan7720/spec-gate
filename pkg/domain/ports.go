@@ -10,6 +10,31 @@ type ClaimRepository interface {
 	SavePending(c Claim, confidence string) (path string, err error)
 }
 
+// PendingClaim は claims/_pending/ にある承認待ちの候補 1 件。
+type PendingClaim struct {
+	// Name は _pending 内のファイル名（例: ROUND-003.yaml）。候補を指す鍵として使う
+	Name string
+	// Path はプロジェクトルートからの相対パス
+	Path string
+	// Confidence は extract の合議の一致数（例: "2/3"）。ヘッダが無ければ空
+	Confidence string
+	Claim      Claim
+	// Error は読めない・必須項目が無いときの理由。空でなければ承認できない（却下のみ）
+	Error string
+}
+
+// PendingRepository は承認待ち候補（claims/_pending/）の操作。
+type PendingRepository interface {
+	// Pending は承認待ち候補を名前順に返す。壊れた候補も Error つきで返す。
+	Pending() ([]PendingClaim, error)
+	// Promote は候補 name を claims/<area>/ に移し、移動後の絶対パスを返す。
+	Promote(name, area string) (path string, err error)
+	// Demote は Promote で移したファイルを _pending に戻す（承認に失敗したときの巻き戻し）。
+	Demote(path string) error
+	// DiscardPending は候補 name を削除する（却下）。
+	DiscardPending(name string) error
+}
+
 // SourceRegistry は sources.yaml。
 type SourceRegistry interface {
 	All() ([]SourceEntry, error)

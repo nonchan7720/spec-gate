@@ -30,6 +30,7 @@ Natural language is never compared with code directly. A **claim (a verifiable s
 | Extract | `spec-gate extract <ref> --runs 3` | AI | Reads the same spec N times independently; agreed claims go to `claims/_pending/` with high confidence (consensus) |
 | Lint | `spec-gate lint` | machine | Do examples satisfy properties; do claims contradict each other |
 | Approve | `spec-gate approve <id>` | **human** | Shows the spec excerpt and freezes its hash. Refused when lint fails |
+| Review | `spec-gate review` | **human** | A local web page (127.0.0.1) listing `claims/_pending/` in plain language with the spec excerpt; ticking and approving moves each claim into `claims/<area>/` and runs `approve` |
 | Check | `spec-gate check` | machine | approval → spec drift → per-kind check → plan verify |
 | Coverage | `spec-gate coverage` | machine | Lists the parts of the specs no claim covers |
 | Reverse | `spec-gate reverse [<id>...]` | AI | Rewrites each claim as spec prose without seeing the spec, then compares it with the original excerpt and lists what the claim adds, misses or contradicts (review aid; `--strict` exits 1 on a mismatch) |
@@ -217,8 +218,13 @@ Claims read from docs/spec/rounding.md#端数処理
 ```
 
 Show the `extract` output like this; ticking a box = `approve`. A "to confirm" is the discovery that the spec is
-not decided yet, which is valuable in itself. The approval UI is not part of this template (it only lists
-`_pending/`, so a thin web page or Slack will do).
+not decided yet, which is valuable in itself.
+
+`spec-gate review` is this page: it serves `claims/_pending/` on `http://127.0.0.1:7790` (`--addr`, loopback only;
+`--by` names the approver, the OS user by default). Each candidate shows its confidence, the spec excerpt and the
+claim in plain language (examples as a table, layers, screen states and strings), never YAML. Approving moves the
+file to `claims/spec|arch|ui/` and runs `approve`; when lint or the spec rejects it, the file goes back to `_pending/`
+and the reason is shown. Rejecting deletes the candidate. The page uses no CDN or external resources.
 
 ## Design limits and what is not implemented
 

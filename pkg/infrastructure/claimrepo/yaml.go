@@ -11,7 +11,6 @@ import (
 	"path/filepath"
 	"regexp"
 	"sort"
-	"strings"
 
 	"github.com/nonchan7720/spec-gate/pkg/domain"
 	"gopkg.in/yaml.v3"
@@ -38,18 +37,15 @@ func (r *Repo) All() ([]domain.Claim, error) {
 			}
 			return nil
 		}
-		if !strings.HasSuffix(p, ".yaml") && !strings.HasSuffix(p, ".yml") {
+		if !isYAML(p) {
 			return nil
 		}
 		b, err := os.ReadFile(p)
 		if err != nil {
 			return err
 		}
-		var c domain.Claim
-		// 未知のキーはエラーにする。綴り違い（forbiden など）を黙って無視すると、その制約が無いまま pass になる
-		dec := yaml.NewDecoder(bytes.NewReader(b))
-		dec.KnownFields(true)
-		if err := dec.Decode(&c); err != nil && !errors.Is(err, io.EOF) {
+		c, err := decodeClaim(b)
+		if err != nil {
 			return fmt.Errorf("%s: %w", rel(r.root, p), err)
 		}
 		if err := c.Validate(); err != nil {
@@ -68,6 +64,18 @@ func (r *Repo) All() ([]domain.Claim, error) {
 	}
 	sort.Slice(claims, func(i, j int) bool { return claims[i].ID < claims[j].ID })
 	return claims, err
+}
+
+// decodeClaim は claim 1 件を読む。
+// 未知のキーはエラーにする。綴り違い（forbiden など）を黙って無視すると、その制約が無いまま pass になる
+func decodeClaim(b []byte) (domain.Claim, error) {
+	var c domain.Claim
+	dec := yaml.NewDecoder(bytes.NewReader(b))
+	dec.KnownFields(true)
+	if err := dec.Decode(&c); err != nil && !errors.Is(err, io.EOF) {
+		return c, err
+	}
+	return c, nil
 }
 
 func (r *Repo) Save(c domain.Claim) error {
