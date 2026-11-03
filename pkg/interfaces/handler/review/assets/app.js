@@ -97,16 +97,72 @@ function card(it) {
     it.confidence ? el("span", { class: "chip" + (lowConfidence(it.confidence) ? " warn" : ""), text: "AI の一致度 " + it.confidence }) : null,
     it.area ? el("span", { class: "chip", text: "承認後の置き場所: claims/" + it.area + "/" }) : null,
   );
+  const ambBtn = el("button", { type: "button", class: "btn subtle", text: "曖昧" });
+  ambBtn.title = "claim の誤りではなく、仕様が決まっていないことを記録します";
   const head = el("div", { class: "card-head" }, box,
-    el("div", { class: "card-title" }, el("h2", { text: it.title || it.name }), meta));
+    el("div", { class: "card-title" }, el("h2", { text: it.title || it.name }), meta), ambBtn);
   c.append(head);
+  const form = ambiguousForm(it);
+  form.hidden = true;
+  ambBtn.addEventListener("click", () => {
+    form.hidden = !form.hidden;
+    if (!form.hidden) form.querySelector("textarea").focus();
+  });
 
   if (it.error) {
-    c.append(el("div", { class: "err", text: "この候補は読めないため承認できません（却下のみ可能）: " + it.error }));
+    c.append(el("div", { class: "err", text: "この候補は読めないため承認できません（却下・曖昧の記録のみ可能）: " + it.error }));
+    c.append(form);
     return c;
   }
+  c.append(form);
   c.append(el("div", { class: "cols" }, specBlock(it), el("div", {}, ...contentBlocks(it))));
   return c;
+}
+
+// ambiguousForm は「曖昧」の理由を入力させるフォーム。送ると候補は claims/_ambiguous/ に移る。
+function ambiguousForm(it) {
+  const id = "amb-" + it.name;
+  const area = el("textarea", { id: id, rows: "2", maxlength: "500" });
+  area.placeholder = "例: 月末が休日のときに前倒しするかが仕様に書かれていない";
+  const send = el("button", { type: "submit", class: "btn primary", text: "曖昧として記録" });
+  const cancel = el("button", { type: "button", class: "btn", text: "やめる" });
+  const f = el("form", { class: "ambiguous" },
+    el("label", { for: id, text: "仕様のどこが決まっていないか（必須）" }),
+    area,
+    el("div", { class: "ambiguous-actions" }, cancel, send));
+  cancel.addEventListener("click", () => { f.hidden = true; });
+  f.addEventListener("submit", async (e) => {
+    e.preventDefault();
+    const reason = area.value.trim();
+    if (!reason) {
+      showNotice("ng", "曖昧とする理由を入力してください。");
+      area.focus();
+      return;
+    }
+    await markAmbiguous(it.name, reason);
+  });
+  return f;
+}
+
+async function markAmbiguous(name, reason) {
+  if (state.busy) return;
+  state.busy = true;
+  updateButtons();
+  try {
+    const data = await api("/api/ambiguous", { names: [name], reason: reason });
+    const r = (data.results || [])[0] || {};
+    if (r.ok) {
+      state.selected.delete(name);
+      showNotice("ok", name + " を「仕様が決まっていない」として claims/_ambiguous/ に記録しました。");
+    } else {
+      showNotice("ng", "✗ " + name + ": " + (r.error || "記録できませんでした"));
+    }
+  } catch (e) {
+    showNotice("ng", "記録に失敗しました: " + e.message);
+  } finally {
+    state.busy = false;
+    await load();
+  }
 }
 
 // confidence "1/3" のように過半数に満たないものを目立たせる

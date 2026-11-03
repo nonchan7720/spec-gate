@@ -32,7 +32,7 @@ func (r *Repo) All() ([]domain.Claim, error) {
 			return err
 		}
 		if d.IsDir() {
-			if d.Name() == pendingDir {
+			if d.Name() == pendingDir || d.Name() == ambiguousDir { // 承認待ち・曖昧の記録は check の対象外
 				return fs.SkipDir
 			}
 			return nil

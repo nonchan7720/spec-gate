@@ -13,6 +13,8 @@ import (
 type checkOutput struct {
 	// JSON は CI 向けに判定結果を JSON で出す
 	JSON bool
+	// Role が空でなければ、その役割が対応すべき判定だけを出す
+	Role domain.Role
 }
 
 // renderCheck は判定結果を出力し、check の exit code を返す。
@@ -22,10 +24,14 @@ func renderCheck(w io.Writer, rep services.CheckReport, opt checkOutput) (int, e
 	if rep.HasBlocking() {
 		code = 1
 	}
-	if opt.JSON {
-		return code, writeJSONReport(w, rep)
+	switch {
+	case opt.JSON:
+		return code, writeJSONReport(w, rep, opt.Role)
+	case opt.Role != "":
+		writeRoleReport(w, rep, opt.Role)
+	default:
+		writeReport(w, rep, false)
 	}
-	writeReport(w, rep, false)
 	return code, nil
 }
 
@@ -54,9 +60,11 @@ type jsonCounts struct {
 }
 
 type jsonReport struct {
+	// Role は --role で絞ったときの役割
+	Role   string       `json:"role,omitempty"`
 	Claims []jsonResult `json:"claims"`
 	Plans  []jsonPlan   `json:"plans"`
-	// Counts はテキスト出力の最終行と同じく、claim とプラン項目を合わせた件数
+	// Counts はテキスト出力の最終行と同じく、claim とプラン項目を合わせた件数（--role の絞り込み前）
 	Counts  jsonCounts `json:"counts"`
 	Skipped int        `json:"skipped"`
 }
@@ -78,9 +86,13 @@ func allResults(rep services.CheckReport) domain.Results {
 	return all
 }
 
-func writeJSONReport(w io.Writer, rep services.CheckReport) error {
-	out := jsonReport{Claims: toJSONResults(rep.Claims), Plans: make([]jsonPlan, 0, len(rep.Plans)), Skipped: rep.Skipped}
-	for _, p := range rep.Plans {
+func writeJSONReport(w io.Writer, rep services.CheckReport, role domain.Role) error {
+	shown := rep
+	if role != "" {
+		shown = filterReport(rep, role)
+	}
+	out := jsonReport{Role: string(role), Claims: toJSONResults(shown.Claims), Plans: make([]jsonPlan, 0, len(shown.Plans)), Skipped: rep.Skipped}
+	for _, p := range shown.Plans {
 		out.Plans = append(out.Plans, jsonPlan{Path: p.Path, Title: p.Title, Items: toJSONResults(p.Items)})
 	}
 	all := allResults(rep)

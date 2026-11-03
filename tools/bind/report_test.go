@@ -42,6 +42,23 @@ func TestBinding_UnverifiedRate(t *testing.T) {
 	})
 }
 
+// harness.md「役割別レポート」の表
+func TestBinding_RoleFilter(t *testing.T) {
+	assertRows(t, "role-filter", []bindRow{
+		{`{"role": "engineer", "results": [{"id": "A", "kind": "example", "status": "fail"}, {"id": "B", "kind": "example", "status": "pass"}]}`, `["A"]`},
+		{`{"role": "designer", "results": [{"id": "U", "kind": "ui", "status": "unverified"}, {"id": "E", "kind": "example", "status": "unverified"}]}`, `["U"]`},
+		{`{"role": "pm", "results": [{"id": "S", "kind": "example", "status": "stale"}, {"id": "N", "kind": "manual", "status": "unapproved"}, {"id": "F", "kind": "example", "status": "fail"}]}`, `["S", "N"]`},
+		{`{"role": "engineer", "results": []}`, `[]`},
+	})
+}
+
+func TestBinding_RoleFilterRejectsUnknownRole(t *testing.T) {
+	var out bytes.Buffer
+	if err := funcs.run("role-filter", strings.NewReader(`{"in": {"role": "qa", "results": []}}`), &out); err == nil {
+		t.Fatalf("知らない役割はエラー: %q", out.String())
+	}
+}
+
 func TestBinding_UnverifiedRateRejectsNonArray(t *testing.T) {
 	var out bytes.Buffer
 	if err := funcs.run("unverified-rate", strings.NewReader(`{"in": "pass"}`), &out); err == nil {

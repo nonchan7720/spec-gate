@@ -21,6 +21,8 @@ type fakeService struct {
 	failures map[string]string // name → 承認時のエラー
 	approved []string          // "name by"
 	rejected []string
+	// ambiguous は曖昧として記録した "name: 理由"
+	ambiguous []string
 }
 
 func (f *fakeService) List(context.Context) ([]services.ReviewItem, error) {
