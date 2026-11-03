@@ -124,6 +124,7 @@ func Execute() {
 		newApproveCmd(&a),
 		newCoverageCmd(&a),
 		newExtractCmd(&a),
+		newReverseCmd(&a),
 		newPlanCmd(&a),
 		newVersionCmd(),
 	)
