@@ -49,6 +49,8 @@ func (r *Repo) Load(path string) (domain.Plan, error) {
 	}
 	p := domain.Plan{Path: path, Status: "draft"}
 	body := string(b)
+	// lineOffset は front matter として取り除いた行数。Line をファイル上の行番号にするために足す。
+	lineOffset := 0
 
 	// front matter
 	if strings.HasPrefix(body, "---\n") {
@@ -63,6 +65,7 @@ func (r *Repo) Load(path string) (domain.Plan, error) {
 			if fm.Status != "" {
 				p.Status = fm.Status
 			}
+			lineOffset = strings.Count(body[:4+end+4], "\n")
 			body = body[4+end+4:]
 		}
 	}
@@ -73,7 +76,7 @@ func (r *Repo) Load(path string) (domain.Plan, error) {
 			if cur != nil {
 				p.Items = append(p.Items, *cur)
 			}
-			cur = &domain.PlanItem{Text: strings.TrimSpace(m[2]), Line: i + 1, Done: m[1] != " "}
+			cur = &domain.PlanItem{Text: strings.TrimSpace(m[2]), Line: lineOffset + i + 1, Done: m[1] != " "}
 			continue
 		}
 		if cur != nil {

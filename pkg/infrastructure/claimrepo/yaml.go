@@ -2,7 +2,10 @@
 package claimrepo
 
 import (
+	"bytes"
+	"errors"
 	"fmt"
+	"io"
 	"io/fs"
 	"os"
 	"path/filepath"
@@ -43,7 +46,10 @@ func (r *Repo) All() ([]domain.Claim, error) {
 			return err
 		}
 		var c domain.Claim
-		if err := yaml.Unmarshal(b, &c); err != nil {
+		// 未知のキーはエラーにする。綴り違い（forbiden など）を黙って無視すると、その制約が無いまま pass になる
+		dec := yaml.NewDecoder(bytes.NewReader(b))
+		dec.KnownFields(true)
+		if err := dec.Decode(&c); err != nil && !errors.Is(err, io.EOF) {
 			return fmt.Errorf("%s: %w", rel(r.root, p), err)
 		}
 		if err := c.Validate(); err != nil {
