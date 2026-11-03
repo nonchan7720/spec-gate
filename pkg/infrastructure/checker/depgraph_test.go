@@ -56,21 +56,60 @@ forbidden:
   infra: [app]
 `
 
-func TestDepgraph_ConsistentAndGatePasses(t *testing.T) {
-	r := &fakeRunner{}
-	d := NewDepgraph(writeDepgraph(t, consistentYAML), r, "depgraph gate")
+// scanOK は depgraph scan が最後まで走ったときの出力（Findings なし）。
+const scanOK = "project x\nscanned 39 files in 771ms\n"
+
+func TestDepgraph_ConsistentAndScanCleanPasses(t *testing.T) {
+	r := &fakeRunner{out: scanOK}
+	d := NewDepgraph(writeDepgraph(t, consistentYAML), r, "depgraph scan")
 	res := d.Check(context.Background(), archClaim(), domain.CheckOptions{DiagramEdges: diagram})
 	if res.Status != domain.StatusPass {
-		t.Fatalf("図と設定が一致し gate も通れば pass: %+v", res)
+		t.Fatalf("図と設定が一致し、全件スキャンで層違反が無ければ pass: %+v", res)
 	}
-	if len(r.calls) != 1 || r.calls[0] != "depgraph gate" {
-		t.Fatalf("depgraph gate を 1 回実行すべき: %v", r.calls)
+	if len(r.calls) != 1 || r.calls[0] != "depgraph scan" {
+		t.Fatalf("depgraph を 1 回実行すべき: %v", r.calls)
+	}
+}
+
+func TestDepgraph_DefaultCommandIsFullScan(t *testing.T) {
+	r := &fakeRunner{out: scanOK}
+	d := NewDepgraph(writeDepgraph(t, consistentYAML), r, "")
+	d.Check(context.Background(), archClaim(), domain.CheckOptions{DiagramEdges: diagram})
+	// セッションで増えた分しか見ない gate ではなく、今のツリー全体を見る scan。CLAUDE.md は書き換えない
+	if len(r.calls) != 1 || !strings.Contains(r.calls[0], "depgraph scan") || !strings.Contains(r.calls[0], "--claude-md ''") {
+		t.Fatalf("既定は CLAUDE.md を書き換えない全件スキャン: %v", r.calls)
+	}
+}
+
+func TestDepgraph_ExistingViolationFails(t *testing.T) {
+	// セッション前からある違反でも fail にする（spec-gate は既存の仕様違反も通さない）
+	out := scanOK + "findings (2):\n" +
+		"  [error] layer-violation: src/domain -> src/infra (domain must not import infra)\n" +
+		"  [warn] god-package: src/app is imported by 12 packages and imports 4\n"
+	d := NewDepgraph(writeDepgraph(t, consistentYAML), &fakeRunner{out: out}, "depgraph scan")
+	res := d.Check(context.Background(), archClaim(), domain.CheckOptions{DiagramEdges: diagram})
+	if res.Status != domain.StatusFail || !strings.Contains(res.Detail, "src/domain -> src/infra") {
+		t.Fatalf("claim の層どうしの layer-violation は fail: %+v", res)
+	}
+	if strings.Contains(res.Detail, "god-package") {
+		t.Fatalf("layer-violation 以外は structure claim の対象外: %s", res.Detail)
+	}
+}
+
+func TestDepgraph_ViolationOutsideClaimLayersIsIgnored(t *testing.T) {
+	// .depgraph.yml には claim 以外の層（本体の core-* など）もある。それは別 claim / depgraph gate の担当
+	out := scanOK + "findings (1):\n" +
+		"  [error] layer-violation: pkg/domain -> pkg/services (core-domain must not import core-services)\n"
+	d := NewDepgraph(writeDepgraph(t, consistentYAML), &fakeRunner{out: out}, "depgraph scan")
+	res := d.Check(context.Background(), archClaim(), domain.CheckOptions{DiagramEdges: diagram})
+	if res.Status != domain.StatusPass {
+		t.Fatalf("claim の層を含まない layer-violation では fail にしない: %+v", res)
 	}
 }
 
 func TestDepgraph_MissingConfigFails(t *testing.T) {
 	r := &fakeRunner{}
-	d := NewDepgraph(writeDepgraph(t, ""), r, "depgraph gate")
+	d := NewDepgraph(writeDepgraph(t, ""), r, "depgraph scan")
 	res := d.Check(context.Background(), archClaim(), domain.CheckOptions{DiagramEdges: diagram})
 	if res.Status != domain.StatusFail || !strings.Contains(res.Detail, ".depgraph.yml") {
 		t.Fatalf(".depgraph.yml が無ければ fail: %+v", res)
@@ -88,7 +127,7 @@ layers:
 forbidden:
   domain: [app]
 `
-	d := NewDepgraph(writeDepgraph(t, yml), &fakeRunner{}, "depgraph gate")
+	d := NewDepgraph(writeDepgraph(t, yml), &fakeRunner{}, "depgraph scan")
 	res := d.Check(context.Background(), archClaim(), domain.CheckOptions{DiagramEdges: diagram})
 	if res.Status != domain.StatusFail || !strings.Contains(res.Detail, "infra") {
 		t.Fatalf("claim の層が .depgraph.yml に無ければ fail: %+v", res)
@@ -97,7 +136,7 @@ forbidden:
 
 func TestDepgraph_LayerPathMismatchFails(t *testing.T) {
 	yml := strings.Replace(consistentYAML, `infra: ["src/infra/**"]`, `infra: ["src/infrastructure/**"]`, 1)
-	d := NewDepgraph(writeDepgraph(t, yml), &fakeRunner{}, "depgraph gate")
+	d := NewDepgraph(writeDepgraph(t, yml), &fakeRunner{}, "depgraph scan")
 	res := d.Check(context.Background(), archClaim(), domain.CheckOptions{DiagramEdges: diagram})
 	if res.Status != domain.StatusFail || !strings.Contains(res.Detail, "src/infra") {
 		t.Fatalf("層のディレクトリが食い違えば fail: %+v", res)
@@ -107,7 +146,7 @@ func TestDepgraph_LayerPathMismatchFails(t *testing.T) {
 func TestDepgraph_ForbiddenMissingInDepgraphFails(t *testing.T) {
 	// 図に無い infra -> app を depgraph が禁止していない = 違反を検出できない
 	yml := strings.Replace(consistentYAML, "  infra: [app]\n", "", 1)
-	d := NewDepgraph(writeDepgraph(t, yml), &fakeRunner{}, "depgraph gate")
+	d := NewDepgraph(writeDepgraph(t, yml), &fakeRunner{}, "depgraph scan")
 	res := d.Check(context.Background(), archClaim(), domain.CheckOptions{DiagramEdges: diagram})
 	if res.Status != domain.StatusFail || !strings.Contains(res.Detail, "infra -> app") {
 		t.Fatalf("図で許可されない依存を depgraph が禁止していなければ fail: %+v", res)
@@ -117,7 +156,7 @@ func TestDepgraph_ForbiddenMissingInDepgraphFails(t *testing.T) {
 func TestDepgraph_DepgraphForbidsAllowedEdgeFails(t *testing.T) {
 	// 図で許可された app -> infra を depgraph が禁止している = 仕様と矛盾
 	yml := strings.Replace(consistentYAML, "  infra: [app]\n", "  infra: [app]\n  app: [infra]\n", 1)
-	d := NewDepgraph(writeDepgraph(t, yml), &fakeRunner{}, "depgraph gate")
+	d := NewDepgraph(writeDepgraph(t, yml), &fakeRunner{}, "depgraph scan")
 	res := d.Check(context.Background(), archClaim(), domain.CheckOptions{DiagramEdges: diagram})
 	if res.Status != domain.StatusFail || !strings.Contains(res.Detail, "app -> infra") {
 		t.Fatalf("図で許可された依存を depgraph が禁止していれば fail: %+v", res)
@@ -128,7 +167,7 @@ func TestDepgraph_ClaimForbiddenOverridesDiagram(t *testing.T) {
 	// 図に app -> infra があっても claim が明示的に禁止すれば depgraph も禁止しているべき
 	c := archClaim()
 	c.Forbidden = append(c.Forbidden, "app -> infra")
-	d := NewDepgraph(writeDepgraph(t, consistentYAML), &fakeRunner{}, "depgraph gate")
+	d := NewDepgraph(writeDepgraph(t, consistentYAML), &fakeRunner{}, "depgraph scan")
 	res := d.Check(context.Background(), c, domain.CheckOptions{DiagramEdges: diagram})
 	if res.Status != domain.StatusFail || !strings.Contains(res.Detail, "app -> infra") {
 		t.Fatalf("claim の forbidden は図より優先: %+v", res)
@@ -146,7 +185,7 @@ layers:
 forbidden:
   domain: [infra, app]
 `
-	d := NewDepgraph(writeDepgraph(t, yml), &fakeRunner{}, "depgraph gate")
+	d := NewDepgraph(writeDepgraph(t, yml), &fakeRunner{out: scanOK}, "depgraph scan")
 	res := d.Check(context.Background(), c, domain.CheckOptions{})
 	if res.Status != domain.StatusPass {
 		t.Fatalf("from-diagram でなければ claim の forbidden とだけ照合する: %+v", res)
@@ -154,28 +193,30 @@ forbidden:
 }
 
 func TestDepgraph_FromDiagramWithoutEdgesFails(t *testing.T) {
-	d := NewDepgraph(writeDepgraph(t, consistentYAML), &fakeRunner{}, "depgraph gate")
+	d := NewDepgraph(writeDepgraph(t, consistentYAML), &fakeRunner{}, "depgraph scan")
 	res := d.Check(context.Background(), archClaim(), domain.CheckOptions{})
 	if res.Status != domain.StatusFail {
 		t.Fatalf("図のエッジが取れなければ fail: %+v", res)
 	}
 }
 
-func TestDepgraph_GateFailureFails(t *testing.T) {
-	r := &fakeRunner{out: "layer-violation: src/domain -> src/infra", err: errors.New("exit status 1")}
-	d := NewDepgraph(writeDepgraph(t, consistentYAML), r, "depgraph gate")
+func TestDepgraph_ScanErrorIsUnverified(t *testing.T) {
+	// scan が非0で終わるのは Findings ではなく環境の問題（Neo4j に届かない等）
+	r := &fakeRunner{out: "connect bolt://localhost:17687: connection refused", err: errors.New("exit status 1")}
+	d := NewDepgraph(writeDepgraph(t, consistentYAML), r, "depgraph scan")
 	res := d.Check(context.Background(), archClaim(), domain.CheckOptions{DiagramEdges: diagram})
-	if res.Status != domain.StatusFail || !strings.Contains(res.Detail, "layer-violation") {
-		t.Fatalf("depgraph gate が非0なら fail（出力つき）: %+v", res)
+	if res.Status != domain.StatusUnverified || !strings.Contains(res.Detail, "connection refused") {
+		t.Fatalf("depgraph が判定できなければ unverified（理由つき）: %+v", res)
 	}
 }
 
-func TestDepgraph_GateSkippedIsUnverified(t *testing.T) {
-	r := &fakeRunner{out: "depgraph gate: no running store\ndepgraph gate: skipped"}
-	d := NewDepgraph(writeDepgraph(t, consistentYAML), r, "depgraph gate")
+func TestDepgraph_IncompleteScanIsUnverified(t *testing.T) {
+	// exit 0 でもスキャン完了の表示が無ければ、判定したことにしない
+	r := &fakeRunner{out: "project x\n"}
+	d := NewDepgraph(writeDepgraph(t, consistentYAML), r, "depgraph scan")
 	res := d.Check(context.Background(), archClaim(), domain.CheckOptions{DiagramEdges: diagram})
-	if res.Status != domain.StatusUnverified || !strings.Contains(res.Detail, "no running store") {
-		t.Fatalf("depgraph が判定できずに通したなら unverified: %+v", res)
+	if res.Status != domain.StatusUnverified {
+		t.Fatalf("スキャン完了が確認できなければ unverified: %+v", res)
 	}
 }
 
@@ -183,7 +224,7 @@ func TestDepgraph_NotInstalledIsUnverified(t *testing.T) {
 	// sh が返す 127（command not found）を本物の ExitError で再現する
 	err := exec.Command("sh", "-c", "exit 127").Run()
 	r := &fakeRunner{out: "sh: depgraph: command not found", err: err}
-	d := NewDepgraph(writeDepgraph(t, consistentYAML), r, "depgraph gate")
+	d := NewDepgraph(writeDepgraph(t, consistentYAML), r, "depgraph scan")
 	res := d.Check(context.Background(), archClaim(), domain.CheckOptions{DiagramEdges: diagram})
 	if res.Status != domain.StatusUnverified || !strings.Contains(res.Detail, "depgraph") {
 		t.Fatalf("depgraph が無ければ unverified: %+v", res)
