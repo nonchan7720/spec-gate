@@ -18,6 +18,7 @@ type LintIssue struct {
 //   - examples が properties を満たすか（AI が両方書いて食い違っていたら誤読）
 //   - 同じ binding・同じ入力に異なる出力を主張する claim 同士の矛盾
 //   - properties が式として評価できるか
+//   - relations が x と f(...) だけで真偽を返す式か
 func Lint(claims []Claim) []LintIssue {
 	var issues []LintIssue
 	seen := map[string]struct {
@@ -43,6 +44,11 @@ func Lint(claims []Claim) []LintIssue {
 				if !ok {
 					issues = append(issues, LintIssue{c.ID, fmt.Sprintf("examples[%d] (in=%v out=%v) が property %q を満たさない", i, ex.In, ex.Out, p)})
 				}
+			}
+		}
+		for _, r := range c.Relations {
+			if err := CheckRelation(r); err != nil {
+				issues = append(issues, LintIssue{c.ID, fmt.Sprintf("relation %q を評価できない: %v", r, err)})
 			}
 		}
 		for _, ex := range c.Examples {

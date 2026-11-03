@@ -14,7 +14,12 @@ import (
 // ExampleChecker は binding コマンドに {"in": ...} を渡し、{"out": ...} を期待値と比較する。
 // 言語非依存。TypeScript なら tools/call.ts、Go なら go run ./tools/call など、
 // 「stdin JSON → stdout JSON」の契約を満たすコマンドなら何でもよい。
-type ExampleChecker struct{ runner ShellRunner }
+type ExampleChecker struct{ runner bindingRunner }
+
+// bindingRunner は stdin つきでコマンドを実行する（テストでは偽物に差し替える）。
+type bindingRunner interface {
+	run(ctx context.Context, command string, stdin []byte) (string, error)
+}
 
 func NewExample(r ShellRunner) *ExampleChecker { return &ExampleChecker{runner: r} }
 
@@ -57,11 +62,72 @@ func (e *ExampleChecker) Check(ctx context.Context, c domain.Claim, _ domain.Che
 			}
 		}
 	}
+	// examples が通ったときだけ fuzz を回す（不一致があれば既に fail で、binding の呼び出しを増やさない）
+	if len(failures) == 0 && c.Fuzz != nil {
+		if msg := e.fuzz(ctx, c); msg != "" {
+			failures = append(failures, msg)
+		}
+	}
 	if len(failures) > 0 {
 		res.Status = domain.StatusFail
 		res.Detail = strings.Join(failures, "\n")
 	}
 	return res
+}
+
+// fuzz は seed から生成した入力で properties と relations を評価し、最初の反例を返す（無ければ ""）。
+// binding の結果は入力ごとに 1 回だけ求めて使い回すので、呼び出しは
+// runs ×（1 + relations 中の f(...) の数）回を超えない。
+func (e *ExampleChecker) fuzz(ctx context.Context, c domain.Claim) string {
+	seed := c.Fuzz.EffectiveSeed(c.ID)
+	cache := map[string]any{}
+	call := func(x any) (any, error) {
+		key, _ := json.Marshal(x)
+		if out, ok := cache[string(key)]; ok {
+			return out, nil
+		}
+		in, _ := json.Marshal(map[string]any{"in": x})
+		out, err := e.runner.run(ctx, c.Binding, in)
+		if err != nil {
+			return nil, fmt.Errorf("binding が失敗 (%v)\n    $ %s\n    %s", err, c.Binding, indent(textutil.Tail(out, 12)))
+		}
+		var got struct {
+			Out any `json:"out"`
+		}
+		if err := json.Unmarshal([]byte(lastJSONLine(out)), &got); err != nil {
+			return nil, fmt.Errorf("出力が JSON ではない: %s", truncate(out, 200))
+		}
+		cache[string(key)] = got.Out
+		return got.Out, nil
+	}
+
+	inputs := c.Fuzz.Inputs(c.ID)
+	for i, x := range inputs {
+		where := fmt.Sprintf("fuzz: 反例 x=%v（seed=%d, %d/%d 件目。claim に seed: %d を書けば再現する）", x, seed, i+1, len(inputs), seed)
+		out, err := call(x)
+		if err != nil {
+			return fmt.Sprintf("%s: %v", where, err)
+		}
+		for _, p := range c.Properties {
+			ok, err := domain.EvalProperty(p, x, out)
+			if err != nil {
+				return fmt.Sprintf("%s: property %q を評価できない: %v", where, p, err)
+			}
+			if !ok {
+				return fmt.Sprintf("%s: 出力 %v が property %q を満たさない", where, out, p)
+			}
+		}
+		for _, r := range c.Relations {
+			ok, err := domain.EvalRelation(r, x, call)
+			if err != nil {
+				return fmt.Sprintf("%s: relation %q を評価できない: %v", where, r, err)
+			}
+			if !ok {
+				return fmt.Sprintf("%s: relation %q を満たさない", where, r)
+			}
+		}
+	}
+	return ""
 }
 
 // 出力にログが混ざることがあるので、最後の JSON らしき行を取る。
