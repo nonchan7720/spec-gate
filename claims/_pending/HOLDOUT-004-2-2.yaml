@@ -1,0 +1,13 @@
+# confidence: 2/3
+# 承認するには内容を確認して claims/<領域>/ に移し、`spec-gate approve HOLDOUT-004-2` を実行する
+id: HOLDOUT-004-2
+kind: example
+title: spec-gate holdout add の実行は hook-gate の pre_bash で拒否される
+source:
+    type: markdown
+    ref: docs/spec/harness.md#holdout の読み取り拒否
+examples:
+    - in: spec-gate holdout add
+      out: 拒否
+    - in: go run . holdout add
+      out: 拒否

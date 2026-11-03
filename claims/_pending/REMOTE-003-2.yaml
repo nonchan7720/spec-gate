@@ -1,0 +1,8 @@
+# confidence: 2/3
+# 承認するには内容を確認して claims/<領域>/ に移し、`spec-gate approve REMOTE-003-2` を実行する
+id: REMOTE-003-2
+kind: manual
+title: 'AskUserQuestion の hook に渡る回答の形は実機で未検証であり、最初の実際の承認で確認する【要確認: 検証が済んだ時点で記述を更新する必要があり、機械的に判定できない】'
+source:
+    type: markdown
+    ref: docs/spec/harness.md#リモート承認

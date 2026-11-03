@@ -1,0 +1,8 @@
+# confidence: 2/3
+# 承認するには内容を確認して claims/<領域>/ に移し、`spec-gate approve MUTATION-004` を実行する
+id: MUTATION-004
+kind: manual
+title: 変異の種類は算術・比較・整数リテラルの一覧で全部とし、1 回に 1 か所だけ変える
+source:
+    type: markdown
+    ref: docs/spec/harness.md#mutation score

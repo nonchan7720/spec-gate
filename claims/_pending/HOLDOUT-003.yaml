@@ -1,0 +1,8 @@
+# confidence: 3/3
+# 承認するには内容を確認して claims/<領域>/ に移し、`spec-gate approve HOLDOUT-003` を実行する
+id: HOLDOUT-003
+kind: manual
+title: holdout は holdout/<claim-id>.yaml に置き、examples:（in / out_sha256 の配列）だけを書く
+source:
+    type: markdown
+    ref: docs/spec/harness.md#holdout examples

@@ -1,0 +1,8 @@
+# confidence: 3/3
+# 承認するには内容を確認して claims/<領域>/ に移し、`spec-gate approve HOLDOUT-010` を実行する
+id: HOLDOUT-010
+kind: manual
+title: holdout が不一致でも、レポートとエージェントへの出力に holdout の入力・期待値・実際の値を出してはならない。件数だけを出す
+source:
+    type: markdown
+    ref: docs/spec/harness.md#holdout examples

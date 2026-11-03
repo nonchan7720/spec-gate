@@ -1,0 +1,8 @@
+# confidence: 3/3
+# 承認するには内容を確認して claims/<領域>/ に移し、`spec-gate approve LEAK-010` を実行する
+id: LEAK-010
+kind: manual
+title: テストファイル（_test.go、.test.ts、.spec.ts）と claims/・holdout/・docs/ 配下は検知の対象外とする
+source:
+    type: markdown
+    ref: docs/spec/harness.md#リテラル漏れ検知

@@ -1,0 +1,8 @@
+# confidence: 3/3
+# 承認するには内容を確認して claims/<領域>/ に移し、`spec-gate approve HOLDOUT-012` を実行する
+id: HOLDOUT-012
+kind: manual
+title: 'lint は holdout の形だけを確かめる（対応する claim があり kind: example、各要素に in と正しい形の out_sha256）。properties との整合は見ない'
+source:
+    type: markdown
+    ref: docs/spec/harness.md#holdout examples

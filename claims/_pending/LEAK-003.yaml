@@ -1,0 +1,8 @@
+# confidence: 3/3
+# 承認するには内容を確認して claims/<領域>/ に移し、`spec-gate approve LEAK-003` を実行する
+id: LEAK-003
+kind: manual
+title: spec-gate leak は値が見つかった場合、値と行番号を出して exit 1 で終了する
+source:
+    type: markdown
+    ref: docs/spec/harness.md#リテラル漏れ検知

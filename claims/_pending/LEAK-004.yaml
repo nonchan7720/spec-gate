@@ -1,0 +1,8 @@
+# confidence: 3/3
+# 承認するには内容を確認して claims/<領域>/ に移し、`spec-gate approve LEAK-004` を実行する
+id: LEAK-004
+kind: manual
+title: holdout だけにある値が見つかった場合は、値を出さず行番号だけを出す
+source:
+    type: markdown
+    ref: docs/spec/harness.md#リテラル漏れ検知

@@ -1,0 +1,8 @@
+# confidence: 3/3
+# 承認するには内容を確認して claims/<領域>/ に移し、`spec-gate approve CHANGED-001` を実行する
+id: CHANGED-001
+kind: manual
+title: check --changed は、変更されたファイルに関係する claim だけを判定する
+source:
+    type: markdown
+    ref: docs/spec/harness.md#変更検知の精度

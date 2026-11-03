@@ -1,0 +1,8 @@
+# confidence: 3/3
+# 承認するには内容を確認して claims/<領域>/ に移し、`spec-gate approve REMOTE-008` を実行する
+id: REMOTE-008
+kind: manual
+title: review record は PostToolUse hook（matcher AskUserQuestion）から呼ばれ、stdin の hook の JSON（tool_name・tool_input.questions・tool_response）を読む
+source:
+    type: markdown
+    ref: docs/spec/harness.md#リモート承認

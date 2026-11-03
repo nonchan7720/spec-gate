@@ -1,0 +1,8 @@
+# confidence: 3/3
+# 承認するには内容を確認して claims/<領域>/ に移し、`spec-gate approve CHANGED-007` を実行する
+id: CHANGED-007
+kind: manual
+title: 依存を調べられないときは加えるパスがないだけで、元の触るパスは外さない
+source:
+    type: markdown
+    ref: docs/spec/harness.md#変更検知の精度

@@ -1,0 +1,22 @@
+# confidence: 2/3
+# 承認するには内容を確認して claims/<領域>/ に移し、`spec-gate approve RELINK-002` を実行する
+id: RELINK-002
+kind: example
+title: 見出しの近さは文字単位の編集距離で測り、距離が見つからない見出しの文字数の半分以下の候補だけを提案する（無ければ null）
+source:
+    type: markdown
+    ref: docs/spec/harness.md#見出し変更時の再リンク提案
+binding: go run ./tools/bind relink
+examples:
+    - in:
+        headings:
+            - 端数の処理
+            - マイナス金額
+        missing: 端数処理
+      out: 端数の処理
+    - in:
+        headings:
+            - 背景
+            - 変更履歴
+        missing: 端数処理
+      out: null

@@ -1,0 +1,18 @@
+# confidence: 2/3
+# 承認するには内容を確認して claims/<領域>/ に移し、`spec-gate approve CI-004` を実行する
+id: CI-004
+kind: example
+title: unverified 率は「unverified の件数 / claim の総数」で、claim が 0 件なら 0 とする
+source:
+    type: markdown
+    ref: docs/spec/harness.md#CI 用の出力と指標
+binding: go run ./tools/bind unverified-rate
+examples:
+    - in: '["pass", "pass", "unverified", "unverified", "fail"]'
+      out: 0.4
+    - in: '[]'
+      out: 0
+    - in: '["unverified"]'
+      out: 1
+properties:
+    - output >= 0 && output <= 1

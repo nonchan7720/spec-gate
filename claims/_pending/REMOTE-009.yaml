@@ -1,0 +1,8 @@
+# confidence: 3/3
+# 承認するには内容を確認して claims/<領域>/ に移し、`spec-gate approve REMOTE-009` を実行する
+id: REMOTE-009
+kind: manual
+title: review record は tool_name が AskUserQuestion でない、または候補 ID を含む質問が 1 つも無いときは、何も出さずに終わる
+source:
+    type: markdown
+    ref: docs/spec/harness.md#リモート承認

@@ -1,0 +1,8 @@
+# confidence: 3/3
+# 承認するには内容を確認して claims/<領域>/ に移し、`spec-gate approve HOLDOUT-001` を実行する
+id: HOLDOUT-001
+kind: manual
+title: '`.claude/settings.json` の `permissions.deny` に `Read(./holdout/**)` が含まれる'
+source:
+    type: markdown
+    ref: docs/spec/harness.md#holdout の読み取り拒否

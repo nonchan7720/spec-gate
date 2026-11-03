@@ -1,0 +1,10 @@
+# confidence: 3/3
+# 承認するには内容を確認して claims/<領域>/ に移し、`spec-gate approve REMOTE-011` を実行する
+id: REMOTE-011
+kind: manual
+title: tool_input.answers は回答として使わない。回答が tool_input にだけあるときは何も反映せず、stderr と additionalContext に「回答が tool_response に無いため反映しない（tool_input の回答は偽造できるので使わない）」と出す
+source:
+    type: markdown
+    ref: docs/spec/harness.md#リモート承認
+properties:
+    - tool_input.answers だけから承認・却下・曖昧が反映されることは決してない

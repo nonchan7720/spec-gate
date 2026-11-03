@@ -1,0 +1,16 @@
+# confidence: 3/3
+# 承認するには内容を確認して claims/<領域>/ に移し、`spec-gate approve TRACE-003` を実行する
+id: TRACE-003
+kind: example
+title: trace-summary は claim の判定履歴（古い順）から、最後の pass 直前の連続 fail 回数とその pass 時点の変更行数を返す。pass していなければ null
+source:
+    type: markdown
+    ref: docs/spec/harness.md#通り方のログ
+binding: go run ./tools/bind trace-summary
+examples:
+    - in: '[{"status": "fail", "lines": 10}, {"status": "fail", "lines": 40}, {"status": "pass", "lines": 120}]'
+      out: '{"fails_before_pass": 2, "lines_at_pass": 120}'
+    - in: '[{"status": "pass", "lines": 5}]'
+      out: '{"fails_before_pass": 0, "lines_at_pass": 5}'
+    - in: '[{"status": "fail", "lines": 3}]'
+      out: "null"

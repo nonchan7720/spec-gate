@@ -1,0 +1,8 @@
+# confidence: 3/3
+# 承認するには内容を確認して claims/<領域>/ に移し、`spec-gate approve LEAK-005` を実行する
+id: LEAK-005
+kind: manual
+title: holdout から調べる対象は in の値だけで、期待値（out）は調べない（holdout は期待値をハッシュでしか持たないため）
+source:
+    type: markdown
+    ref: docs/spec/harness.md#リテラル漏れ検知

@@ -1,0 +1,8 @@
+# confidence: 3/3
+# 承認するには内容を確認して claims/<領域>/ に移し、`spec-gate approve LEAK-006` を実行する
+id: LEAK-006
+kind: manual
+title: 数値は数字が 3 桁以上のものだけを対象にする（0・1・10 のようなありふれた値は対象外）
+source:
+    type: markdown
+    ref: docs/spec/harness.md#リテラル漏れ検知

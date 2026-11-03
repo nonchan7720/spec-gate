@@ -1,0 +1,8 @@
+# confidence: 3/3
+# 承認するには内容を確認して claims/<領域>/ に移し、`spec-gate approve HOLDOUT-005` を実行する
+id: HOLDOUT-005
+kind: manual
+title: 正規化 JSON は、値を JSON として読み直した値（数値は float64）を encoding/json で書いたもの。キーは辞書順、HTML エスケープ（< > &）なし、末尾改行なし
+source:
+    type: markdown
+    ref: docs/spec/harness.md#holdout examples

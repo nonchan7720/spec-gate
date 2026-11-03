@@ -1,0 +1,8 @@
+# confidence: 3/3
+# 承認するには内容を確認して claims/<領域>/ に移し、`spec-gate approve FUZZ-005` を実行する
+id: FUZZ-005
+kind: manual
+title: seed を省略したら claim ID の FNV-1a（64 bit）を種にする
+source:
+    type: markdown
+    ref: docs/spec/harness.md#ランダム入力による検証

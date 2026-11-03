@@ -1,0 +1,8 @@
+# confidence: 3/3
+# 承認するには内容を確認して claims/<領域>/ に移し、`spec-gate approve LEAK-002` を実行する
+id: LEAK-002
+kind: manual
+title: spec-gate leak <file>... は、指定ファイルの内容に examples の in / out の値と holdout の in の値が現れるかを調べる
+source:
+    type: markdown
+    ref: docs/spec/harness.md#リテラル漏れ検知

@@ -1,0 +1,8 @@
+# confidence: 3/3
+# 承認するには内容を確認して claims/<領域>/ に移し、`spec-gate approve CIOUT-002` を実行する
+id: CIOUT-002
+kind: manual
+title: check --json の exit code は通常の check と同じ（blocking があれば 1）
+source:
+    type: markdown
+    ref: docs/spec/harness.md#CI 用の出力と指標
