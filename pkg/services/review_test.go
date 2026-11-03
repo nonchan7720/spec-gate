@@ -17,6 +17,8 @@ type fakeStore struct {
 	pending  map[string]domain.PendingClaim
 	saved    []domain.Claim
 	demoted  []string
+	// ambiguous は曖昧として記録した候補名 → 理由
+	ambiguous map[string]string
 }
 
 func (f *fakeStore) All() ([]domain.Claim, error) { return f.approved, nil }

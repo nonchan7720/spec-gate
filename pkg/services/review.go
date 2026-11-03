@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"strings"
 	"sync"
 
 	"github.com/nonchan7720/spec-gate/pkg/domain"
@@ -113,6 +114,22 @@ func (s *ReviewService) Reject(name string) error {
 		return err
 	}
 	return s.Pending.DiscardPending(name)
+}
+
+// MarkAmbiguous は候補 name を「仕様が決まっていない」として claims/_ambiguous/ に記録する。
+// claim の誤り（却下）ではなく仕様側の未決を残すためのもので、理由は必須。
+// 読めない候補も記録できる（仕様が決まらないために claim を書けなかった、もありうる）。
+func (s *ReviewService) MarkAmbiguous(name, reason string) error {
+	if strings.TrimSpace(reason) == "" {
+		return errors.New("曖昧とする理由を入力してください")
+	}
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	if _, err := s.find(name); err != nil {
+		return err
+	}
+	_, err := s.Pending.MarkAmbiguous(name, reason)
+	return err
 }
 
 func (s *ReviewService) find(name string) (domain.PendingClaim, error) {

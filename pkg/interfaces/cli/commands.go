@@ -2,11 +2,12 @@ package cli
 
 import (
 	"fmt"
+	"io"
 	"os"
 	"os/user"
 	"strings"
 
-	"github.com/nonchan7720/spec-gate/pkg/domain"
+	"github.com/nonchan7720/spec-gate/pkg/services"
 	"github.com/spf13/cobra"
 )
 
@@ -98,40 +99,57 @@ func newCoverageCmd(a **app) *cobra.Command {
 	return &cobra.Command{
 		Use:   "coverage",
 		Short: "sources.yaml の仕様のうち claim に紐づかない箇所を列挙する",
+		Long: `sources.yaml の仕様を単位（見出し・エッジ）に分け、claim に紐づかないものを ✗ で出す（あれば exit 1）。
+承認 UI で「曖昧」と記録された claim（claims/_ambiguous/）が参照する単位は「要確認」として ? で出す。
+要確認は仕様が決まっていないことの記録なので、exit code には数えない。`,
 		RunE: func(cmd *cobra.Command, _ []string) error {
 			rep, err := (*a).coverage.Report(cmd.Context())
 			if err != nil {
 				return err
 			}
-			fmt.Printf("## claims by kind (%d total)\n", rep.Total)
-			for _, k := range []domain.ClaimKind{domain.KindExample, domain.KindStructure, domain.KindUI, domain.KindManual} {
-				fmt.Printf("  %-10s %d\n", k, rep.ByKind[k])
-			}
-			uncovered := 0
-			for _, e := range rep.Entries {
-				fmt.Printf("\n## %s\n", e.Source)
-				if e.Error != "" {
-					fmt.Printf("  ! %s\n", e.Error)
-					continue
-				}
-				for _, u := range e.Covered {
-					fmt.Printf("  ✓ %s\n", unit(u))
-				}
-				for _, u := range e.NonNormative {
-					fmt.Printf("  · %s (non-normative)\n", unit(u))
-				}
-				for _, u := range e.Uncovered {
-					fmt.Printf("  ✗ %s  ← claim なし\n", unit(u))
-					uncovered++
-				}
-			}
-			if uncovered > 0 {
-				fmt.Printf("\n%d units uncovered\n", uncovered)
+			if writeCoverage(os.Stdout, rep) > 0 {
 				os.Exit(1)
 			}
 			return nil
 		},
 	}
+}
+
+// writeCoverage は coverage のレポートを出し、claim に紐づかない単位の数を返す。
+func writeCoverage(w io.Writer, rep services.CoverageReport) int {
+	_, _ = fmt.Fprintf(w, "## claims by kind (%d total)\n", rep.Total)
+	for _, k := range services.Kinds {
+		_, _ = fmt.Fprintf(w, "  %-10s %d\n", k, rep.ByKind[k])
+	}
+	uncovered, review := 0, 0
+	for _, e := range rep.Entries {
+		_, _ = fmt.Fprintf(w, "\n## %s\n", e.Source)
+		if e.Error != "" {
+			_, _ = fmt.Fprintf(w, "  ! %s\n", e.Error)
+			continue
+		}
+		for _, u := range e.Covered {
+			_, _ = fmt.Fprintf(w, "  ✓ %s\n", unit(u))
+		}
+		for _, u := range e.NonNormative {
+			_, _ = fmt.Fprintf(w, "  · %s (non-normative)\n", unit(u))
+		}
+		for _, n := range e.NeedsReview {
+			_, _ = fmt.Fprintf(w, "  ? %s  ← 要確認（曖昧: %s）\n", unit(n.Unit), strings.Join(n.Reasons, " / "))
+			review++
+		}
+		for _, u := range e.Uncovered {
+			_, _ = fmt.Fprintf(w, "  ✗ %s  ← claim なし\n", unit(u))
+			uncovered++
+		}
+	}
+	if review > 0 {
+		_, _ = fmt.Fprintf(w, "\n%d units need review (要確認: 仕様が決まっていない)\n", review)
+	}
+	if uncovered > 0 {
+		_, _ = fmt.Fprintf(w, "\n%d units uncovered\n", uncovered)
+	}
+	return uncovered
 }
 
 func newPlanCmd(a **app) *cobra.Command {

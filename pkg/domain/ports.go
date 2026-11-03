@@ -33,6 +33,28 @@ type PendingRepository interface {
 	Demote(path string) error
 	// DiscardPending は候補 name を削除する（却下）。
 	DiscardPending(name string) error
+	// MarkAmbiguous は候補 name を claims/_ambiguous/ に移し、理由を `# ambiguous:` ヘッダに記録する。
+	// claim の誤りではなく「仕様が決まっていない」ことの記録。移動後の絶対パスを返す。
+	MarkAmbiguous(name, reason string) (path string, err error)
+}
+
+// AmbiguousClaim は claims/_ambiguous/ にある、仕様が決まっていないと記録された候補 1 件。
+type AmbiguousClaim struct {
+	// Name は _ambiguous 内のファイル名
+	Name string
+	// Path はプロジェクトルートからの相対パス
+	Path string
+	// Reason は `# ambiguous:` ヘッダに記録された理由
+	Reason string
+	Claim  Claim
+	// Error は読めない・必須項目が無いときの理由
+	Error string
+}
+
+// AmbiguousRepository は曖昧として記録された候補（claims/_ambiguous/）の読み出し。
+type AmbiguousRepository interface {
+	// Ambiguous は曖昧として記録された候補を名前順に返す。壊れたものも Error つきで返す。
+	Ambiguous() ([]AmbiguousClaim, error)
 }
 
 // HoldoutRepository は holdout/<claim-id>.yaml（エージェントに見せない入出力例）の読み込み。

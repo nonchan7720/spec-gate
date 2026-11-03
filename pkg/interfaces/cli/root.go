@@ -102,7 +102,7 @@ func newApp(root string) *app {
 		lint:       &services.LintService{Claims: claims, Holdout: holdout},
 		holdoutAdd: &services.HoldoutService{Claims: claims, Writer: holdout},
 		approve:    &services.ApproveService{Claims: claims, Adapters: adapters, Clock: utcClock{}},
-		coverage:   &services.CoverageService{Claims: claims, Sources: sourceregistry.New(root), Adapters: adapters},
+		coverage:   &services.CoverageService{Claims: claims, Ambiguous: claims, Sources: sourceregistry.New(root), Adapters: adapters},
 		extract:    extract,
 		work:       work,
 		plan:       &services.PlanService{Plans: plans, Clock: utcClock{}, Mutation: mutation},

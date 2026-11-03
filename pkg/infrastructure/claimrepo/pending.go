@@ -60,7 +60,7 @@ func (r *Repo) Promote(name, area string) (string, error) {
 	if !safeSegment(name) || !isYAML(name) {
 		return "", fmt.Errorf("候補名が不正: %q", name)
 	}
-	if !safeSegment(area) || area == pendingDir {
+	if !safeSegment(area) || area == pendingDir || area == ambiguousDir {
 		return "", fmt.Errorf("領域名が不正: %q", area)
 	}
 	src := filepath.Join(r.pendingDir(), name)
@@ -88,7 +88,7 @@ func (r *Repo) Demote(path string) error {
 		return err
 	}
 	relp, err := filepath.Rel(r.dir(), abs)
-	if err != nil || relp == "." || strings.HasPrefix(relp, "..") || filepath.Dir(relp) == pendingDir {
+	if err != nil || relp == "." || strings.HasPrefix(relp, "..") || filepath.Dir(relp) == pendingDir || filepath.Dir(relp) == ambiguousDir {
 		return fmt.Errorf("claims/<領域>/ のファイルではない: %s", path)
 	}
 	dst := filepath.Join(r.pendingDir(), filepath.Base(abs))
