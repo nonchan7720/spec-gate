@@ -2,7 +2,10 @@
 // 外部依存（ファイル・コマンド・ネットワーク）は持たず、ポート(interface)経由で infrastructure に委ねる。
 package domain
 
-import "fmt"
+import (
+	"fmt"
+	"strings"
+)
 
 // SourceType は仕様ソースの種類。
 type SourceType string
@@ -129,7 +132,10 @@ func (c Claim) Validate() error {
 }
 
 // Touches は claim が参照するコード側のパス（変更検知用）。
-func (c Claim) Touches() []string {
+// story と layers はそのまま。binding はコマンド文字列なので、その中の語のうち
+// exists が「リポジトリ内に実在するファイルまたはディレクトリ」と答えたものを拾う。
+// exists が nil（実在を確かめられない）なら、見逃さない側に倒してフラグと URL 以外の語をすべて拾う。
+func (c Claim) Touches(exists func(path string) bool) []string {
 	var p []string
 	if c.Story != "" {
 		p = append(p, c.Story)
@@ -137,10 +143,13 @@ func (c Claim) Touches() []string {
 	for _, d := range c.Layers {
 		p = append(p, d)
 	}
-	// binding はコマンド文字列なので、その中のパスらしき語を拾う
 	for _, w := range splitWords(c.Binding) {
-		if looksLikePath(w) {
-			p = append(p, w)
+		w = strings.Trim(w, `"'`)
+		if w == "" || strings.HasPrefix(w, "-") || strings.Contains(w, "://") {
+			continue
+		}
+		if rel, ok := cleanPath(w); ok && (exists == nil || exists(rel)) {
+			p = append(p, rel)
 		}
 	}
 	return p

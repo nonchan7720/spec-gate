@@ -78,7 +78,3 @@ func (e SourceEntry) RefOf() string {
 }
 
 func splitWords(s string) []string { return strings.Fields(s) }
-
-func looksLikePath(w string) bool {
-	return strings.Contains(w, "/") && !strings.HasPrefix(w, "-") && !strings.Contains(w, "://")
-}
