@@ -36,6 +36,8 @@ type app struct {
 	claims   domain.ClaimRepository
 	// holdout は check / lint / leak が読む（エージェントには見せない）
 	holdout domain.HoldoutRepository
+	// holdoutAdd は spec-gate holdout add（人間だけが使う）
+	holdoutAdd *services.HoldoutService
 	// adapters は source type ごとの仕様の読み方。サービスを組み立てるコマンド（reverse など）が共有する
 	adapters map[domain.SourceType]domain.SourceAdapter
 	// work は LLM 処理をサブエージェントに委譲するときの作業ディレクトリ（.spec-gate-llm/）
@@ -97,13 +99,14 @@ func newApp(root string) *app {
 			Claims: claims, Plans: plans, Adapters: adapters, Checkers: checkers,
 			Runner: runner, Changes: vcs.Git{Dir: root}, Paths: workspace.Paths{Root: root}, Deps: workspace.NewGoDeps(root), Holdout: holdout, DiagramEdges: diagramEdges,
 		},
-		lint:     &services.LintService{Claims: claims, Holdout: holdout},
-		approve:  &services.ApproveService{Claims: claims, Adapters: adapters, Clock: utcClock{}},
-		coverage: &services.CoverageService{Claims: claims, Sources: sourceregistry.New(root), Adapters: adapters},
-		extract:  extract,
-		work:     work,
-		plan:     &services.PlanService{Plans: plans, Clock: utcClock{}, Mutation: mutation},
-		status:   &services.StatusService{Claims: claims, Plans: plans},
+		lint:       &services.LintService{Claims: claims, Holdout: holdout},
+		holdoutAdd: &services.HoldoutService{Claims: claims, Writer: holdout},
+		approve:    &services.ApproveService{Claims: claims, Adapters: adapters, Clock: utcClock{}},
+		coverage:   &services.CoverageService{Claims: claims, Sources: sourceregistry.New(root), Adapters: adapters},
+		extract:    extract,
+		work:       work,
+		plan:       &services.PlanService{Plans: plans, Clock: utcClock{}, Mutation: mutation},
+		status:     &services.StatusService{Claims: claims, Plans: plans},
 	}
 }
 
@@ -124,7 +127,8 @@ func Execute() {
   coverage → 仕様のうち claim に紐づかない箇所を列挙
   reverse  → claim だけから仕様文を再生成し、原文と食い違いがないかを突き合わせる（逆変換）
   review   → _pending の候補をローカルの Web ページで平易に並べ、人間が承認する（承認 UI）
-  leak     → 実装ファイルに examples・holdout の値がそのまま書かれていないかを調べる`,
+  leak     → 実装ファイルに examples・holdout の値がそのまま書かれていないかを調べる
+  holdout  → holdout add で holdout を足す（期待値はハッシュだけを保存。人間だけが使う）`,
 		Version:       version.Version,
 		SilenceUsage:  true,
 		SilenceErrors: true,
@@ -152,6 +156,7 @@ func Execute() {
 		newExtractCmd(&a),
 		newReverseCmd(&a),
 		newLeakCmd(&a),
+		newHoldoutCmd(&a),
 		newPlanCmd(&a),
 		newVersionCmd(),
 	)

@@ -8,19 +8,22 @@ import (
 	"github.com/nonchan7720/spec-gate/pkg/domain"
 )
 
+// hash1234 は 1234 の正規化 JSON の SHA-256。
+const hash1234 = "03ac674216f3e15c761ee1a5e255f067953623c8b388b4459e13f978d7c846f4"
+
 type fakeHoldout struct {
-	by  map[string][]domain.Example
+	by  map[string][]domain.HoldoutExample
 	err error
 }
 
-func (f fakeHoldout) Holdout(id string) ([]domain.Example, error) { return f.by[id], f.err }
-func (f fakeHoldout) All() (map[string][]domain.Example, error)   { return f.by, f.err }
+func (f fakeHoldout) Holdout(id string) ([]domain.HoldoutExample, error) { return f.by[id], f.err }
+func (f fakeHoldout) All() (map[string][]domain.HoldoutExample, error)   { return f.by, f.err }
 
 func TestCheck_PassesHoldoutToChecker(t *testing.T) {
 	snaps := map[string]domain.Snapshot{"s.md#a": {Hash: "h1"}}
 	claims := []domain.Claim{mdClaim("A", "s.md#a", domain.KindExample, approved("h1"))}
 	s, chk := newCheck(claims, snaps, map[string]domain.Status{"A": domain.StatusPass})
-	s.Holdout = fakeHoldout{by: map[string][]domain.Example{"A": {{In: 2, Out: 2}}}}
+	s.Holdout = fakeHoldout{by: map[string][]domain.HoldoutExample{"A": {{In: 2, OutSHA256: hash1234}}}}
 
 	if _, err := s.Run(context.Background(), CheckRequest{NoPlans: true}); err != nil {
 		t.Fatal(err)
