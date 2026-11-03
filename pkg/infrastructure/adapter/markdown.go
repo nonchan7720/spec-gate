@@ -110,7 +110,12 @@ func (m *Markdown) Snapshot(_ context.Context, ref string) (domain.Snapshot, err
 		}
 		names = append(names, s.heading)
 	}
-	return domain.Snapshot{Skipped: fmt.Sprintf("見出し「%s」が %s にない。存在する見出し: %s", anchor, file, strings.Join(names, ", "))}, nil
+	// 見出しが変わっただけのことが多いので、近い見出しを再リンク候補として添える（claim は書き換えない）
+	suggestion, _ := domain.SuggestHeading(anchor, names)
+	return domain.Snapshot{
+		Skipped:    fmt.Sprintf("見出し「%s」が %s にない。存在する見出し: %s", anchor, file, strings.Join(names, ", ")),
+		Suggestion: suggestion,
+	}, nil
 }
 
 // Units は見出しごとの ref を返す（coverage 用）。

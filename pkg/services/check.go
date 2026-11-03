@@ -106,6 +106,9 @@ func (s *CheckService) checkOne(ctx context.Context, c domain.Claim, req CheckRe
 	case snap.Skipped != "" && c.Source.DriftRequired():
 		res.Status = domain.StatusFail
 		res.Detail = "仕様を読めない: " + snap.Skipped
+		if snap.Suggestion != "" {
+			res.Detail += fmt.Sprintf("\nもしかして: 「%s」", snap.Suggestion)
+		}
 		return res
 	case snap.Skipped == "" && snap.Hash != c.Approved.SourceHash:
 		res.Status = domain.StatusStale
