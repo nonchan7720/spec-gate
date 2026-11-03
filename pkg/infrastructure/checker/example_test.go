@@ -116,3 +116,87 @@ func TestExample_FuzzSkippedWhenExamplesFail(t *testing.T) {
 		t.Fatalf("examples が不一致なら fuzz は回さない: %v calls=%d", res.Status, len(b.calls))
 	}
 }
+
+// identity は {"in": X} を {"out": X} にして返す binding（恒等関数）。
+const identity = `sed 's/"in"/"out"/'`
+
+func exampleClaim(binding string, exs ...domain.Example) domain.Claim {
+	return domain.Claim{ID: "ID-001", Kind: domain.KindExample, Title: "t", Binding: binding, Examples: exs}
+}
+
+func runExample(t *testing.T, c domain.Claim, holdout []domain.Example) domain.Result {
+	t.Helper()
+	chk := NewExample(ShellRunner{Dir: t.TempDir()})
+	return chk.Check(context.Background(), c, domain.CheckOptions{Holdout: holdout})
+}
+
+func assertNoValues(t *testing.T, detail string, values ...string) {
+	t.Helper()
+	for _, v := range values {
+		if strings.Contains(detail, v) {
+			t.Fatalf("holdout の値 %q を出してはならない:\n%s", v, detail)
+		}
+	}
+}
+
+func TestExample_HoldoutAllPass(t *testing.T) {
+	res := runExample(t, exampleClaim(identity, domain.Example{In: 1, Out: 1}),
+		[]domain.Example{{In: 7777.25, Out: 7777.25}, {In: "abcd", Out: "abcd"}})
+	if res.Status != domain.StatusPass {
+		t.Fatalf("holdout がすべて一致なら pass: %+v", res)
+	}
+	assertNoValues(t, res.Detail, "7777", "abcd")
+}
+
+func TestExample_HoldoutMismatchFailsWithCountsOnly(t *testing.T) {
+	res := runExample(t, exampleClaim(identity, domain.Example{In: 1, Out: 1}),
+		[]domain.Example{{In: 7777.25, Out: 7777.25}, {In: 31337, Out: 4242}})
+	if res.Status != domain.StatusFail {
+		t.Fatalf("holdout が 1 件でも不一致なら fail: %+v", res)
+	}
+	if !strings.Contains(res.Detail, "holdout 2 件中 1 件が不一致（値は表示しない）") {
+		t.Fatalf("件数だけを出す: %q", res.Detail)
+	}
+	assertNoValues(t, res.Detail, "7777", "31337", "4242")
+}
+
+func TestExample_HoldoutPropertyViolationIsCountedWithoutValues(t *testing.T) {
+	c := exampleClaim(identity, domain.Example{In: 1, Out: 1})
+	c.Properties = []string{"output < 5000"}
+	res := runExample(t, c, []domain.Example{{In: 7777.25, Out: 7777.25}})
+	if res.Status != domain.StatusFail || !strings.Contains(res.Detail, "holdout 1 件中 1 件が不一致") {
+		t.Fatalf("property を満たさない holdout も不一致: %+v", res)
+	}
+	assertNoValues(t, res.Detail, "7777")
+}
+
+func TestExample_HoldoutBindingFailureHidesOutput(t *testing.T) {
+	// binding が入力をそのまま stderr に吐いて落ちる（エラー出力に holdout の値が混ざる）
+	c := exampleClaim(`cat >&2; exit 1`)
+	c.Properties = []string{"true"}
+	res := runExample(t, c, []domain.Example{{In: 7777.25, Out: 1}, {In: 31337, Out: 2}})
+	if res.Status != domain.StatusFail || !strings.Contains(res.Detail, "holdout 2 件中 2 件が不一致") {
+		t.Fatalf("binding が落ちたら残りも不一致として数える: %+v", res)
+	}
+	assertNoValues(t, res.Detail, "7777", "31337")
+}
+
+func TestExample_HoldoutNonJSONOutputHidden(t *testing.T) {
+	c := exampleClaim(`cat`) // {"in": ...} をそのまま返す（out が無い）→ 出力を表示すると値が漏れる
+	c.Properties = []string{"true"}
+	res := runExample(t, c, []domain.Example{{In: 7777.25, Out: 1}})
+	if res.Status != domain.StatusFail {
+		t.Fatalf("out が一致しなければ fail: %+v", res)
+	}
+	assertNoValues(t, res.Detail, "7777")
+}
+
+func TestExample_ExamplesStillReportValues(t *testing.T) {
+	res := runExample(t, exampleClaim(identity, domain.Example{In: 5, Out: 6}), nil)
+	if res.Status != domain.StatusFail || !strings.Contains(res.Detail, "期待=6") {
+		t.Fatalf("公開の examples は従来どおり値を出す: %+v", res)
+	}
+	if strings.Contains(res.Detail, "holdout") {
+		t.Fatalf("holdout が無ければ holdout の行は出さない: %q", res.Detail)
+	}
+}

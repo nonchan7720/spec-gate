@@ -25,7 +25,7 @@ func NewExample(r ShellRunner) *ExampleChecker { return &ExampleChecker{runner: 
 
 func (ExampleChecker) Kind() domain.ClaimKind { return domain.KindExample }
 
-func (e *ExampleChecker) Check(ctx context.Context, c domain.Claim, _ domain.CheckOptions) domain.Result {
+func (e *ExampleChecker) Check(ctx context.Context, c domain.Claim, opt domain.CheckOptions) domain.Result {
 	res := domain.Result{ID: c.ID, Title: c.Title, Status: domain.StatusPass}
 	var failures []string
 
@@ -66,6 +66,15 @@ func (e *ExampleChecker) Check(ctx context.Context, c domain.Claim, _ domain.Che
 	if len(failures) == 0 && c.Fuzz != nil {
 		if msg := e.fuzz(ctx, c); msg != "" {
 			failures = append(failures, msg)
+		}
+	}
+	if len(opt.Holdout) > 0 {
+		results := e.checkHoldout(ctx, c, opt.Holdout)
+		for _, r := range results {
+			if !r.Pass {
+				failures = append(failures, domain.HoldoutSummary(results))
+				break
+			}
 		}
 	}
 	if len(failures) > 0 {
@@ -128,6 +137,35 @@ func (e *ExampleChecker) fuzz(ctx context.Context, c domain.Claim) string {
 		}
 	}
 	return ""
+}
+
+// checkHoldout は holdout を binding に流し、1 件ごとの一致だけを返す。
+// 入力・期待値・実際の値・binding の出力（エラー出力に入力が混ざることがある）は返さない。
+// binding が落ちたら残りは流さず不一致として数える（壊れた binding を何度も呼ばない）。
+func (e *ExampleChecker) checkHoldout(ctx context.Context, c domain.Claim, holdout []domain.Example) []domain.HoldoutResult {
+	results := make([]domain.HoldoutResult, len(holdout))
+	for i, ex := range holdout {
+		in, _ := json.Marshal(map[string]any{"in": ex.In})
+		out, err := e.runner.run(ctx, c.Binding, in)
+		if err != nil {
+			break // results[i:] は Pass: false のまま
+		}
+		var got struct {
+			Out any `json:"out"`
+		}
+		if json.Unmarshal([]byte(lastJSONLine(out)), &got) != nil || !domain.Equal(ex.Out, got.Out) {
+			continue
+		}
+		pass := true
+		for _, p := range c.Properties {
+			if ok, err := domain.EvalProperty(p, ex.In, got.Out); err != nil || !ok {
+				pass = false
+				break
+			}
+		}
+		results[i].Pass = pass
+	}
+	return results
 }
 
 // 出力にログが混ざることがあるので、最後の JSON らしき行を取る。
