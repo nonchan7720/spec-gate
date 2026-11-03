@@ -1,0 +1,30 @@
+# 合議（extract の consensus）の回帰用 fixture。
+# docs/spec/harness.md を節ごとに 3 つの独立したサブエージェントで抽出した実際の回答から、
+# title を変えずに抜き出した。group が同じものは同じ主張の言い換え（束ねる）、違うものは別の主張（束ねない）。
+# 似た文でも意味が違う組（engineer と pm、算術と比較の変異、holdout の書き方と check の比べ方）を同じ run に入れてある。
+runs:
+  - - {group: relink-no-rewrite, id: RELINK-004, kind: manual, title: "提案だけを行い、claim は書き換えない（claim の修正は人間が行う）", source: {type: markdown, ref: "docs/spec/harness.md#見出し変更時の再リンク提案"}}
+    - {group: trace-lines, id: TRACE-002, kind: manual, title: "変更行数は git diff --numstat HEAD の追加行と削除行の合計とし、git リポジトリでなければ 0 とする", source: {type: markdown, ref: "docs/spec/harness.md#通り方のログ"}}
+    - {group: trace-append, id: TRACE-001, kind: manual, title: "check --hook を実行するたびに、claim ごとの判定（時刻・claim id・status・その時点の変更行数）を .spec-gate/trace.jsonl に 1 行ずつ追記する", source: {type: markdown, ref: "docs/spec/harness.md#通り方のログ"}}
+    - {group: role-engineer, id: ROLE-002, kind: manual, title: "check --role engineer は fail だけを、仕様の位置（file:line）つきで出す", source: {type: markdown, ref: "docs/spec/harness.md#役割別レポート"}}
+    - {group: role-pm, id: ROLE-004, kind: manual, title: "check --role pm は stale と unapproved を出す", source: {type: markdown, ref: "docs/spec/harness.md#役割別レポート"}}
+    - {group: role-designer, id: ROLE-003, kind: manual, title: "check --role designer は kind: ui の claim のうち unverified と fail を出す", source: {type: markdown, ref: "docs/spec/harness.md#役割別レポート"}}
+    - {group: mutation-arith, id: MUTATION-005, kind: manual, title: "算術の変異は + → -、- → +、* → /、/ → * の 4 種で全部とする", source: {type: markdown, ref: "docs/spec/harness.md#mutation score"}}
+    - {group: mutation-compare, id: MUTATION-006, kind: manual, title: "比較の変異は > → >= と <、< → <= と >、>= → >、<= → <、== → !=、!= → == で全部とする", source: {type: markdown, ref: "docs/spec/harness.md#mutation score"}}
+    - {group: holdout-plain-in, id: HOLDOUT-004, kind: manual, title: "holdout の in は binding に流すので平文で書く。out_sha256 は期待する出力の正規化 JSON の SHA-256（16 進小文字 64 文字）", source: {type: markdown, ref: "docs/spec/harness.md#holdout examples"}}
+    - {group: holdout-check, id: HOLDOUT-007, kind: manual, title: "check は examples に続けて holdout の in も binding に流し、binding 出力の正規化 JSON の SHA-256 を out_sha256 と比べる", source: {type: markdown, ref: "docs/spec/harness.md#holdout examples"}}
+  - - {group: relink-no-rewrite, id: RELINK-004, kind: manual, title: "再リンクの提案は表示だけで、claim ファイルは書き換えない（claim の修正は人間が行う）", source: {type: markdown, ref: "docs/spec/harness.md#見出し変更時の再リンク提案"}}
+    - {group: trace-lines, id: TRACE-002, kind: manual, title: "trace に記録する変更行数は git diff --numstat HEAD の追加行と削除行の合計とし、git リポジトリでなければ 0 とする", source: {type: markdown, ref: "docs/spec/harness.md#通り方のログ"}}
+    - {group: role-engineer, id: ROLE-002, kind: manual, title: "check --role engineer は fail を仕様の位置（file:line）つきで出す【要確認: file:line の具体的な出力形式が未定義で、入出力例にも現れない】", source: {type: markdown, ref: "docs/spec/harness.md#役割別レポート"}}
+    - {group: role-pm, id: ROLE-004, kind: manual, title: "check --role pm は stale と unapproved を出す", source: {type: markdown, ref: "docs/spec/harness.md#役割別レポート"}}
+    - {group: mutation-arith, id: MUTATION-006, kind: manual, title: "算術演算子の変異は + → -、- → +、* → /、/ → * の 4 種で全部とする", source: {type: markdown, ref: "docs/spec/harness.md#mutation score"}}
+    - {group: mutation-compare, id: MUTATION-007, kind: manual, title: "比較演算子の変異は > → >= と <、< → <= と >、>= → >、<= → <、== → !=、!= → == で全部とする", source: {type: markdown, ref: "docs/spec/harness.md#mutation score"}}
+    - {group: holdout-plain-in, id: HOLDOUT-004, kind: manual, title: "holdout の in は binding に流すので平文で書く。out_sha256 は期待出力の正規化 JSON の SHA-256（16 進小文字 64 文字）", source: {type: markdown, ref: "docs/spec/harness.md#holdout examples"}}
+    - {group: holdout-check, id: HOLDOUT-008, kind: manual, title: "check は examples に続けて holdout の in も binding に流し、出力の正規化 JSON の SHA-256 を out_sha256 と比べる", source: {type: markdown, ref: "docs/spec/harness.md#holdout examples"}}
+  - - {group: relink-no-rewrite, id: RELINK-004, kind: manual, title: "見出しの提案だけを行い、claim は書き換えない（claim の修正は人間が行う）", source: {type: markdown, ref: "docs/spec/harness.md#見出し変更時の再リンク提案"}}
+    - {group: trace-lines, id: TRACE-002, kind: manual, title: "変更行数は git diff --numstat HEAD の追加行と削除行の合計とする。git リポジトリでなければ 0", source: {type: markdown, ref: "docs/spec/harness.md#通り方のログ"}}
+    - {group: role-engineer, id: ROLE-001, kind: manual, title: "check --role engineer は fail だけを出す", source: {type: markdown, ref: "docs/spec/harness.md#役割別レポート"}}
+    - {group: role-designer, id: ROLE-003, kind: manual, title: "check --role designer は kind: ui の claim のうち unverified と fail を出す【要確認: designer の fail が kind: ui に限られるか、fail 全般か文面から決めきれない（例では unverified のみ）】", source: {type: markdown, ref: "docs/spec/harness.md#役割別レポート"}}
+    - {group: mutation-arith, id: MUTATION-005, kind: manual, title: "算術の変異は `+` → `-`、`-` → `+`、`*` → `/`、`/` → `*` に限る", source: {type: markdown, ref: "docs/spec/harness.md#mutation score"}}
+    - {group: mutation-compare, id: MUTATION-006, kind: manual, title: "比較の変異は `>` → `>=` と `<`、`<` → `<=` と `>`、`>=` → `>`、`<=` → `<`、`==` → `!=`、`!=` → `==` に限る", source: {type: markdown, ref: "docs/spec/harness.md#mutation score"}}
+    - {group: holdout-plain-in, id: HOLDOUT-004, kind: manual, title: "in は binding に流すので平文で書く。out_sha256 は期待する出力の正規化 JSON の SHA-256（16 進小文字 64 文字）", source: {type: markdown, ref: "docs/spec/harness.md#holdout examples"}}

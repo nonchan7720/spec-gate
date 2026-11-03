@@ -3,10 +3,7 @@ package services
 import (
 	"context"
 	"fmt"
-	"regexp"
 	"sort"
-	"strings"
-	"unicode"
 
 	"github.com/nonchan7720/spec-gate/pkg/domain"
 )
@@ -55,33 +52,16 @@ func (s *ExtractService) Extract(ctx context.Context, srcType domain.SourceType,
 }
 
 // consensus は run ごとに独立に抽出した claim の配列を合議し、claims/_pending/ に置く。
+// 同じ主張の同定（言い換えを含む）は domain.MergeRuns に従う。
 func (s *ExtractService) consensus(srcType domain.SourceType, perRun [][]domain.Claim) ([]Candidate, error) {
 	runs := len(perRun)
 	type bucket struct {
 		claim domain.Claim
 		hits  int
 	}
-	buckets := map[string]*bucket{}
 	var order []*bucket // 初出順。ID の付け替えを決定的にする
-	for _, claims := range perRun {
-		seen := map[string]bool{}
-		for _, c := range claims {
-			key := fingerprint(c)
-			if seen[key] {
-				continue
-			}
-			seen[key] = true
-			if b, ok := buckets[key]; ok {
-				b.hits++
-				if len(c.Examples) > len(b.claim.Examples) { // より情報量の多い方を残す
-					b.claim = c
-				}
-			} else {
-				b := &bucket{claim: c, hits: 1}
-				buckets[key] = b
-				order = append(order, b)
-			}
-		}
+	for _, a := range domain.MergeRuns(perRun) {
+		order = append(order, &bucket{claim: a.Claim, hits: a.Hits})
 	}
 
 	// LLM は節・実行ごとに ID を振るので、別の主張が同じ ID を持つことがある。
@@ -124,45 +104,4 @@ func (s *ExtractService) consensus(srcType domain.SourceType, perRun [][]domain.
 		return out[i].Claim.ID < out[j].Claim.ID
 	})
 	return out, nil
-}
-
-// fingerprint は「同じ主張」を同定するキー。
-// 例があれば kind + (in, out) の組の集合で決める（title の言い回しは実行ごとに揺れるので見ない）。
-// 例が無ければ kind + 正規化した title。
-func fingerprint(c domain.Claim) string {
-	if len(c.Examples) > 0 {
-		set := map[string]bool{}
-		for _, e := range c.Examples {
-			set[fmt.Sprintf("%#v=>%#v", e.In, e.Out)] = true
-		}
-		pairs := make([]string, 0, len(set))
-		for p := range set {
-			pairs = append(pairs, p)
-		}
-		sort.Strings(pairs)
-		return string(c.Kind) + "|ex|" + strings.Join(pairs, "\x00")
-	}
-	return string(c.Kind) + "|title|" + normalizeTitle(c.Title)
-}
-
-var (
-	// 【要確認: …】 の注記。閉じ括弧が無ければ末尾まで。
-	reviewNote = regexp.MustCompile(`【\s*要確認[^】]*(】|$)`)
-	// [M-1] / (HOLDOUT-003) / 【R-2】 のような括弧つきの ID。
-	bracketedID = regexp.MustCompile(`[\[(（【]\s*[A-Za-z][A-Za-z0-9_]*(-[A-Za-z0-9_]+)+\s*[\])）】]`)
-)
-
-// normalizeTitle は注記・括弧つき ID・句読点・記号・空白を落として小文字にする。
-func normalizeTitle(t string) string {
-	t = reviewNote.ReplaceAllString(t, "")
-	t = strings.Split(t, "要確認")[0]
-	t = bracketedID.ReplaceAllString(t, "")
-	var b strings.Builder
-	for _, r := range t {
-		if unicode.IsPunct(r) || unicode.IsSymbol(r) || unicode.IsSpace(r) {
-			continue
-		}
-		b.WriteRune(unicode.ToLower(r))
-	}
-	return b.String()
 }
