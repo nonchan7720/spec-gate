@@ -23,6 +23,10 @@ type MutationService struct {
 	// Paths は binding の語がリポジトリに実在するかを答える。変更検知（CheckService.Paths）と同じ基準で
 	// 触るパスを選ぶ。nil なら語をすべて渡し、実在しないものは Files.Expand が除く。
 	Paths domain.PathChecker
+	// Deps は触るパスが import するモジュール内のパッケージを答える。binding がディスパッチャ
+	// （go run ./tools/bind など）だけを指していても、その先の本当の実装に変異を入れるために使う。
+	// 変更検知（CheckService.Deps）と同じ基準。nil なら binding のパスだけを変異させる。
+	Deps domain.DependencyResolver
 }
 
 // Run はプランファイル path を読んで mutation score を計算する。max は走らせる変異の上限（0 以下なら無制限）。
@@ -123,7 +127,8 @@ func (s *MutationService) verify(ctx context.Context, p domain.Plan) (failed, ou
 	return "", "", nil
 }
 
-// touches はプランの claims が触るパス（binding のパス・layers・story）。
+// touches はプランの claims が触るパス（binding のパス・layers・story）と、Deps があればそれらが
+// import するモジュール内のパッケージ。重複は除き、最初に出た順を保つ（並びは Files.Expand が決める）。
 func (s *MutationService) touches(p domain.Plan) ([]string, error) {
 	claims, err := s.Claims.All()
 	if err != nil {
@@ -150,7 +155,25 @@ func (s *MutationService) touches(p domain.Plan) ([]string, error) {
 	if len(unknown) > 0 {
 		return nil, fmt.Errorf("%s: claim が見つからない: %s", p.Path, strings.Join(unknown, ", "))
 	}
-	return out, nil
+	if s.Deps != nil {
+		for _, t := range out {
+			out = append(out, s.Deps.Deps(t)...)
+		}
+	}
+	return dedup(out), nil
+}
+
+// dedup は重複を除き、最初に出た順を保つ。
+func dedup(paths []string) []string {
+	seen := map[string]bool{}
+	out := paths[:0:0]
+	for _, p := range paths {
+		if !seen[p] {
+			seen[p] = true
+			out = append(out, p)
+		}
+	}
+	return out
 }
 
 // FormatSurvivors は生き残った変異を「file:line before → after」で並べる。
