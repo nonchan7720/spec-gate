@@ -425,7 +425,7 @@ lint や仕様の読み取りで拒否されたら `_pending/` に戻して理�
   シェルから `spec-gate mcp` を起動して直接呼ぶ経路は hook-gate（`protect_spec_claims`）が拒否する
 - 画面に見せた内容の sha256 が今の候補と違えば反映しない。承認は承認画面と同じ処理（lint・試し実行・仕様のハッシュ記録）で、`.spec-gate/review-decisions.jsonl` に記録する
 - **実機未検証**: Claude Code（とくにスマホのアプリ）が MCP Apps の画面を表示するかは公式に書かれていない。表示されなくても、`review` の結果に候補の要約が返る
-- 初回の `go run . mcp` はビルドに時間がかかる。MCP の起動がタイムアウトするなら `MCP_TIMEOUT` を延ばすか、ビルド済みの `spec-gate` を `.mcp.json` の command にする
+- `.mcp.json` は `scripts/mcp.sh` を起動する。`bin/spec-gate` を使い回し、Go のソースか画面の HTML のほうが新しいときだけビルドし直す（起動のたびに `go run` すると MCP の起動タイムアウト 30 秒を超えた）。新しい cloud コンテナでは最初のビルドが遅いことがあるので、環境のセットアップスクリプトでビルドする（`mise run setup`）か `MCP_TIMEOUT` を延ばす
 
 ### リモート承認（Claude Code の質問ダイアログ）
 

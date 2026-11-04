@@ -6,6 +6,14 @@
       "Write(./holdout/**)"
     ]
   },
+  "extraKnownMarketplaces": {
+    "claude-hook-gate": {
+      "source": { "source": "github", "repo": "nonchan7720/claude-hook-gate" }
+    }
+  },
+  "enabledPlugins": {
+    "feedback-gate@claude-hook-gate": true
+  },
   "hooks": {
     "SessionStart": [
       {

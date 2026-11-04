@@ -1,8 +1,10 @@
 {
   "mcpServers": {
     "spec-gate": {
-      "command": "go",
-      "args": ["run", ".", "mcp"]
+      "command": "bash",
+      "args": [
+        "scripts/mcp.sh"
+      ]
     }
   }
 }
