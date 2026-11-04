@@ -6,7 +6,6 @@ import (
 	"context"
 	_ "embed"
 	"encoding/json"
-	"errors"
 	"fmt"
 	"os/exec"
 	"strings"
@@ -14,7 +13,6 @@ import (
 
 	"github.com/nonchan7720/spec-gate/pkg/domain"
 	"github.com/nonchan7720/spec-gate/pkg/internal/textutil"
-	"gopkg.in/yaml.v3"
 )
 
 //go:embed prompt_restate.md
@@ -49,30 +47,20 @@ type claimView struct {
 
 // Restate は claim の内容だけから仕様文を書き起こさせる。
 func (r Command) Restate(ctx context.Context, c domain.Claim) (string, error) {
-	view, err := yaml.Marshal(claimView{
-		Kind: c.Kind, Title: c.Title, Examples: c.Examples, Properties: c.Properties,
-		Layers: c.Layers, Allowed: c.Allowed, Forbidden: c.Forbidden, States: c.States, Strings: c.Strings,
-	})
+	prompt, err := Prompter{}.RestatePrompt(c)
 	if err != nil {
 		return "", err
 	}
-	prompt := strings.ReplaceAll(restatePrompt, "{{CLAIM}}", strings.TrimSpace(string(view)))
 	out, err := r.run(ctx, prompt)
 	if err != nil {
 		return "", err
 	}
-	text := stripFence(out)
-	if text == "" {
-		return "", errors.New("再生成した仕様文が空")
-	}
-	return text, nil
+	return Prompter{}.ParseRestate(out)
 }
 
 // Compare は再生成した仕様文と元の仕様を比べさせ、JSON の応答を読む。
 func (r Command) Compare(ctx context.Context, restated, original string) (domain.Comparison, error) {
-	// 置換結果に再び {{...}} が現れても二重置換しないよう、Replacer で一度に置き換える
-	prompt := strings.NewReplacer("{{RESTATED}}", restated, "{{ORIGINAL}}", original).Replace(comparePrompt)
-	out, err := r.run(ctx, prompt)
+	out, err := r.run(ctx, Prompter{}.ComparePrompt(restated, original))
 	if err != nil {
 		return domain.Comparison{}, err
 	}

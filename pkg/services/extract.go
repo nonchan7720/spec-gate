@@ -14,9 +14,13 @@ import (
 // ExtractService は同じ仕様から独立に N 回 claim を抽出し、一致した主張だけを高信頼とする（合議）。
 // 出力は claims/_pending/ に置かれ、人間が承認するまで check の対象にならない。
 type ExtractService struct {
-	Claims    domain.ClaimRepository
-	Adapters  map[domain.SourceType]domain.SourceAdapter
+	Claims   domain.ClaimRepository
+	Adapters map[domain.SourceType]domain.SourceAdapter
+	// Extractor は LLM を直接呼ぶ抽出（SPEC_GATE_EXTRACT_CMD のコマンドモード）。委譲（Emit / Collect）では使わない
 	Extractor domain.Extractor
+	// Prompter と Work は委譲（Emit / Collect）で使う
+	Prompter domain.ExtractPrompter
+	Work     domain.LLMWorkspace
 }
 
 type Candidate struct {
@@ -39,17 +43,27 @@ func (s *ExtractService) Extract(ctx context.Context, srcType domain.SourceType,
 		return nil, fmt.Errorf("仕様を読めない: %s", snap.Skipped)
 	}
 
+	perRun := make([][]domain.Claim, 0, runs)
+	for i := range runs {
+		claims, err := s.Extractor.Extract(ctx, ref, snap.Excerpt)
+		if err != nil {
+			return nil, fmt.Errorf("抽出 %d/%d 回目: %w", i+1, runs, err)
+		}
+		perRun = append(perRun, claims)
+	}
+	return s.consensus(srcType, perRun)
+}
+
+// consensus は run ごとに独立に抽出した claim の配列を合議し、claims/_pending/ に置く。
+func (s *ExtractService) consensus(srcType domain.SourceType, perRun [][]domain.Claim) ([]Candidate, error) {
+	runs := len(perRun)
 	type bucket struct {
 		claim domain.Claim
 		hits  int
 	}
 	buckets := map[string]*bucket{}
 	var order []*bucket // 初出順。ID の付け替えを決定的にする
-	for i := range runs {
-		claims, err := s.Extractor.Extract(ctx, ref, snap.Excerpt)
-		if err != nil {
-			return nil, fmt.Errorf("抽出 %d/%d 回目: %w", i+1, runs, err)
-		}
+	for _, claims := range perRun {
 		seen := map[string]bool{}
 		for _, c := range claims {
 			key := fingerprint(c)
