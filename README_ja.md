@@ -2,10 +2,11 @@
 
 # spec-gate — 仕様準拠ハーネス
 
-```
-PJ内のコーディングルール   → hook-gate
-コードの負債を溜めない     → depgraph
-プロダクト品質の担保       → spec-gate ← これ
+```mermaid
+flowchart LR
+  hg["<b>hook-gate</b><br/>PJ 内の<br/>コーディングルール"] ~~~ dg["<b>depgraph</b><br/>コードの負債を<br/>溜めない"] ~~~ sg["<b>spec-gate</b>（これ）<br/>プロダクト品質の<br/>担保"]
+  classDef me fill:#2563eb,stroke:#1e40af,color:#fff,stroke-width:3px
+  class sg me
 ```
 
 自然言語の仕様（Markdown / Mermaid / Figma / 画像）と、エージェントと作ったプランファイルが
@@ -15,10 +16,31 @@ PJ内のコーディングルール   → hook-gate
 
 ## 仕組み
 
-```
-source (何でもいい)  →  adapter  →  claim (構造化)  →  check (exit code)
-Markdown / Mermaid /                 YAML 1主張1ファイル    example / structure / ui / plan
-Figma / PNG / PDF                    ↑ 人間承認はここ 1 回だけ
+```mermaid
+flowchart LR
+  subgraph AI["① 抽出（AI）"]
+    direction TB
+    src["<b>source</b>（何でもいい）<br/>Markdown / Mermaid<br/>Figma / PNG / PDF"]
+    ex["<b>adapter → extract</b><br/>AI が N 回独立に読む<br/>（合議）"]
+    pend["<b>claims/_pending/</b><br/>claim の候補"]
+    src --> ex --> pend
+  end
+  subgraph HU["② 承認（人間）"]
+    direction TB
+    ap{{"<b>approve</b><br/>人間の承認は<br/>ここ 1 回だけ"}}
+  end
+  subgraph MA["③ 判定（機械）"]
+    direction TB
+    cl["<b>claim</b>（構造化 YAML）<br/>1 主張 1 ファイル"]
+    ck["<b>check</b><br/>example / structure<br/>ui / plan"]
+    code(["exit code"])
+    cl --> ck --> code
+  end
+  AI --> HU --> MA
+  classDef human fill:#f59e0b,stroke:#b45309,color:#000,stroke-width:2px
+  classDef machine fill:#2563eb,stroke:#1e40af,color:#fff
+  class ap human
+  class ck,code machine
 ```
 
 自然言語とコードを直接照合はしない。間に **claim（検証可能な主張）** を挟む。
@@ -39,12 +61,23 @@ Figma / PNG / PDF                    ↑ 人間承認はここ 1 回だけ
 
 `check` は claim ごとに次の順で見て、最初に引っかかった段階で止まる。
 
-```
-unapproved  承認がない                        → blocking
-stale       仕様が承認後に変わった            → blocking（人間が再承認するまで解けない）
-fail        コードが claim を満たさない       → blocking（エージェントが直す）
-unverified  検証手段がない（manual / --ui 無し / depgraph が判定できない）→ 人間のレビュー対象。エージェントは止めない
-pass
+```mermaid
+flowchart LR
+  c(["claim"]) --> q1{"承認<br/>済み？"}
+  q1 -->|はい| q2{"仕様は<br/>承認時のまま？"}
+  q2 -->|はい| q3{"コードが<br/>満たす？"}
+  q3 -->|はい| q4{"すべて機械で<br/>確かめた？"}
+  q4 -->|はい| pa["<b>pass</b>"]
+  q1 -->|いいえ| un["<b>unapproved</b><br/>blocking"]
+  q2 -->|いいえ| st["<b>stale</b><br/>blocking<br/>人間が再承認するまで"]
+  q3 -->|いいえ| fa["<b>fail</b><br/>blocking<br/>エージェントが直す"]
+  q4 -->|いいえ| uv["<b>unverified</b><br/>人間のレビュー対象<br/>エージェントは止めない"]
+  classDef block fill:#dc2626,stroke:#991b1b,color:#fff
+  classDef warn fill:#f59e0b,stroke:#b45309,color:#000
+  classDef ok fill:#16a34a,stroke:#166534,color:#fff
+  class un,st,fa block
+  class uv warn
+  class pa ok
 ```
 
 blocking があれば exit 1。`--hook` では stderr に直すべきものだけのレポートを出して exit 2。
@@ -198,32 +231,38 @@ SPEC_GATE_EXTRACT_CMD='claude -p' spec-gate extract --type mermaid docs/arch/lay
 
 ## ディレクトリ
 
-```
-docs/spec/*.md        詳細仕様（Markdown）          ─┐
-docs/arch/*.mmd       アーキテクチャ図（Mermaid）    ├ source
-Figma / *.png / *.pdf  UI・その他                   ─┘
-sources.yaml          監視する source の登録簿（coverage 用）
-claims/<領域>/*.yaml  claim。書式は claims/SCHEMA.md
-claims/_pending/      extract の出力。承認まで check 対象外
-claims/_ambiguous/    「仕様が決まっていない」と記録した候補。check 対象外で、coverage が要確認として出す
-holdout/<id>.yaml     holdout（入力と期待値のハッシュ）。書くのは人間だけ
-plans/*.md            プラン。front matter の status: active で check 対象
-.spec-gate/           プランのロック（コミット対象）と trace.jsonl・review-decisions.jsonl（git 管理外）
-.spec-gate-llm/       extract / reverse を委譲している間のプロンプトと回答（git 管理外、一時的）
-.depgraph.yml         depgraph のレイヤー定義。図と一致していることを structure claim が照合する
-.claude/gate.yaml     hook-gate の品質ゲート
-.claude/feedback/     hook-gate のルール（claims・verify 行・holdout の保護、リテラル漏れの警告）
-.claude/agents/       spec-gate-llm-worker（extract / reverse 用のサブエージェント）
-.claude/skills/       spec-gate-extract / spec-gate-reverse（委譲の手順）
-tools/call.ts         example claim の binding 用ラッパ（TS 関数向け）
-tools/bind            docs/spec/harness.md（spec-gate 自身の仕様）の入出力例を検証する binding
+先頭の 3 行が **source**（spec-gate が読む仕様）。
 
-main.go               エントリポイント
-pkg/domain            Claim / Plan / Result、ポート、lint、fuzz、mutation、leak、relink（純粋）
-pkg/services          check / approve / coverage / extract / reverse / plan / mutate / holdout / metrics / trace / review
-pkg/infrastructure    claimrepo, adapter(markdown/mermaid/figma/image), checker, planfile, vcs, extractor, reverser, llmwork, tracelog, workspace
-pkg/interfaces        cli（cobra コマンド、レポート、hook 出力）、handler/review（承認画面）
-```
+| パス | 中身 |
+|---|---|
+| `docs/spec/*.md` | 詳細仕様（Markdown） |
+| `docs/arch/*.mmd` | アーキテクチャ図（Mermaid） |
+| Figma / `*.png` / `*.pdf` | UI・その他 |
+| `sources.yaml` | 監視する source の登録簿（coverage 用） |
+| `claims/<領域>/*.yaml` | claim。書式は claims/SCHEMA.md |
+| `claims/_pending/` | extract の出力。承認まで check 対象外 |
+| `claims/_ambiguous/` | 「仕様が決まっていない」と記録した候補。check 対象外で、coverage が要確認として出す |
+| `holdout/<id>.yaml` | holdout（入力と期待値のハッシュ）。書くのは人間だけ |
+| `plans/*.md` | プラン。front matter の status: active で check 対象 |
+| `.spec-gate/` | プランのロック（コミット対象）と trace.jsonl・review-decisions.jsonl（git 管理外） |
+| `.spec-gate-llm/` | extract / reverse を委譲している間のプロンプトと回答（git 管理外、一時的） |
+| `.depgraph.yml` | depgraph のレイヤー定義。図と一致していることを structure claim が照合する |
+| `.claude/gate.yaml` | hook-gate の品質ゲート |
+| `.claude/feedback/` | hook-gate のルール（claims・verify 行・holdout の保護、リテラル漏れの警告） |
+| `.claude/agents/` | spec-gate-llm-worker（extract / reverse 用のサブエージェント） |
+| `.claude/skills/` | spec-gate-extract / spec-gate-reverse（委譲の手順） |
+| `tools/call.ts` | example claim の binding 用ラッパ（TS 関数向け） |
+| `tools/bind` | docs/spec/harness.md（spec-gate 自身の仕様）の入出力例を検証する binding |
+
+spec-gate 本体（Go）:
+
+| パス | 中身 |
+|---|---|
+| `main.go` | エントリポイント |
+| `pkg/domain` | Claim / Plan / Result、ポート、lint、fuzz、mutation、leak、relink（純粋） |
+| `pkg/services` | check / approve / coverage / extract / reverse / plan / mutate / holdout / metrics / trace / review |
+| `pkg/infrastructure` | claimrepo, adapter(markdown/mermaid/figma/image), checker, planfile, vcs, extractor, reverser, llmwork, tracelog, workspace |
+| `pkg/interfaces` | cli（cobra コマンド、レポート、hook 出力）、handler/review（承認画面） |
 
 ## claim の種類と、何が機械的に守れるか
 

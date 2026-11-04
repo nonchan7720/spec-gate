@@ -2,10 +2,11 @@ English | [日本語](README_ja.md)
 
 # spec-gate — a spec-compliance harness
 
-```
-Project coding rules         → hook-gate
-Keep code debt from growing  → depgraph
-Guarantee product quality    → spec-gate ← this
+```mermaid
+flowchart LR
+  hg["<b>hook-gate</b><br/>project<br/>coding rules"] ~~~ dg["<b>depgraph</b><br/>keep code debt<br/>from growing"] ~~~ sg["<b>spec-gate</b> (this)<br/>guarantee<br/>product quality"]
+  classDef me fill:#2563eb,stroke:#1e40af,color:#fff,stroke-width:3px
+  class sg me
 ```
 
 spec-gate decides, by exit code and without ever trusting the agent's own report, whether
@@ -17,10 +18,31 @@ harness simply lets them through and the round trips shrink.**
 
 ## How it works
 
-```
-source (anything)  →  adapter  →  claim (structured)  →  check (exit code)
-Markdown / Mermaid /              one YAML per claim       example / structure / ui / plan
-Figma / PNG / PDF                 ↑ the only human approval
+```mermaid
+flowchart LR
+  subgraph AI["① Extract (AI)"]
+    direction TB
+    src["<b>source</b> (anything)<br/>Markdown / Mermaid<br/>Figma / PNG / PDF"]
+    ex["<b>adapter → extract</b><br/>AI reads it N times<br/>independently (consensus)"]
+    pend["<b>claims/_pending/</b><br/>claim candidates"]
+    src --> ex --> pend
+  end
+  subgraph HU["② Approve (human)"]
+    direction TB
+    ap{{"<b>approve</b><br/>the only<br/>human approval"}}
+  end
+  subgraph MA["③ Check (machine)"]
+    direction TB
+    cl["<b>claim</b> (structured YAML)<br/>one claim per file"]
+    ck["<b>check</b><br/>example / structure<br/>ui / plan"]
+    code(["exit code"])
+    cl --> ck --> code
+  end
+  AI --> HU --> MA
+  classDef human fill:#f59e0b,stroke:#b45309,color:#000,stroke-width:2px
+  classDef machine fill:#2563eb,stroke:#1e40af,color:#fff
+  class ap human
+  class ck,code machine
 ```
 
 Natural language is never compared with code directly. A **claim (a verifiable statement)** sits in between.
@@ -41,12 +63,23 @@ Natural language is never compared with code directly. A **claim (a verifiable s
 
 `check` looks at each claim in this order and stops at the first stage that catches it.
 
-```
-unapproved  no approval                                    → blocking
-stale       the spec changed after approval                → blocking (until a human re-approves)
-fail        the code does not satisfy the claim            → blocking (the agent fixes it)
-unverified  no means to verify (manual / no --ui / depgraph could not decide) → for human review; does not stop the agent
-pass
+```mermaid
+flowchart LR
+  c(["claim"]) --> q1{"approved?"}
+  q1 -->|yes| q2{"spec unchanged<br/>since approval?"}
+  q2 -->|yes| q3{"code satisfies<br/>the claim?"}
+  q3 -->|yes| q4{"everything checked<br/>by machine?"}
+  q4 -->|yes| pa["<b>pass</b>"]
+  q1 -->|no| un["<b>unapproved</b><br/>blocking"]
+  q2 -->|no| st["<b>stale</b><br/>blocking<br/>until a human re-approves"]
+  q3 -->|no| fa["<b>fail</b><br/>blocking<br/>the agent fixes it"]
+  q4 -->|no| uv["<b>unverified</b><br/>for human review<br/>does not stop the agent"]
+  classDef block fill:#dc2626,stroke:#991b1b,color:#fff
+  classDef warn fill:#f59e0b,stroke:#b45309,color:#000
+  classDef ok fill:#16a34a,stroke:#166534,color:#fff
+  class un,st,fa block
+  class uv warn
+  class pa ok
 ```
 
 Any blocking result exits 1. With `--hook` it writes a report of only what the agent must fix to stderr and exits 2.
@@ -210,32 +243,38 @@ SPEC_GATE_EXTRACT_CMD='claude -p' spec-gate extract --type mermaid docs/arch/lay
 
 ## Layout
 
-```
-docs/spec/*.md        detailed specs (Markdown)        ─┐
-docs/arch/*.mmd       architecture diagrams (Mermaid)   ├ sources
-Figma / *.png / *.pdf  UI and others                   ─┘
-sources.yaml          registry of watched sources (for coverage)
-claims/<area>/*.yaml  claims. Format: claims/SCHEMA.md
-claims/_pending/      extract output. Not checked until approved
-claims/_ambiguous/    candidates recorded as "the spec is not decided". Not checked; shown by coverage
-holdout/<id>.yaml     holdout examples (inputs + hashes of the expected outputs). Written by humans only
-plans/*.md            plans. Checked when the front matter says status: active
-.spec-gate/           plan locks (committed); trace.jsonl and review-decisions.jsonl (git-ignored)
-.spec-gate-llm/       prompts and answers while extract / reverse are delegated (git-ignored, temporary)
-.depgraph.yml         depgraph's layer definition. The structure claim checks it matches the diagram
-.claude/gate.yaml     hook-gate quality gate
-.claude/feedback/     hook-gate rules (protect claims, verify lines and holdout; literal-leak warning)
-.claude/agents/       spec-gate-llm-worker (subagent for extract / reverse)
-.claude/skills/       spec-gate-extract / spec-gate-reverse (the delegation steps)
-tools/call.ts         binding wrapper for example claims (TS functions)
-tools/bind            bindings for the examples in docs/spec/harness.md (spec-gate's own spec)
+The first three rows are the **sources** (the specs spec-gate reads).
 
-main.go               entry point
-pkg/domain            Claim / Plan / Result, ports, lint, fuzz, mutation, leak, relink (pure)
-pkg/services          check / approve / coverage / extract / reverse / plan / mutate / holdout / metrics / trace / review
-pkg/infrastructure    claimrepo, adapter(markdown/mermaid/figma/image), checker, planfile, vcs, extractor, reverser, llmwork, tracelog, workspace
-pkg/interfaces        cli (cobra commands, reports, hook output), handler/review (the review page)
-```
+| Path | What it is |
+|---|---|
+| `docs/spec/*.md` | detailed specs (Markdown) |
+| `docs/arch/*.mmd` | architecture diagrams (Mermaid) |
+| Figma / `*.png` / `*.pdf` | UI and others |
+| `sources.yaml` | registry of watched sources (for coverage) |
+| `claims/<area>/*.yaml` | claims. Format: claims/SCHEMA.md |
+| `claims/_pending/` | extract output. Not checked until approved |
+| `claims/_ambiguous/` | candidates recorded as "the spec is not decided". Not checked; shown by coverage |
+| `holdout/<id>.yaml` | holdout examples (inputs + hashes of the expected outputs). Written by humans only |
+| `plans/*.md` | plans. Checked when the front matter says status: active |
+| `.spec-gate/` | plan locks (committed); trace.jsonl and review-decisions.jsonl (git-ignored) |
+| `.spec-gate-llm/` | prompts and answers while extract / reverse are delegated (git-ignored, temporary) |
+| `.depgraph.yml` | depgraph's layer definition. The structure claim checks it matches the diagram |
+| `.claude/gate.yaml` | hook-gate quality gate |
+| `.claude/feedback/` | hook-gate rules (protect claims, verify lines and holdout; literal-leak warning) |
+| `.claude/agents/` | spec-gate-llm-worker (subagent for extract / reverse) |
+| `.claude/skills/` | spec-gate-extract / spec-gate-reverse (the delegation steps) |
+| `tools/call.ts` | binding wrapper for example claims (TS functions) |
+| `tools/bind` | bindings for the examples in docs/spec/harness.md (spec-gate's own spec) |
+
+spec-gate itself (Go):
+
+| Path | What it is |
+|---|---|
+| `main.go` | entry point |
+| `pkg/domain` | Claim / Plan / Result, ports, lint, fuzz, mutation, leak, relink (pure) |
+| `pkg/services` | check / approve / coverage / extract / reverse / plan / mutate / holdout / metrics / trace / review |
+| `pkg/infrastructure` | claimrepo, adapter(markdown/mermaid/figma/image), checker, planfile, vcs, extractor, reverser, llmwork, tracelog, workspace |
+| `pkg/interfaces` | cli (cobra commands, reports, hook output), handler/review (the review page) |
 
 ## Claim kinds and what can be enforced mechanically
 
