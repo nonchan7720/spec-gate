@@ -181,6 +181,46 @@ func TestDecideRemote(t *testing.T) {
 	}
 }
 
+// preview を表示しない端末（スマホのアプリ）では、回答の質問から preview と multiSelect が落ちる（2026-11-04 実機）。
+// そのときは質問文・見出し・選択肢で照合する。preview が付いていれば、これまでどおり preview も一致を求める。
+func TestDecideRemote_PreviewDroppedByClient(t *testing.T) {
+	qa := NewRemoteQuestion("A", "PA")
+	current := map[string]AskQuestion{"A": qa}
+	strip := func(q AskQuestion) AskQuestion {
+		q.MultiSelect = false
+		q.Options = append([]AskOption(nil), q.Options...)
+		for i := range q.Options {
+			q.Options[i].Preview = ""
+		}
+		return q
+	}
+	ans := map[string]any{"answers": map[string]any{qa.Question: "承認"}}
+
+	got, notes := DecideRemote(remoteHook(t, []AskQuestion{strip(qa)}, ans, nil), current)
+	if len(got) != 1 || got[0].Verdict != VerdictApprove || len(notes) != 0 {
+		t.Fatalf("preview が落ちた回答も、質問文が一致すれば反映する: %+v %v", got, notes)
+	}
+
+	changed := strip(qa)
+	changed.Options[0].Description = "却下します"
+	if got, _ := DecideRemote(remoteHook(t, []AskQuestion{changed}, ans, nil), current); len(got) != 0 {
+		t.Fatalf("preview が無くても、選択肢の説明が違えば反映しない: %+v", got)
+	}
+
+	partial := qa
+	partial.Options = append([]AskOption(nil), qa.Options...)
+	partial.Options[1].Preview = ""
+	if got, _ := DecideRemote(remoteHook(t, []AskQuestion{partial}, ans, nil), current); len(got) != 0 {
+		t.Fatalf("preview が付いているなら、すべての選択肢で一致を求める: %+v", got)
+	}
+}
+
+func TestFormatExampleValue_NoHTMLEscape(t *testing.T) {
+	if got := FormatExampleValue(map[string]any{"command": "echo x > a && b < c"}); got != `{"command":"echo x > a && b < c"}` {
+		t.Fatalf("< > & をエスケープしない: %s", got)
+	}
+}
+
 func TestRemoteQuestionBody(t *testing.T) {
 	preview := "# R-1 円未満は切り捨て\n\n- 仕様の場所: a.md#x\n- 試し実行: pass\n\n## 例\n\n| 入力 | 期待する出力 | メモ |\n|---|---|---|\n| 1.5 | 1 |  |\n| \"a\\|b\" | 2 | 境界 |\n\n## いつも成り立つこと\n\n- isInteger(output)\n"
 	want := "R-1 円未満は切り捨て\n\n- 仕様の場所: a.md#x\n- 試し実行: pass\n\n【例】\n\n・1.5 → 1\n・”a|b” → 2（境界）\n\n【いつも成り立つこと】\n\n- isInteger(output)"

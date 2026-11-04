@@ -1,12 +1,13 @@
-# confidence: 3/3
-# dry-run: fail: 10 件中 10 件が期待と違う
-# 承認するには内容を確認して claims/<領域>/ に移し、`spec-gate approve POLICY-001` を実行する
 id: POLICY-001
 kind: example
 title: policy.yaml の auto_approve を既定値で埋めて検証し、enabled が false なら他を確かめず、不正なら最初に当てはまった項目名（llm_commands → runs → min_agree → kinds の順）をエラーにする
 source:
     type: markdown
     ref: docs/spec/auto-approval.md#承認方針
+approved:
+    by: nonchan7720
+    at: "2026-11-04T16:51:10Z"
+    source_hash: sha256:99139d5f09f006a16983864e0507a0e5161e611d6402763ac70efabbce061e22
 binding: go run ./tools/bind auto-policy
 examples:
     - in: null

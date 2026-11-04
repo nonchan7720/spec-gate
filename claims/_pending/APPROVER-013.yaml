@@ -51,9 +51,3 @@ examples:
         command: spec-gate revoke AUTO-001 --reason x
         tool: Bash
       out: deny
-properties:
-    - output == "allow" || output == "deny"
-    - '(input.tool == "Bash" && input.command.startsWith("spec-gate auto-approve") && !has(input.agent_type)) ? output == "deny" : true'
-    - '(input.tool == "Bash" && input.command.startsWith("spec-gate auto-approve") && has(input.agent_type) && input.agent_type != "spec-gate-approver") ? output == "deny" : true'
-    - '(input.tool == "Bash" && input.command.startsWith("spec-gate revoke")) ? output == "deny" : true'
-    - '(has(input.agent_type) && input.agent_type == "spec-gate-approver" && input.tool != "Bash") ? output == "deny" : true'

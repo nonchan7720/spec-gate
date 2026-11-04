@@ -1,12 +1,13 @@
-# confidence: 3/3
-# dry-run: fail: 10 件中 10 件が期待と違う
-# 承認するには内容を確認して claims/<領域>/ に移し、`spec-gate approve ELIG-001` を実行する
 id: ELIG-001
 kind: example
 title: 候補 1 件の自動承認判定は disabled, paused, kind, agree, ambiguous, dry-run, reverse の順に調べ、どれにも当てはまらなければ ok を返す
 source:
     type: markdown
     ref: docs/spec/auto-approval.md#自動承認の判定
+approved:
+    by: nonchan7720
+    at: "2026-11-04T16:53:50Z"
+    source_hash: sha256:0c0a0369d68ce69b54afc9b3eb28ea0400bc5d756ee3d1119c61651fb2ec71dd
 binding: go run ./tools/bind auto-eligible
 examples:
     - in:
