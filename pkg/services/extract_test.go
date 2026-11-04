@@ -3,9 +3,12 @@ package services
 import (
 	"context"
 	"fmt"
+	"os"
+	"path/filepath"
 	"testing"
 
 	"github.com/nonchan7720/spec-gate/pkg/domain"
+	"gopkg.in/yaml.v3"
 )
 
 // fakeExtractor は呼ばれるたびに runs[i] を返す。
@@ -125,6 +128,100 @@ func TestExtract_DifferentClaimsStaySeparate(t *testing.T) {
 	)
 	if len(cands) != 6 {
 		t.Fatalf("6 件とも別の候補: %+v", cands)
+	}
+}
+
+// fixtureClaim は testdata の claim に、束ねるべき組の名前（group）を足したもの。
+type fixtureClaim struct {
+	domain.Claim `yaml:",inline"`
+	Group        string `yaml:"group"`
+}
+
+func loadParaphraseFixture(t *testing.T) (runs [][]domain.Claim, groupOf map[string]string, want map[string]int) {
+	t.Helper()
+	b, err := os.ReadFile(filepath.Join("testdata", "consensus_paraphrase.yaml"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	var f struct {
+		Runs [][]fixtureClaim `yaml:"runs"`
+	}
+	if err := yaml.Unmarshal(b, &f); err != nil {
+		t.Fatal(err)
+	}
+	groupOf, want = map[string]string{}, map[string]int{}
+	for _, run := range f.Runs {
+		var claims []domain.Claim
+		for _, c := range run {
+			groupOf[c.Title] = c.Group
+			want[c.Group]++
+			claims = append(claims, c.Claim)
+		}
+		runs = append(runs, claims)
+	}
+	return runs, groupOf, want
+}
+
+// 実データの言い換え（例の無い claim）は同じ主張として数え、意味の違う似た文は束ねない。
+func TestExtract_ParaphrasesWithoutExamplesMerge(t *testing.T) {
+	runs, groupOf, want := loadParaphraseFixture(t)
+	cands, store := runExtract(t, runs...)
+	got := map[string]int{}
+	for _, c := range cands {
+		g, ok := groupOf[c.Claim.Title]
+		if !ok {
+			t.Fatalf("fixture に無い title: %q", c.Claim.Title)
+		}
+		if _, dup := got[g]; dup {
+			t.Errorf("%s が 2 つの候補に分かれた（2 件目: %q %d/%d）", g, c.Claim.Title, c.Agreements, c.Runs)
+		}
+		got[g] = c.Agreements
+		if c.Agreements > c.Runs {
+			t.Errorf("%s: 合意数 %d が run 数 %d を超える", g, c.Agreements, c.Runs)
+		}
+	}
+	for g, n := range want {
+		if got[g] != n {
+			t.Errorf("%s: %d/3 になるはずが %d/3", g, n, got[g])
+		}
+	}
+	if len(cands) != len(want) || len(store.pending) != len(want) {
+		t.Errorf("候補は %d 件のはずが %d 件", len(want), len(cands))
+	}
+}
+
+// 1 つの run の言い換え 2 件は、同じ候補に 2 回数えない（1 run は 1 候補に 1 件まで）。
+func TestExtract_OneRunCountsOnceForParaphrases(t *testing.T) {
+	a := manualClaim("TRACE-002", "変更行数は git diff --numstat HEAD の追加行と削除行の合計とし、git リポジトリでなければ 0 とする")
+	b := manualClaim("TRACE-003", "trace に記録する変更行数は git diff --numstat HEAD の追加行と削除行の合計とし、git リポジトリでなければ 0 とする")
+	c := manualClaim("TRACE-002", "変更行数は git diff --numstat HEAD の追加行と削除行の合計とする。git リポジトリでなければ 0")
+	cands, _ := runExtract(t, []domain.Claim{a, b}, []domain.Claim{c})
+	if len(cands) != 2 {
+		t.Fatalf("run-1 の 2 件は別の候補のまま: %+v", cands)
+	}
+	if cands[0].Agreements != 2 || cands[1].Agreements != 1 {
+		t.Fatalf("2/2 と 1/2 になる: %+v", cands)
+	}
+	for _, c := range cands {
+		if c.Agreements > c.Runs {
+			t.Fatalf("合意数が run 数を超える: %+v", c)
+		}
+	}
+}
+
+// 言い換えとして束ねるのは、同じ ref・同じ kind の例の無い claim だけ。
+func TestExtract_ParaphraseNeedsSameRefAndKind(t *testing.T) {
+	title := "提案だけを行い、claim は書き換えない（claim の修正は人間が行う）"
+	other := manualClaim("M-2", "見出しの提案だけを行い、claim は書き換えない（claim の修正は人間が行う）")
+	other.Source.Ref = "a.md#y"
+	ui := domain.Claim{ID: "U-1", Kind: domain.KindUI, Title: "見出しの提案だけを行い、claim は書き換えない（claim の修正は人間が行う）", Source: domain.Source{Ref: "a.md#x"}}
+	withEx := ex("E-1", "見出しの提案だけを行い、claim は書き換えない（claim の修正は人間が行う）", [2]any{1, 1})
+	cands, _ := runExtract(t,
+		[]domain.Claim{manualClaim("M-1", title)},
+		[]domain.Claim{other, ui, withEx},
+	)
+	if len(cands) != 4 {
+		t.Fatalf("ref・kind・例の有無が違えば別の候補: %+v", cands)
 	}
 }
 
