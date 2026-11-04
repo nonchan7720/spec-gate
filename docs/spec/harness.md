@@ -416,7 +416,7 @@ binding: `go run ./tools/bind manual-rate`（入力は claim の kind の配列�
 - `spec-gate mcp` は stdio の MCP サーバ。リポジトリの `.mcp.json` から起動する（cloud セッションでもプロジェクトの `.mcp.json` は読まれる）
 - 画面は resource `ui://spec-gate/review`（mimeType `text/html;profile=mcp-app`）。外部のスクリプト・通信を使わない 1 つの HTML
 - ツール
-  - `review`（`_meta.ui.visibility: ["model", "app"]`、読み取りのみ）: エージェントが呼んで画面を開く。結果は、候補の要約のテキストと、候補の一覧（structuredContent）
+  - `review`（`_meta.ui.visibility: ["model", "app"]`、読み取りのみ）: エージェントが呼んで画面を開く。結果は、候補の要約のテキストと、件数の内訳（structuredContent の `counts`）。候補の一覧は入れない（候補が多いと結果の上限を超える。画面は `review_list` で読む）
   - `review_list`（`["app"]`、読み取りのみ）: 候補の一覧。候補ごとに、名前・ID・title・kind・合意数・試し実行・hint・まとめ承認の対象か・内容（preview）とその sha256・仕様の抜粋・承認できない理由
   - `review_decide`（`["app"]`）: 候補 1 件への判断（approve / reject / ambiguous と理由、見せた内容の sha256）を反映する
   - `review_bulk_approve`（`["app"]`）: 候補の名前と見せた内容の sha256 の配列をまとめて承認する
@@ -442,3 +442,4 @@ binding: `go run ./tools/bind manual-rate`（入力は claim の kind の配列�
 - 2026-11-04 mutation score の変異の対象に、触る Go パッケージが import するモジュール内のパッケージ（binding の依存先の実装）を追加
 - 2026-11-04 manual と例のある claim の同定・抽出結果の試し実行・まとめ承認・manual の手がかりを追加（自己適用で manual が 76%、候補が 149 件、example 候補 28 件中 9 件が入力を JSON 文字列で書いていたため）
 - 2026-11-04 MCP Apps の承認 UI を追加（リモートセッションでも承認できるように）。質問ダイアログでのまとめ承認はやめた（preview が表示されないため）
+- 2026-11-04 MCP Apps の `review` の結果から候補の一覧を外した（199 件で約 600 KB になり、結果の上限を超えて画面が開かなかった）
