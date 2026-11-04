@@ -76,6 +76,11 @@ type fakePaths map[string]bool
 
 func (f fakePaths) Exists(p string) bool { return f[p] }
 
+// fakeDeps は触るパスごとの依存パッケージのディレクトリ。
+type fakeDeps map[string][]string
+
+func (f fakeDeps) Deps(p string) []string { return f[p] }
+
 type fixedClock string
 
 func (c fixedClock) Now() string { return string(c) }

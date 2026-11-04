@@ -14,6 +14,7 @@ func TestTouched_SpecTable(t *testing.T) {
 		{`{"touches": ["src/payroll/round.ts"], "changed": "src/payroll/README.md"}`, `{"out":false}`},
 		{`{"touches": ["src/app"], "changed": "src/app/handler/x.ts"}`, `{"out":true}`},
 		{`{"touches": ["src/payroll/round.ts"], "changed": "src/ui/List.tsx"}`, `{"out":false}`},
+		{`{"touches": ["tools/bind", "pkg/domain"], "changed": "pkg/domain/relink.go"}`, `{"out":true}`},
 	}
 	for _, tc := range cases {
 		var out bytes.Buffer

@@ -83,7 +83,7 @@ func newApp(root string) *app {
 		adapters: adapters,
 		check: &services.CheckService{
 			Claims: claims, Plans: plans, Adapters: adapters, Checkers: checkers,
-			Runner: runner, Changes: vcs.Git{Dir: root}, Paths: workspace.Paths{Root: root}, DiagramEdges: diagramEdges,
+			Runner: runner, Changes: vcs.Git{Dir: root}, Paths: workspace.Paths{Root: root}, Deps: workspace.NewGoDeps(root), DiagramEdges: diagramEdges,
 		},
 		approve:  &services.ApproveService{Claims: claims, Adapters: adapters, Clock: utcClock{}},
 		coverage: &services.CoverageService{Claims: claims, Sources: sourceregistry.New(root), Adapters: adapters},
