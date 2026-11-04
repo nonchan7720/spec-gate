@@ -159,5 +159,7 @@ README「人間の関わり方 — HITL と HOTL」の「この先」を spec-ga
 - [ ] 人間: 残りの候補（約 70 件、多くは manual）の承認か却下
 - [x] 判定の binding 6 つ（auto-policy・auto-run-commands・auto-eligible・auto-evidence・auto-breaker・guard）を実装。承認済み 7 件は pass
 - [x] `spec-gate guard`（PreToolUse hook）と承認役 `.claude/agents/spec-gate-approver.md`。settings.json に hook を追加し、今のセッションで revoke が拒否されることを確認
-- [ ] 次のセッションで: 承認役を起動し、hook の入力に agent_type が入ること（承認役の audit が許される／メインからの auto-approve が拒否される）を確かめる
+- [x] 実機で確認（2026-11-04、同じセッションで承認役が使えるようになった）: hook の入力に agent_type が入る。
+      承認役からの auto-approve は承認役の規則で判定され（`cd … ;` を足したものは「1 つだけ」として拒否）、メインからの auto-approve は拒否された。
+      仕様の「実機で確かめること」の段落は承認済み claim（APPROVER-013）の節にあるので、仕様は書き換えずここに記録する
 - [ ] 残りの実装: `spec-gate auto-approve`（抽出・逆変換・試し実行・証拠の書き込み）、`audit` / `revoke`、check での証拠の照合、承認記録の経路の追加、metrics
