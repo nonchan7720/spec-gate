@@ -34,6 +34,8 @@ type app struct {
 	mutation *services.MutationService
 	plans    domain.PlanRepository
 	claims   domain.ClaimRepository
+	// holdout は check / lint / leak が読む（エージェントには見せない）
+	holdout domain.HoldoutRepository
 	// adapters は source type ごとの仕様の読み方。サービスを組み立てるコマンド（reverse など）が共有する
 	adapters map[domain.SourceType]domain.SourceAdapter
 	// work は LLM 処理をサブエージェントに委譲するときの作業ディレクトリ（.spec-gate-llm/）
@@ -89,6 +91,7 @@ func newApp(root string) *app {
 		claims:   claims,
 		plans:    plans,
 		mutation: mutation,
+		holdout:  holdout,
 		adapters: adapters,
 		check: &services.CheckService{
 			Claims: claims, Plans: plans, Adapters: adapters, Checkers: checkers,
@@ -120,7 +123,8 @@ func Execute() {
   check    → 承認 → ドリフト → 種類別チェック → プランの verify を実行
   coverage → 仕様のうち claim に紐づかない箇所を列挙
   reverse  → claim だけから仕様文を再生成し、原文と食い違いがないかを突き合わせる（逆変換）
-  review   → _pending の候補をローカルの Web ページで平易に並べ、人間が承認する（承認 UI）`,
+  review   → _pending の候補をローカルの Web ページで平易に並べ、人間が承認する（承認 UI）
+  leak     → 実装ファイルに examples・holdout の値がそのまま書かれていないかを調べる`,
 		Version:       version.Version,
 		SilenceUsage:  true,
 		SilenceErrors: true,
@@ -147,6 +151,7 @@ func Execute() {
 		newCoverageCmd(&a),
 		newExtractCmd(&a),
 		newReverseCmd(&a),
+		newLeakCmd(&a),
 		newPlanCmd(&a),
 		newVersionCmd(),
 	)
