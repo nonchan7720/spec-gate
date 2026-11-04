@@ -87,17 +87,22 @@ examples:
   - { in: 1, out: 1 }
 `)
 	a := newApp(root)
-	var out strings.Builder
-	for _, c := range []struct{ in, out string }{{`{"amount": 31337.5}`, `{"total": 4242, "note": "<円>"}`}, {`2`, `2`}} {
-		if err := runHoldoutAdd(&out, a, "ID-001", c.in, c.out); err != nil {
+	var out, errOut strings.Builder
+	// 1 件目は標準入力（パイプ）から、2 件目は --out - で標準入力から読む
+	for _, c := range []struct{ in, flag string }{{`{"amount": 31337.5}`, ""}, {`2`, "-"}} {
+		stdin := strings.NewReader(map[string]string{"": `{"total": 4242, "note": "<円>"}` + "\n", "-": `2`}[c.flag])
+		if err := runHoldoutAdd(&out, &errOut, stdin, a, "ID-001", c.in, c.flag, c.flag != ""); err != nil {
 			t.Fatal(err)
 		}
+	}
+	if errOut.Len() != 0 {
+		t.Fatalf("標準入力から読むときは警告しない: %s", errOut.String())
 	}
 	b, err := os.ReadFile(filepath.Join(root, "holdout", "ID-001.yaml"))
 	if err != nil {
 		t.Fatal(err)
 	}
-	if strings.Contains(string(b), "4242") || strings.Contains(string(b), "<円>") || strings.Contains(out.String(), "4242") {
+	if strings.Contains(string(b), "4242") || strings.Contains(string(b), "<円>") || strings.Contains(out.String(), "4242") || strings.Contains(errOut.String(), "4242") {
 		t.Fatalf("out の平文は保存も表示もしない:\n%s\n%s", b, out.String())
 	}
 	exs, err := a.holdout.Holdout("ID-001")
@@ -124,20 +129,54 @@ examples:
   - { in: 1, out: 1 }
 `)
 	a := newApp(root)
-	for _, c := range []struct{ id, in, out string }{
+	for _, c := range []struct{ id, in, stdin string }{
 		{"ID-001", `{`, `1`},
 		{"ID-001", `1`, `not-json-4242`},
+		{"ID-001", `1`, ""},
 		{"NONE-001", `1`, `1`},
 	} {
-		err := runHoldoutAdd(&strings.Builder{}, a, c.id, c.in, c.out)
+		var errOut strings.Builder
+		err := runHoldoutAdd(&strings.Builder{}, &errOut, strings.NewReader(c.stdin), a, c.id, c.in, "", false)
 		if err == nil {
 			t.Fatalf("%+v はエラー", c)
 		}
-		if strings.Contains(err.Error(), "4242") {
+		if strings.Contains(err.Error(), "4242") || strings.Contains(errOut.String(), "4242") {
 			t.Fatalf("エラーに out の値を出さない: %v", err)
 		}
 	}
 	if _, err := os.Stat(filepath.Join(root, "holdout")); !os.IsNotExist(err) {
 		t.Fatal("失敗したら何も書かない")
+	}
+}
+
+func TestRunHoldoutAdd_WarnsOnOutFlag(t *testing.T) {
+	root := t.TempDir()
+	writeFile(t, root, "claims/spec/ID-001.yaml", `id: ID-001
+kind: example
+title: 恒等
+source: { type: markdown, ref: "docs/s.md#恒等" }
+binding: cat
+examples:
+  - { in: 1, out: 1 }
+`)
+	a := newApp(root)
+	var out, errOut strings.Builder
+	// --out を明示したら標準入力は読まない（後方互換）
+	if err := runHoldoutAdd(&out, &errOut, strings.NewReader("not-json"), a, "ID-001", `1`, `4242`, true); err != nil {
+		t.Fatal(err)
+	}
+	if !strings.Contains(errOut.String(), "シェル履歴") || !strings.Contains(errOut.String(), "標準入力") {
+		t.Fatalf("--out はシェル履歴に残ると警告する: %q", errOut.String())
+	}
+	if strings.Contains(out.String()+errOut.String(), "4242") {
+		t.Fatalf("out の値を出さない:\n%s\n%s", out.String(), errOut.String())
+	}
+	exs, err := a.holdout.Holdout("ID-001")
+	if err != nil {
+		t.Fatal(err)
+	}
+	want, _ := domain.OutputHash(4242)
+	if len(exs) != 1 || exs[0].OutSHA256 != want {
+		t.Fatalf("--out の値をハッシュにして足す: %+v", exs)
 	}
 }
