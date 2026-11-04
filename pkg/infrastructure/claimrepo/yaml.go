@@ -96,17 +96,46 @@ func (r *Repo) SavePending(c domain.Claim, confidence string) (string, error) {
 	if err := os.MkdirAll(dir, 0o755); err != nil {
 		return "", err
 	}
-	name := c.ID
+	name := unsafeChars.ReplaceAllString(c.ID, "-")
 	if name == "" {
 		name = unsafeChars.ReplaceAllString(c.Title, "-")
 	}
-	p := filepath.Join(dir, name+".yaml")
+	if name == "" {
+		name = "claim"
+	}
 	b, err := yaml.Marshal(c)
 	if err != nil {
 		return "", err
 	}
 	head := fmt.Sprintf("# confidence: %s\n# 承認するには内容を確認して claims/<領域>/ に移し、`spec-gate approve %s` を実行する\n", confidence, c.ID)
-	return rel(r.root, p), os.WriteFile(p, append([]byte(head), b...), 0o644)
+	f, p, err := createUnique(dir, name)
+	if err != nil {
+		return "", err
+	}
+	if _, err := f.Write(append([]byte(head), b...)); err != nil {
+		_ = f.Close()
+		return "", err
+	}
+	return rel(r.root, p), f.Close()
+}
+
+// createUnique は dir/<name>.yaml を新規作成する。既にあれば <name>-2.yaml, <name>-3.yaml … と
+// 空いている名前を探す。O_EXCL で作るので、既存の候補（前回の extract の分も含む）を上書きしない。
+func createUnique(dir, name string) (*os.File, string, error) {
+	for i := 1; ; i++ {
+		n := name
+		if i > 1 {
+			n = fmt.Sprintf("%s-%d", name, i)
+		}
+		p := filepath.Join(dir, n+".yaml")
+		f, err := os.OpenFile(p, os.O_WRONLY|os.O_CREATE|os.O_EXCL, 0o644)
+		if err == nil {
+			return f, p, nil
+		}
+		if !errors.Is(err, fs.ErrExist) {
+			return nil, "", err
+		}
+	}
 }
 
 func rel(root, p string) string {
