@@ -24,11 +24,12 @@ rules:
   # depgraph: このセッションで増えた負債（循環・層違反・重複など）。depgraph README「品質ゲート」と同じ形。
   # 基準は .claude/settings.json の SessionStart hook（depgraph hook session-start）が記録する。
   # Neo4j は docker-compose.yml（docker compose up -d）。接続先は mise.toml の [env] にあるので mise exec 経由で呼ぶ。
-  # 未起動・未インストールなら depgraph が通す。
+  # 未起動・未インストールなら depgraph が通す。Neo4j が応答しないときも --timeout で諦めて通す。
+  # --timeout は既定 1m で、下の timeout（60 秒）と同じだと gate に先に殺されて失敗になるので短くする。
   - match: ["**/*.go", "**/*.{ts,tsx,js,jsx,mjs,cjs}", ".depgraph.yml"]
     timeout: 60
     run:
-      - { name: depgraph, cmd: "mise exec -- sh -c 'command -v depgraph >/dev/null || exit 0; depgraph gate'" }
+      - { name: depgraph, cmd: "mise exec -- sh -c 'command -v depgraph >/dev/null || exit 0; depgraph gate --timeout 15s'" }
 
   # 依存の整合（go.sum の取り残し）
   - match: ["go.mod", "go.sum", "mise.toml", ".golangci.y*ml"]
