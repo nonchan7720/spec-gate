@@ -25,10 +25,11 @@ forbidden:
 
 
 rules:
-  # Repo は claimrepo.Repo / planfile.Repo のようにパッケージ名で区別する Go の慣用名なので重複扱いしない。
+  # Repo は claimrepo.Repo / planfile.Repo、Prompter は extractor.Prompter / reverser.Prompter のように
+  # パッケージ名で区別する Go の慣用名なので重複扱いしない。
   # （ignore は既定を置き換えるので、depgraph の既定の名前も並べる）
   duplicate-symbol:
-    ignore: [main, init, New, String, Error, Close, Run, Validate, default, index, setup, teardown, handler, render, App, Repo]
+    ignore: [main, init, New, String, Error, Close, Run, Validate, default, index, setup, teardown, handler, render, App, Repo, Prompter]
   # サンプルアプリの入口。src/app はハンドラ（アプリの入口）、src/payroll は claim の binding
   # （tools/call.ts が実行時に動的 import する）から呼ばれる。
   unreachable-file:

@@ -38,6 +38,19 @@ func pickLLMMode(emit, collect bool, envCmd, help string) (llmMode, error) {
 	return 0, errors.New(help)
 }
 
+// llmFlags は extract / reverse に共通の --emit / --collect。
+type llmFlags struct{ emit, collect bool }
+
+func (f *llmFlags) bind(cmd *cobra.Command, emitUsage, collectUsage string) {
+	cmd.Flags().BoolVar(&f.emit, "emit", false, emitUsage)
+	cmd.Flags().BoolVar(&f.collect, "collect", false, collectUsage)
+}
+
+// mode はフラグと環境変数 env（LLM コマンド）から実行のしかたを決める。
+func (f *llmFlags) mode(env, help string) (llmMode, error) {
+	return pickLLMMode(f.emit, f.collect, os.Getenv(env), help)
+}
+
 // writePrompts は emit / collect が書き出したプロンプトのパスを stdout に 1 行ずつ、次の手順を stderr に出す。
 // stdout はパスだけにする（スキルがそのまま 1 行 = 1 サブエージェントとして使えるように）。
 func writePrompts(out, errOut io.Writer, prompts []string, next string) {
@@ -65,7 +78,7 @@ const extractHelp = `extract は LLM を直接呼ばない。次のどちらか�
 func newExtractCmd(a **app) *cobra.Command {
 	var runs int
 	var srcType string
-	var emit, collect bool
+	var llm llmFlags
 	cmd := &cobra.Command{
 		Use:   "extract <ref>",
 		Short: "仕様から claim 候補を N 回独立に抽出し、一致数つきで claims/_pending/ に置く（合議）",
@@ -81,7 +94,7 @@ spec-gate 自身は LLM を呼ばない。--emit / --collect でサブエージ�
 作業ディレクトリは .spec-gate-llm/（collect が終わったら消す）。`,
 		Args: cobra.ExactArgs(1),
 		RunE: func(cmd *cobra.Command, args []string) error {
-			mode, err := pickLLMMode(emit, collect, os.Getenv("SPEC_GATE_EXTRACT_CMD"), extractHelp)
+			mode, err := llm.mode("SPEC_GATE_EXTRACT_CMD", extractHelp)
 			if err != nil {
 				return err
 			}
@@ -110,8 +123,9 @@ spec-gate 自身は LLM を呼ばない。--emit / --collect でサブエージ�
 	}
 	cmd.Flags().IntVar(&runs, "runs", 3, "独立抽出の回数")
 	cmd.Flags().StringVar(&srcType, "type", "markdown", "source type (markdown|mermaid|figma|image)")
-	cmd.Flags().BoolVar(&emit, "emit", false, "LLM を呼ばず、run ごとのプロンプトを .spec-gate-llm/ に書き出してパスを表示する")
-	cmd.Flags().BoolVar(&collect, "collect", false, "サブエージェントの回答を読み、合議して claims/_pending/ に置く（--runs / --type は emit 時のもの）")
+	llm.bind(cmd,
+		"LLM を呼ばず、run ごとのプロンプトを .spec-gate-llm/ に書き出してパスを表示する",
+		"サブエージェントの回答を読み、合議して claims/_pending/ に置く（--runs / --type は emit 時のもの）")
 	return cmd
 }
 

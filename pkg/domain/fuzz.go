@@ -102,6 +102,15 @@ func relationEnv(x any) map[string]any {
 // EvalRelation はメタモルフィック関係を評価する。f(arg) は引数を評価した値で call を呼ぶ。
 // call の失敗はそのまま返す（errors.Is で取り出せる）。
 func EvalRelation(relation string, x any, call func(arg any) (any, error)) (bool, error) {
+	v, err := runWithF(relation, x, call, expr.AsBool())
+	if err != nil {
+		return false, err
+	}
+	return v.(bool), nil
+}
+
+// runWithF は x と f(...) を使う式 src を評価する。f(arg) は call の値を数値の型をそろえて返す。
+func runWithF(src string, x any, call func(arg any) (any, error), opts ...expr.Option) (any, error) {
 	env := relationEnv(x)
 	fn := expr.Function("f", func(params ...any) (any, error) {
 		out, err := call(params[0])
@@ -110,15 +119,11 @@ func EvalRelation(relation string, x any, call func(arg any) (any, error)) (bool
 		}
 		return normalizeNumber(out), nil
 	}, new(func(any) any))
-	prog, err := expr.Compile(relation, expr.Env(env), fn, expr.AsBool())
+	prog, err := expr.Compile(src, append([]expr.Option{expr.Env(env), fn}, opts...)...)
 	if err != nil {
-		return false, err
+		return nil, err
 	}
-	v, err := expr.Run(prog, env)
-	if err != nil {
-		return false, err
-	}
-	return v.(bool), nil
+	return expr.Run(prog, env)
 }
 
 // CheckRelation は relation が式として正しいか（x と f(...) だけで真偽を返すか）を確かめる。
@@ -202,13 +207,7 @@ func callee(call *ast.CallNode) (string, bool) {
 
 // evalArg は f(...) の引数の式を x で評価する。
 func evalArg(arg string, x any, call func(any) (any, error)) (any, error) {
-	env := relationEnv(x)
-	fn := expr.Function("f", func(params ...any) (any, error) { return call(params[0]) }, new(func(any) any))
-	prog, err := expr.Compile(arg, expr.Env(env), fn)
-	if err != nil {
-		return nil, err
-	}
-	v, err := expr.Run(prog, env)
+	v, err := runWithF(arg, x, call)
 	if err != nil {
 		return nil, err
 	}

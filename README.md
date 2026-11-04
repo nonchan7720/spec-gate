@@ -2,10 +2,11 @@ English | [日本語](README_ja.md)
 
 # spec-gate — a spec-compliance harness
 
-```
-Project coding rules         → hook-gate
-Keep code debt from growing  → depgraph
-Guarantee product quality    → spec-gate ← this
+```mermaid
+flowchart LR
+  hg["<b>hook-gate</b><br/>project<br/>coding rules"] ~~~ dg["<b>depgraph</b><br/>keep code debt<br/>from growing"] ~~~ sg["<b>spec-gate</b> (this)<br/>guarantee<br/>product quality"]
+  classDef me fill:#2563eb,stroke:#1e40af,color:#fff,stroke-width:3px
+  class sg me
 ```
 
 spec-gate decides, by exit code and without ever trusting the agent's own report, whether
@@ -17,10 +18,31 @@ harness simply lets them through and the round trips shrink.**
 
 ## How it works
 
-```
-source (anything)  →  adapter  →  claim (structured)  →  check (exit code)
-Markdown / Mermaid /              one YAML per claim       example / structure / ui / plan
-Figma / PNG / PDF                 ↑ the only human approval
+```mermaid
+flowchart LR
+  subgraph AI["① Extract (AI)"]
+    direction TB
+    src["<b>source</b> (anything)<br/>Markdown / Mermaid<br/>Figma / PNG / PDF"]
+    ex["<b>adapter → extract</b><br/>AI reads it N times<br/>independently (consensus)"]
+    pend["<b>claims/_pending/</b><br/>claim candidates"]
+    src --> ex --> pend
+  end
+  subgraph HU["② Approve (human)"]
+    direction TB
+    ap{{"<b>approve</b><br/>the only<br/>human approval"}}
+  end
+  subgraph MA["③ Check (machine)"]
+    direction TB
+    cl["<b>claim</b> (structured YAML)<br/>one claim per file"]
+    ck["<b>check</b><br/>example / structure<br/>ui / plan"]
+    code(["exit code"])
+    cl --> ck --> code
+  end
+  AI --> HU --> MA
+  classDef human fill:#f59e0b,stroke:#b45309,color:#000,stroke-width:2px
+  classDef machine fill:#2563eb,stroke:#1e40af,color:#fff
+  class ap human
+  class ck,code machine
 ```
 
 Natural language is never compared with code directly. A **claim (a verifiable statement)** sits in between.
@@ -41,12 +63,23 @@ Natural language is never compared with code directly. A **claim (a verifiable s
 
 `check` looks at each claim in this order and stops at the first stage that catches it.
 
-```
-unapproved  no approval                                    → blocking
-stale       the spec changed after approval                → blocking (until a human re-approves)
-fail        the code does not satisfy the claim            → blocking (the agent fixes it)
-unverified  no means to verify (manual / no --ui / depgraph could not decide) → for human review; does not stop the agent
-pass
+```mermaid
+flowchart LR
+  c(["claim"]) --> q1{"approved?"}
+  q1 -->|yes| q2{"spec unchanged<br/>since approval?"}
+  q2 -->|yes| q3{"code satisfies<br/>the claim?"}
+  q3 -->|yes| q4{"everything checked<br/>by machine?"}
+  q4 -->|yes| pa["<b>pass</b>"]
+  q1 -->|no| un["<b>unapproved</b><br/>blocking"]
+  q2 -->|no| st["<b>stale</b><br/>blocking<br/>until a human re-approves"]
+  q3 -->|no| fa["<b>fail</b><br/>blocking<br/>the agent fixes it"]
+  q4 -->|no| uv["<b>unverified</b><br/>for human review<br/>does not stop the agent"]
+  classDef block fill:#dc2626,stroke:#991b1b,color:#fff
+  classDef warn fill:#f59e0b,stroke:#b45309,color:#000
+  classDef ok fill:#16a34a,stroke:#166534,color:#fff
+  class un,st,fa block
+  class uv warn
+  class pa ok
 ```
 
 Any blocking result exits 1. With `--hook` it writes a report of only what the agent must fix to stderr and exits 2.
@@ -89,6 +122,59 @@ the harness.
 - **Passing only the examples is not enough.** Holdout examples the agent cannot read, random inputs, a warning
   when example values are written into the implementation, and a log of how each claim came to pass close the
   usual shortcuts (see [Closing the shortcuts](#closing-the-shortcuts))
+
+### How humans take part — HITL and HOTL
+
+spec-gate combines two ways of involving humans. Deciding **what is correct** is Human-in-the-loop (HITL);
+checking **whether the code honours it** is Human-on-the-loop (HOTL).
+
+```mermaid
+flowchart LR
+  subgraph HITL["HITL: approval"]
+    direction TB
+    spec["spec"] --> cand["claim candidates<br/>(extracted by AI)"] --> ap{{"approve<br/>(human)"}}
+  end
+  subgraph HOTL["HOTL: build and check"]
+    direction TB
+    impl["the agent implements"] --> ck["check<br/>(exit code)"]
+    ck -- fail --> impl
+    ck -- unverified --> watch["humans look later<br/>trace / metrics / coverage"]
+  end
+  HITL -- "approved claims" --> HOTL
+  classDef human fill:#f59e0b,stroke:#b45309,color:#000
+  classDef machine fill:#2563eb,stroke:#1e40af,color:#fff
+  class ap,watch human
+  class ck machine
+```
+
+| | HITL (approval) | HOTL (implementation and check) |
+|---|---|---|
+| What is decided | Is a claim made from the spec correct? | Does the code satisfy the claim? |
+| If no human acts | Nothing moves. An unapproved claim is `unapproved`, a changed spec makes it `stale`, and both block until a human (re-)approves | Work goes on. The agent fixes a `fail` by itself, and `unverified` does not stop it |
+| Human tools | the review page (`review`), the MCP Apps review UI, remote approval | `trace`, `metrics` / `check --json`, `check --role`, `coverage` |
+
+The principle "as models get better, the harness simply lets them through and the round trips shrink" is about the
+HOTL side today: a better model passes `check` in one go, and humans have less to watch. HITL approval does not
+shrink with a better model yet.
+
+#### Where this could go: approval on the loop too
+
+As models get better, approval could also move towards "a human hands over only the goal, the rest runs by itself,
+and the human just watches". There is one condition: **the AI that wrote a claim must not be the one that accepts
+it**. If the same AI writes and accepts a claim, "assume the AI lies" breaks right there. So automatic approval needs
+ways of checking that are independent of the author. What exists today is the groundwork:
+
+- **Consensus** (`extract --runs N`): did several subagents that never see each other's answers state the same claim?
+- **Dry run** (`# dry-run:`): do the candidate's examples actually pass against the current code?
+- **Reverse** (`reverse`): does prose rewritten from the claim alone, without the spec, agree with the original?
+- **Bulk approval** (`approve --pending`, bulk approve in the MCP Apps UI): passes only unanimous candidates (for
+  `example`, only when the dry run also passes). A human still presses the last button, but the conditions are decided by machines
+- **Ambiguity records** (`claims/_ambiguous/`) and `coverage`: show humans what could not be decided and which parts
+  of the spec have no claim
+
+Approving candidates that all of these call fine automatically, while humans watch the approval log (remote
+and MCP Apps approvals are already recorded in `.spec-gate/review-decisions.jsonl`) and `coverage` and send back anything that looks wrong, would be HOTL approval.
+**It is not implemented**; approval is HITL today. Even then, the goal (the spec itself) stays a human's to set.
 
 ## Install
 
@@ -210,32 +296,38 @@ SPEC_GATE_EXTRACT_CMD='claude -p' spec-gate extract --type mermaid docs/arch/lay
 
 ## Layout
 
-```
-docs/spec/*.md        detailed specs (Markdown)        ─┐
-docs/arch/*.mmd       architecture diagrams (Mermaid)   ├ sources
-Figma / *.png / *.pdf  UI and others                   ─┘
-sources.yaml          registry of watched sources (for coverage)
-claims/<area>/*.yaml  claims. Format: claims/SCHEMA.md
-claims/_pending/      extract output. Not checked until approved
-claims/_ambiguous/    candidates recorded as "the spec is not decided". Not checked; shown by coverage
-holdout/<id>.yaml     holdout examples (inputs + hashes of the expected outputs). Written by humans only
-plans/*.md            plans. Checked when the front matter says status: active
-.spec-gate/           plan locks (committed); trace.jsonl and review-decisions.jsonl (git-ignored)
-.spec-gate-llm/       prompts and answers while extract / reverse are delegated (git-ignored, temporary)
-.depgraph.yml         depgraph's layer definition. The structure claim checks it matches the diagram
-.claude/gate.yaml     hook-gate quality gate
-.claude/feedback/     hook-gate rules (protect claims, verify lines and holdout; literal-leak warning)
-.claude/agents/       spec-gate-llm-worker (subagent for extract / reverse)
-.claude/skills/       spec-gate-extract / spec-gate-reverse (the delegation steps)
-tools/call.ts         binding wrapper for example claims (TS functions)
-tools/bind            bindings for the examples in docs/spec/harness.md (spec-gate's own spec)
+The first three rows are the **sources** (the specs spec-gate reads).
 
-main.go               entry point
-pkg/domain            Claim / Plan / Result, ports, lint, fuzz, mutation, leak, relink (pure)
-pkg/services          check / approve / coverage / extract / reverse / plan / mutate / holdout / metrics / trace / review
-pkg/infrastructure    claimrepo, adapter(markdown/mermaid/figma/image), checker, planfile, vcs, extractor, reverser, llmwork, tracelog, workspace
-pkg/interfaces        cli (cobra commands, reports, hook output), handler/review (the review page)
-```
+| Path | What it is |
+|---|---|
+| `docs/spec/*.md` | detailed specs (Markdown) |
+| `docs/arch/*.mmd` | architecture diagrams (Mermaid) |
+| Figma / `*.png` / `*.pdf` | UI and others |
+| `sources.yaml` | registry of watched sources (for coverage) |
+| `claims/<area>/*.yaml` | claims. Format: claims/SCHEMA.md |
+| `claims/_pending/` | extract output. Not checked until approved |
+| `claims/_ambiguous/` | candidates recorded as "the spec is not decided". Not checked; shown by coverage |
+| `holdout/<id>.yaml` | holdout examples (inputs + hashes of the expected outputs). Written by humans only |
+| `plans/*.md` | plans. Checked when the front matter says status: active |
+| `.spec-gate/` | plan locks (committed); trace.jsonl and review-decisions.jsonl (git-ignored) |
+| `.spec-gate-llm/` | prompts and answers while extract / reverse are delegated (git-ignored, temporary) |
+| `.depgraph.yml` | depgraph's layer definition. The structure claim checks it matches the diagram |
+| `.claude/gate.yaml` | hook-gate quality gate |
+| `.claude/feedback/` | hook-gate rules (protect claims, verify lines and holdout; literal-leak warning) |
+| `.claude/agents/` | spec-gate-llm-worker (subagent for extract / reverse) |
+| `.claude/skills/` | spec-gate-extract / spec-gate-reverse (the delegation steps) |
+| `tools/call.ts` | binding wrapper for example claims (TS functions) |
+| `tools/bind` | bindings for the examples in docs/spec/harness.md (spec-gate's own spec) |
+
+spec-gate itself (Go):
+
+| Path | What it is |
+|---|---|
+| `main.go` | entry point |
+| `pkg/domain` | Claim / Plan / Result, ports, lint, fuzz, mutation, leak, relink (pure) |
+| `pkg/services` | check / approve / coverage / extract / reverse / plan / mutate / holdout / metrics / trace / review |
+| `pkg/infrastructure` | claimrepo, adapter(markdown/mermaid/figma/image), checker, planfile, vcs, extractor, reverser, llmwork, tracelog, workspace |
+| `pkg/interfaces` | cli (cobra commands, reports, hook output), handler/review (the review page) |
 
 ## Claim kinds and what can be enforced mechanically
 
@@ -452,7 +544,7 @@ Remote sessions cannot open `review` (127.0.0.1), and the question dialog's prev
   Starting `spec-gate mcp` from a shell to call them directly is denied by hook-gate (`protect_spec_claims`)
 - A decision is applied only when the sha256 of the content shown matches the current candidate. Approval runs the same steps as the review page (lint, dry-run, spec hash) and is logged in `.spec-gate/review-decisions.jsonl`
 - **Not verified on a device**: whether Claude Code (especially the mobile app) renders MCP Apps is not documented. If it does not, `review` still returns a text summary of the candidates
-- `.mcp.json` starts `scripts/mcp.sh`, which reuses `bin/spec-gate` and rebuilds it only when the Go sources or the screen HTML are newer (a `go run` on every start exceeded the 30 s MCP startup timeout). In a fresh cloud container the first build can still be slow: build it in the environment's setup script (`mise run setup`) or raise `MCP_TIMEOUT`
+- `.mcp.json` starts `scripts/mcp.sh`, which reuses `bin/spec-gate` and rebuilds it only when the Go sources or the screen HTML are newer (a `go run` on every start exceeded the 30 s MCP startup timeout). In a cloud session the SessionStart hook (`scripts/session-start.sh`) builds it first, before the other mise tools and the Neo4j image pull, and both scripts share the lock `bin/.build.lock`, so `mcp.sh` waits for that build instead of starting a second one. A fresh container's first build (installing Go and compiling, about 20–40 s) can exceed the default 30 s, so `.claude/settings.json` sets `MCP_TIMEOUT` to 120 s
 
 ### Remote approval (Claude Code's question dialog)
 

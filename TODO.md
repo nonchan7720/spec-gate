@@ -134,5 +134,14 @@ HANDOFF.md は人間の引き継ぎ文書なので触らず、エージェント
 - [x] hook-gate（feedback-gate プラグイン）: `.claude/settings.json` の `extraKnownMarketplaces` / `enabledPlugins` で有効化（次のセッションから）
 - [x] 承認 UI の MCP: `.mcp.json` を `scripts/mcp.sh`（bin/spec-gate を使い回す）に変更。`go run` だと起動タイムアウトしていた
 - [x] cloud セッションの準備は SessionStart hook の `scripts/session-start.sh` が行う（`CLAUDE_CODE_REMOTE=true` のときだけ。mise install、dockerd、`docker compose up -d`、bin/spec-gate のビルドをバックグラウンドで）。cloud 環境のセットアップスクリプトは他のリポジトリと共有なので使わない
-- [ ] depgraph の warn 4 件（duplicate-code 3、duplicate-symbol 1）を直す
+- [x] depgraph の warn 4 件を解消（0 件）
+  - duplicate-code（fuzz の `EvalRelation` / `evalArg`）: 式のコンパイルと評価を `runWithF` に共通化
+  - duplicate-code（claimrepo の `Pending` / `Ambiguous`）: ディレクトリの読み込みを `readClaimDir`（generics）に共通化
+  - duplicate-code（cli の `newExtractCmd` / `newReverseCmd`）: `--emit` / `--collect` とモード判定を `llmFlags` に共通化
+  - duplicate-symbol `Prompter`: `extractor.Prompter` / `reverser.Prompter` は Repo と同じ Go の慣用名なので `.depgraph.yml` の ignore に追加
+- [x] cloud セッションで spec-gate の MCP が接続タイムアウトしていた（30 秒）。session-start.sh が Neo4j イメージの pull を待ってから
+      bin をビルドしていたため、MCP の起動時に bin が無く、mcp.sh が自前で（Go のダウンロード込みで）ビルドしていた。
+      session-start.sh は Go だけ先に入れて bin を最初にビルドし、mcp.sh と同じロック `bin/.build.lock` を取る（mcp.sh は二重にビルドせず待つ）
+- [x] それでも新しいコンテナの最初のビルドは 20〜40 秒かかり、30 秒を超えうるので、`.claude/settings.json` の `env` に
+      `"MCP_TIMEOUT": "120000"` を足した（利用者の指示による）
 - gh stack: このセッションの環境では GraphQL が使えないので `gh stack` のコマンドは動かない。stack の REST（`/repos/{o}/{r}/stacks`、`/pulls/{n}/merge-async`）は動く

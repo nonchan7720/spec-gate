@@ -5,7 +5,6 @@ import (
 	"os"
 	"path/filepath"
 	"regexp"
-	"sort"
 	"strings"
 
 	"github.com/nonchan7720/spec-gate/pkg/domain"
@@ -22,42 +21,63 @@ func (r *Repo) pendingDir() string { return filepath.Join(r.dir(), pendingDir) }
 // Pending は claims/_pending/*.yaml を名前順に返す。
 // 読めない候補もエラーつきで返す（一覧から黙って消すと、人間が却下する機会もなくなる）。
 func (r *Repo) Pending() ([]domain.PendingClaim, error) {
-	entries, err := os.ReadDir(r.pendingDir())
+	return readClaimDir(r, r.pendingDir(), func(f claimFile) domain.PendingClaim {
+		return domain.PendingClaim{
+			Name: f.name, Path: f.path, Claim: f.claim, Error: f.err,
+			Confidence: f.header(confidenceLine), DryRun: f.header(dryRunLine),
+		}
+	})
+}
+
+// claimFile は check の対象外の置き場所（_pending / _ambiguous）にある claim ファイル 1 つ。
+type claimFile struct {
+	name  string       // ファイル名
+	path  string       // ルートからの相対パス
+	body  []byte       // ファイルの中身（ヘッダのコメントを読むため）
+	claim domain.Claim // 読めた claim（File は絶対パス）
+	err   string       // 読めない・検証に通らないときの理由
+}
+
+// header はファイルのヘッダのコメント（re の 1 つ目のグループ）。無ければ空。
+func (f claimFile) header(re *regexp.Regexp) string {
+	if m := re.FindSubmatch(f.body); m != nil {
+		return string(m[1])
+	}
+	return ""
+}
+
+// readClaimDir は dir 直下の *.yaml を名前順（os.ReadDir の順）に読み、conv で変換して返す。dir が無ければ nil。
+// 読めない claim もエラーつきで返す。ファイル自体が読めないときだけ error。
+func readClaimDir[T any](r *Repo, dir string, conv func(claimFile) T) ([]T, error) {
+	entries, err := os.ReadDir(dir)
 	if os.IsNotExist(err) {
 		return nil, nil
 	}
 	if err != nil {
 		return nil, err
 	}
-	var out []domain.PendingClaim
+	var out []T
 	for _, e := range entries {
 		if e.IsDir() || !isYAML(e.Name()) {
 			continue
 		}
-		p := filepath.Join(r.pendingDir(), e.Name())
-		pc := domain.PendingClaim{Name: e.Name(), Path: rel(r.root, p)}
+		p := filepath.Join(dir, e.Name())
 		b, err := os.ReadFile(p)
 		if err != nil {
 			return nil, err
 		}
-		if m := confidenceLine.FindSubmatch(b); m != nil {
-			pc.Confidence = string(m[1])
-		}
-		if m := dryRunLine.FindSubmatch(b); m != nil {
-			pc.DryRun = string(m[1])
-		}
+		f := claimFile{name: e.Name(), path: rel(r.root, p), body: b}
 		c, err := decodeClaim(b)
 		if err == nil {
 			err = c.Validate()
 		}
 		if err != nil {
-			pc.Error = err.Error()
+			f.err = err.Error()
 		}
 		c.File = p
-		pc.Claim = c
-		out = append(out, pc)
+		f.claim = c
+		out = append(out, conv(f))
 	}
-	sort.Slice(out, func(i, j int) bool { return out[i].Name < out[j].Name })
 	return out, nil
 }
 

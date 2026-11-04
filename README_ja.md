@@ -2,10 +2,11 @@
 
 # spec-gate — 仕様準拠ハーネス
 
-```
-PJ内のコーディングルール   → hook-gate
-コードの負債を溜めない     → depgraph
-プロダクト品質の担保       → spec-gate ← これ
+```mermaid
+flowchart LR
+  hg["<b>hook-gate</b><br/>PJ 内の<br/>コーディングルール"] ~~~ dg["<b>depgraph</b><br/>コードの負債を<br/>溜めない"] ~~~ sg["<b>spec-gate</b>（これ）<br/>プロダクト品質の<br/>担保"]
+  classDef me fill:#2563eb,stroke:#1e40af,color:#fff,stroke-width:3px
+  class sg me
 ```
 
 自然言語の仕様（Markdown / Mermaid / Figma / 画像）と、エージェントと作ったプランファイルが
@@ -15,10 +16,31 @@ PJ内のコーディングルール   → hook-gate
 
 ## 仕組み
 
-```
-source (何でもいい)  →  adapter  →  claim (構造化)  →  check (exit code)
-Markdown / Mermaid /                 YAML 1主張1ファイル    example / structure / ui / plan
-Figma / PNG / PDF                    ↑ 人間承認はここ 1 回だけ
+```mermaid
+flowchart LR
+  subgraph AI["① 抽出（AI）"]
+    direction TB
+    src["<b>source</b>（何でもいい）<br/>Markdown / Mermaid<br/>Figma / PNG / PDF"]
+    ex["<b>adapter → extract</b><br/>AI が N 回独立に読む<br/>（合議）"]
+    pend["<b>claims/_pending/</b><br/>claim の候補"]
+    src --> ex --> pend
+  end
+  subgraph HU["② 承認（人間）"]
+    direction TB
+    ap{{"<b>approve</b><br/>人間の承認は<br/>ここ 1 回だけ"}}
+  end
+  subgraph MA["③ 判定（機械）"]
+    direction TB
+    cl["<b>claim</b>（構造化 YAML）<br/>1 主張 1 ファイル"]
+    ck["<b>check</b><br/>example / structure<br/>ui / plan"]
+    code(["exit code"])
+    cl --> ck --> code
+  end
+  AI --> HU --> MA
+  classDef human fill:#f59e0b,stroke:#b45309,color:#000,stroke-width:2px
+  classDef machine fill:#2563eb,stroke:#1e40af,color:#fff
+  class ap human
+  class ck,code machine
 ```
 
 自然言語とコードを直接照合はしない。間に **claim（検証可能な主張）** を挟む。
@@ -39,12 +61,23 @@ Figma / PNG / PDF                    ↑ 人間承認はここ 1 回だけ
 
 `check` は claim ごとに次の順で見て、最初に引っかかった段階で止まる。
 
-```
-unapproved  承認がない                        → blocking
-stale       仕様が承認後に変わった            → blocking（人間が再承認するまで解けない）
-fail        コードが claim を満たさない       → blocking（エージェントが直す）
-unverified  検証手段がない（manual / --ui 無し / depgraph が判定できない）→ 人間のレビュー対象。エージェントは止めない
-pass
+```mermaid
+flowchart LR
+  c(["claim"]) --> q1{"承認<br/>済み？"}
+  q1 -->|はい| q2{"仕様は<br/>承認時のまま？"}
+  q2 -->|はい| q3{"コードが<br/>満たす？"}
+  q3 -->|はい| q4{"すべて機械で<br/>確かめた？"}
+  q4 -->|はい| pa["<b>pass</b>"]
+  q1 -->|いいえ| un["<b>unapproved</b><br/>blocking"]
+  q2 -->|いいえ| st["<b>stale</b><br/>blocking<br/>人間が再承認するまで"]
+  q3 -->|いいえ| fa["<b>fail</b><br/>blocking<br/>エージェントが直す"]
+  q4 -->|いいえ| uv["<b>unverified</b><br/>人間のレビュー対象<br/>エージェントは止めない"]
+  classDef block fill:#dc2626,stroke:#991b1b,color:#fff
+  classDef warn fill:#f59e0b,stroke:#b45309,color:#000
+  classDef ok fill:#16a34a,stroke:#166534,color:#fff
+  class un,st,fa block
+  class uv warn
+  class pa ok
 ```
 
 blocking があれば exit 1。`--hook` では stderr に直すべきものだけのレポートを出して exit 2。
@@ -83,6 +116,57 @@ Markdown の claim が参照する見出しが仕様から消えたとき（`sou
   人間が見るべきものとして可視化する
 - **examples だけ通しても通らない**。エージェントが読めない holdout、ランダム入力、例の値の直書きの警告、
   通り方のログで、よくある抜け道を塞ぐ（[抜け道を塞ぐ](#抜け道を塞ぐ)）
+
+### 人間の関わり方 — HITL と HOTL
+
+spec-gate は 2 つの関わり方を組み合わせている。「何が正しいか」を決めるところは
+Human-in-the-loop（HITL）、「コードがそれを守っているか」を判定するところは Human-on-the-loop（HOTL）。
+
+```mermaid
+flowchart LR
+  subgraph HITL["HITL: 承認"]
+    direction TB
+    spec["仕様"] --> cand["claim の候補<br/>（AI が抽出）"] --> ap{{"approve<br/>（人間）"}}
+  end
+  subgraph HOTL["HOTL: 実装と判定"]
+    direction TB
+    impl["エージェントが実装"] --> ck["check<br/>（exit code）"]
+    ck -- fail --> impl
+    ck -- unverified --> watch["人間があとで見る<br/>trace / metrics / coverage"]
+  end
+  HITL -- "承認済みの claim" --> HOTL
+  classDef human fill:#f59e0b,stroke:#b45309,color:#000
+  classDef machine fill:#2563eb,stroke:#1e40af,color:#fff
+  class ap,watch human
+  class ck machine
+```
+
+| | HITL（承認） | HOTL（実装と判定） |
+|---|---|---|
+| 何を決めるか | 仕様から作った claim が正しいか | コードが claim を満たすか |
+| 人間がしないと | 進まない。未承認は `unapproved`、仕様が変わると `stale` で、人間が（再）承認するまで blocking | 進む。`fail` はエージェントが自分で直し、`unverified` はエージェントを止めない |
+| 人間の道具 | 承認画面（`review`）、MCP Apps の承認 UI、リモート承認 | `trace`、`metrics` / `check --json`、`check --role`、`coverage` |
+
+設計思想の「モデルが賢くなればハーネスは素通りになり、往復が減る」は、今は HOTL 側の話。賢いモデルほど一度で `check` を通し、
+人間が見張るものが減る。HITL の承認は、モデルが賢くなっても今は減らない。
+
+#### この先: 承認も HOTL に寄せる
+
+モデルが賢くなれば、承認も「人間はゴールだけ渡し、あとは自然と回って、人間は見張るだけ」に寄せられるはずだ。ただし前提が 1 つある。
+**claim を書いた AI と、その claim を正しいと認める者は別でなければならない**。同じ AI が書いて同じ AI が認めると、
+「AI は嘘をつく前提」がそこで崩れる。だから承認を自動にするには、作者とは独立した確かめ方がそろっている必要がある。
+今あるものは、その土台になる:
+
+- **合議**（`extract --runs N`）: 互いの回答を見ない複数のサブエージェントが同じ主張を出したか
+- **試し実行**（`# dry-run:`）: 候補の例が、今のコードで実際に通るか
+- **逆変換**（`reverse`）: 仕様を見せずに claim から書き起こした文が、原文と食い違わないか
+- **まとめ承認**（`approve --pending`、MCP Apps のまとめ承認）: 全員一致で、example なら試し実行も pass の候補だけをまとめて通す。
+  今は最後のボタンを人間が押すが、条件そのものは機械が決めている
+- **曖昧の記録**（`claims/_ambiguous/`）と `coverage`: 決めきれなかったものと、claim の無い仕様の箇所を人間に見せる
+
+これらがすべて「問題なし」と言った候補は自動で承認し、人間は承認の記録（今はリモート承認と MCP Apps の分を `.spec-gate/review-decisions.jsonl` に残している）と `coverage` を見張って、
+おかしければ差し戻す。そういう HOTL の承認に移れる。**まだ実装していない**。今の承認は HITL のまま。
+移るとしても、ゴール（仕様そのもの）を決めるのは人間に残る。
 
 ## インストール
 
@@ -198,32 +282,38 @@ SPEC_GATE_EXTRACT_CMD='claude -p' spec-gate extract --type mermaid docs/arch/lay
 
 ## ディレクトリ
 
-```
-docs/spec/*.md        詳細仕様（Markdown）          ─┐
-docs/arch/*.mmd       アーキテクチャ図（Mermaid）    ├ source
-Figma / *.png / *.pdf  UI・その他                   ─┘
-sources.yaml          監視する source の登録簿（coverage 用）
-claims/<領域>/*.yaml  claim。書式は claims/SCHEMA.md
-claims/_pending/      extract の出力。承認まで check 対象外
-claims/_ambiguous/    「仕様が決まっていない」と記録した候補。check 対象外で、coverage が要確認として出す
-holdout/<id>.yaml     holdout（入力と期待値のハッシュ）。書くのは人間だけ
-plans/*.md            プラン。front matter の status: active で check 対象
-.spec-gate/           プランのロック（コミット対象）と trace.jsonl・review-decisions.jsonl（git 管理外）
-.spec-gate-llm/       extract / reverse を委譲している間のプロンプトと回答（git 管理外、一時的）
-.depgraph.yml         depgraph のレイヤー定義。図と一致していることを structure claim が照合する
-.claude/gate.yaml     hook-gate の品質ゲート
-.claude/feedback/     hook-gate のルール（claims・verify 行・holdout の保護、リテラル漏れの警告）
-.claude/agents/       spec-gate-llm-worker（extract / reverse 用のサブエージェント）
-.claude/skills/       spec-gate-extract / spec-gate-reverse（委譲の手順）
-tools/call.ts         example claim の binding 用ラッパ（TS 関数向け）
-tools/bind            docs/spec/harness.md（spec-gate 自身の仕様）の入出力例を検証する binding
+先頭の 3 行が **source**（spec-gate が読む仕様）。
 
-main.go               エントリポイント
-pkg/domain            Claim / Plan / Result、ポート、lint、fuzz、mutation、leak、relink（純粋）
-pkg/services          check / approve / coverage / extract / reverse / plan / mutate / holdout / metrics / trace / review
-pkg/infrastructure    claimrepo, adapter(markdown/mermaid/figma/image), checker, planfile, vcs, extractor, reverser, llmwork, tracelog, workspace
-pkg/interfaces        cli（cobra コマンド、レポート、hook 出力）、handler/review（承認画面）
-```
+| パス | 中身 |
+|---|---|
+| `docs/spec/*.md` | 詳細仕様（Markdown） |
+| `docs/arch/*.mmd` | アーキテクチャ図（Mermaid） |
+| Figma / `*.png` / `*.pdf` | UI・その他 |
+| `sources.yaml` | 監視する source の登録簿（coverage 用） |
+| `claims/<領域>/*.yaml` | claim。書式は claims/SCHEMA.md |
+| `claims/_pending/` | extract の出力。承認まで check 対象外 |
+| `claims/_ambiguous/` | 「仕様が決まっていない」と記録した候補。check 対象外で、coverage が要確認として出す |
+| `holdout/<id>.yaml` | holdout（入力と期待値のハッシュ）。書くのは人間だけ |
+| `plans/*.md` | プラン。front matter の status: active で check 対象 |
+| `.spec-gate/` | プランのロック（コミット対象）と trace.jsonl・review-decisions.jsonl（git 管理外） |
+| `.spec-gate-llm/` | extract / reverse を委譲している間のプロンプトと回答（git 管理外、一時的） |
+| `.depgraph.yml` | depgraph のレイヤー定義。図と一致していることを structure claim が照合する |
+| `.claude/gate.yaml` | hook-gate の品質ゲート |
+| `.claude/feedback/` | hook-gate のルール（claims・verify 行・holdout の保護、リテラル漏れの警告） |
+| `.claude/agents/` | spec-gate-llm-worker（extract / reverse 用のサブエージェント） |
+| `.claude/skills/` | spec-gate-extract / spec-gate-reverse（委譲の手順） |
+| `tools/call.ts` | example claim の binding 用ラッパ（TS 関数向け） |
+| `tools/bind` | docs/spec/harness.md（spec-gate 自身の仕様）の入出力例を検証する binding |
+
+spec-gate 本体（Go）:
+
+| パス | 中身 |
+|---|---|
+| `main.go` | エントリポイント |
+| `pkg/domain` | Claim / Plan / Result、ポート、lint、fuzz、mutation、leak、relink（純粋） |
+| `pkg/services` | check / approve / coverage / extract / reverse / plan / mutate / holdout / metrics / trace / review |
+| `pkg/infrastructure` | claimrepo, adapter(markdown/mermaid/figma/image), checker, planfile, vcs, extractor, reverser, llmwork, tracelog, workspace |
+| `pkg/interfaces` | cli（cobra コマンド、レポート、hook 出力）、handler/review（承認画面） |
 
 ## claim の種類と、何が機械的に守れるか
 
@@ -425,7 +515,7 @@ lint や仕様の読み取りで拒否されたら `_pending/` に戻して理�
   シェルから `spec-gate mcp` を起動して直接呼ぶ経路は hook-gate（`protect_spec_claims`）が拒否する
 - 画面に見せた内容の sha256 が今の候補と違えば反映しない。承認は承認画面と同じ処理（lint・試し実行・仕様のハッシュ記録）で、`.spec-gate/review-decisions.jsonl` に記録する
 - **実機未検証**: Claude Code（とくにスマホのアプリ）が MCP Apps の画面を表示するかは公式に書かれていない。表示されなくても、`review` の結果に候補の要約が返る
-- `.mcp.json` は `scripts/mcp.sh` を起動する。`bin/spec-gate` を使い回し、Go のソースか画面の HTML のほうが新しいときだけビルドし直す（起動のたびに `go run` すると MCP の起動タイムアウト 30 秒を超えた）。新しい cloud コンテナでは最初のビルドが遅いことがあるので、環境のセットアップスクリプトでビルドする（`mise run setup`）か `MCP_TIMEOUT` を延ばす
+- `.mcp.json` は `scripts/mcp.sh` を起動する。`bin/spec-gate` を使い回し、Go のソースか画面の HTML のほうが新しいときだけビルドし直す（起動のたびに `go run` すると MCP の起動タイムアウト 30 秒を超えた）。cloud セッションでは SessionStart hook（`scripts/session-start.sh`）が、ほかの mise のツールや Neo4j イメージの pull より先に bin をビルドする。2 つのスクリプトは同じロック `bin/.build.lock` を取るので、`mcp.sh` は二重にビルドせずそのビルドを待つ。新しいコンテナの最初のビルド（Go のインストールとコンパイルで 20〜40 秒ほど）は既定の 30 秒を超えうるので、`.claude/settings.json` の `env` で `MCP_TIMEOUT` を 120 秒にしている
 
 ### リモート承認（Claude Code の質問ダイアログ）
 

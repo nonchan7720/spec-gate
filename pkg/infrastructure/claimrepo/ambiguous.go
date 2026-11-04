@@ -5,7 +5,6 @@ import (
 	"os"
 	"path/filepath"
 	"regexp"
-	"sort"
 	"strings"
 
 	"github.com/nonchan7720/spec-gate/pkg/domain"
@@ -65,38 +64,7 @@ func (r *Repo) MarkAmbiguous(name, reason string) (string, error) {
 
 // Ambiguous は claims/_ambiguous/*.yaml を名前順に返す。読めないものもエラーつきで返す。
 func (r *Repo) Ambiguous() ([]domain.AmbiguousClaim, error) {
-	entries, err := os.ReadDir(r.ambiguousDir())
-	if os.IsNotExist(err) {
-		return nil, nil
-	}
-	if err != nil {
-		return nil, err
-	}
-	var out []domain.AmbiguousClaim
-	for _, e := range entries {
-		if e.IsDir() || !isYAML(e.Name()) {
-			continue
-		}
-		p := filepath.Join(r.ambiguousDir(), e.Name())
-		b, err := os.ReadFile(p)
-		if err != nil {
-			return nil, err
-		}
-		ac := domain.AmbiguousClaim{Name: e.Name(), Path: rel(r.root, p)}
-		if m := ambiguousLine.FindSubmatch(b); m != nil {
-			ac.Reason = string(m[1])
-		}
-		c, err := decodeClaim(b)
-		if err == nil {
-			err = c.Validate()
-		}
-		if err != nil {
-			ac.Error = err.Error()
-		}
-		c.File = p
-		ac.Claim = c
-		out = append(out, ac)
-	}
-	sort.Slice(out, func(i, j int) bool { return out[i].Name < out[j].Name })
-	return out, nil
+	return readClaimDir(r, r.ambiguousDir(), func(f claimFile) domain.AmbiguousClaim {
+		return domain.AmbiguousClaim{Name: f.name, Path: f.path, Claim: f.claim, Error: f.err, Reason: f.header(ambiguousLine)}
+	})
 }
