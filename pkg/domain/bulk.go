@@ -68,24 +68,23 @@ func SortForReview(ps []PendingClaim) {
 // BulkEligible はまとめ承認の対象か。合意数が minAgree 以上（0 なら全員一致）で、kind が example なら試し実行が pass。
 // 読めない候補は対象外。dry-run はヘッダの値なので、承認するときにもう一度試し実行して確かめる。
 func BulkEligible(p PendingClaim, minAgree int) bool {
-	if p.Error != "" {
+	if p.Error != "" || !AgreeEnough(p.Confidence, minAgree) {
 		return false
 	}
-	n, total, ok := ParseConfidence(p.Confidence)
+	return !p.Claim.NeedsDryRun() || DryRunStateOf(p.DryRun) == DryRunPass
+}
+
+// AgreeEnough は合意数 conf（`n/N`）が下限 minAgree 以上か。minAgree が 0 以下なら全員一致を求める。読めなければ false。
+// まとめ承認と自動承認の判定で共有する。
+func AgreeEnough(conf string, minAgree int) bool {
+	n, total, ok := ParseConfidence(conf)
 	if !ok {
 		return false
 	}
-	need := minAgree
-	if need <= 0 {
-		need = total
+	if minAgree <= 0 {
+		return n == total
 	}
-	if n < need {
-		return false
-	}
-	if p.Claim.NeedsDryRun() && DryRunStateOf(p.DryRun) != DryRunPass {
-		return false
-	}
-	return true
+	return n >= minAgree
 }
 
 // ManualRate は manual の claim の数 / claim の総数（0 件なら 0）。docs/spec/harness.md「manual の手がかり」。

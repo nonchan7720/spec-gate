@@ -1,7 +1,7 @@
 ---
 title: 承認の自動化（HOTL 承認）の実装
 status: draft        # claim を承認し、claims を埋めて凍結してから active にする
-claims: []           # docs/spec/auto-approval.md から抽出・承認した claim の ID を入れる
+claims: [POLICY-001, AUTO-001, ELIG-001, EVID-001, BREAKER-001, PROTECT-001, APPROVER-013]  # 承認済み（2026-11-04、リモート承認）。残りの候補は承認され次第足す
 mutation: 0.8        # auto-eligible / auto-breaker の binding が触る実装に対して
 ---
 
@@ -16,7 +16,7 @@ docs/spec/auto-approval.md を実装し、方針と、エージェントが作�
 
 1. ~~人間: 仕様の未決事項を決める~~（2026-11-04 決定。仕様の「決定の記録」）
 2. エージェント: `spec-gate-extract` スキルで節ごとに抽出する（`spec-gate extract "docs/spec/auto-approval.md#<見出し>" --runs 3 --emit` → サブエージェント → `--collect`）
-3. 人間: MCP Apps の承認 UI（`mcp__spec-gate__review`）か `spec-gate review` で承認する。`claims/<領域>/` は `auto` を使う
+3. 人間: 承認する（スマホでは質問ダイアログのリモート承認。`spec-gate review ask --ref docs/spec/auto-approval.md` で絞れる）。承認画面の決まりで example / manual は `claims/spec/` に入る
 4. エージェント: 承認された ID を上の `claims:` に入れる（プランの verify は変えない）。人間: `spec-gate plan freeze plans/2026-11-auto-approval.md`
 5. 人間: `status: active` にする。以後、エージェントは `spec-gate check --changed` が通るまで実装する
 
