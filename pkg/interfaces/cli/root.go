@@ -15,6 +15,7 @@ import (
 	"github.com/nonchan7720/spec-gate/pkg/infrastructure/planfile"
 	"github.com/nonchan7720/spec-gate/pkg/infrastructure/sourcefile"
 	"github.com/nonchan7720/spec-gate/pkg/infrastructure/sourceregistry"
+	"github.com/nonchan7720/spec-gate/pkg/infrastructure/tracelog"
 	"github.com/nonchan7720/spec-gate/pkg/infrastructure/vcs"
 	"github.com/nonchan7720/spec-gate/pkg/infrastructure/workspace"
 	"github.com/nonchan7720/spec-gate/pkg/services"
@@ -38,6 +39,8 @@ type app struct {
 	holdout domain.HoldoutRepository
 	// holdoutAdd は spec-gate holdout add（人間だけが使う）
 	holdoutAdd *services.HoldoutService
+	// trace は通り方のログ（.spec-gate/trace.jsonl）
+	trace *services.TraceService
 	// adapters は source type ごとの仕様の読み方。サービスを組み立てるコマンド（reverse など）が共有する
 	adapters map[domain.SourceType]domain.SourceAdapter
 	// work は LLM 処理をサブエージェントに委譲するときの作業ディレクトリ（.spec-gate-llm/）
@@ -107,6 +110,7 @@ func newApp(root string) *app {
 		work:       work,
 		plan:       &services.PlanService{Plans: plans, Clock: utcClock{}, Mutation: mutation},
 		status:     &services.StatusService{Claims: claims, Plans: plans},
+		trace:      &services.TraceService{Log: tracelog.New(root), Lines: vcs.Git{Dir: root}, Clock: utcClock{}},
 	}
 }
 
@@ -126,6 +130,7 @@ func Execute() {
   check    → 承認 → ドリフト → 種類別チェック → プランの verify を実行
   coverage → 仕様のうち claim に紐づかない箇所を列挙
   metrics  → claim の kind 別件数・割合と unverified 率（CI 用）
+  trace    → claim ごとに、最後に pass になったときの直前の連続 fail 回数と変更行数（通り方のログ）
   reverse  → claim だけから仕様文を再生成し、原文と食い違いがないかを突き合わせる（逆変換）
   review   → _pending の候補をローカルの Web ページで平易に並べ、人間が承認する（承認 UI）
   leak     → 実装ファイルに examples・holdout の値がそのまま書かれていないかを調べる
@@ -155,6 +160,7 @@ func Execute() {
 		newReviewCmd(&a),
 		newCoverageCmd(&a),
 		newMetricsCmd(&a),
+		newTraceCmd(&a),
 		newExtractCmd(&a),
 		newReverseCmd(&a),
 		newLeakCmd(&a),

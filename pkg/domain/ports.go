@@ -133,6 +133,20 @@ type ChangeDetector interface {
 	ChangedFiles() ([]string, error)
 }
 
+// LineCounter は作業ツリーの変更行数（通り方のログ用）。
+type LineCounter interface {
+	// ChangedLines は HEAD からの追加行と削除行の合計。git リポジトリでなければ 0
+	ChangedLines() (int, error)
+}
+
+// TraceLog は claim の判定履歴（.spec-gate/trace.jsonl）。
+type TraceLog interface {
+	// Append は判定を末尾に追記する
+	Append([]TraceEntry) error
+	// All は記録を古い順に返す
+	All() ([]TraceEntry, error)
+}
+
 // Extractor は仕様テキストから claim 候補を抽出する（LLM）。
 type Extractor interface {
 	Extract(ctx context.Context, ref, excerpt string) ([]Claim, error)
