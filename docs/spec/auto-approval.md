@@ -174,8 +174,23 @@ binding: `go run ./tools/bind auto-breaker`（入力は `{"window", "max_revoked
 - `spec-gate auto-approve` は、hook の入力の `agent_type` が `spec-gate-approver` のときだけ許す。それ以外（メインのエージェント・
   ほかのサブエージェント）からの実行は拒否する。`agent_type` が入力に無いときも拒否する
 - `audit` は誰が実行してもよい（読み取りだけ）。`revoke` は人間だけ（エージェントからの実行は拒否する）
-- これらの判定は「保護の範囲」と合わせて 1 つの関数（binding `guard`）で行い、PreToolUse hook の `spec-gate guard` から呼ぶ（「保護の範囲」）。
+- これらの判定は「保護の範囲」と同じ関数で行い、PreToolUse hook の `spec-gate guard` から呼ぶ。
   承認役の定義ファイルの frontmatter の `hooks`（PreToolUse）にも同じ `spec-gate guard` を書く
+
+binding: `go run ./tools/bind guard`（入力は `{"tool": "Bash" / "Edit" / "Write", "command" か "path", "agent_type"（無ければ省略）}`、出力は `"allow"` か `"deny"`）
+
+| 入力 | 出力 |
+|---|---|
+| `{"tool": "Bash", "command": "spec-gate auto-approve docs/spec/a.md#x --area auto", "agent_type": "spec-gate-approver"}` | `"allow"` |
+| `{"tool": "Bash", "command": "spec-gate auto-approve docs/spec/a.md#x --area auto"}` | `"deny"` |
+| `{"tool": "Bash", "command": "go run . auto-approve docs/spec/a.md#x --area auto", "agent_type": "general-purpose"}` | `"deny"` |
+| `{"tool": "Bash", "command": "spec-gate audit --since 24h", "agent_type": "spec-gate-approver"}` | `"allow"` |
+| `{"tool": "Bash", "command": "spec-gate audit --since 24h"}` | `"allow"` |
+| `{"tool": "Bash", "command": "spec-gate audit; rm -rf claims", "agent_type": "spec-gate-approver"}` | `"deny"` |
+| `{"tool": "Bash", "command": "ls", "agent_type": "spec-gate-approver"}` | `"deny"` |
+| `{"tool": "Edit", "path": "pkg/domain/claim.go", "agent_type": "spec-gate-approver"}` | `"deny"` |
+| `{"tool": "Bash", "command": "spec-gate revoke AUTO-001 --reason x"}` | `"deny"` |
+
 - 承認するかどうかは方針と証拠が決め、承認役も決められない。承認役を分けるのは、実装しているエージェントが自動承認を走らせる時機と対象を
   自分で選べないようにするため
 
@@ -201,15 +216,6 @@ binding: `go run ./tools/bind guard`（入力は `{"tool": "Bash" / "Edit" / "Wr
 
 | 入力 | 出力 |
 |---|---|
-| `{"tool": "Bash", "command": "spec-gate auto-approve docs/spec/a.md#x --area auto", "agent_type": "spec-gate-approver"}` | `"allow"` |
-| `{"tool": "Bash", "command": "spec-gate auto-approve docs/spec/a.md#x --area auto"}` | `"deny"` |
-| `{"tool": "Bash", "command": "go run . auto-approve docs/spec/a.md#x --area auto", "agent_type": "general-purpose"}` | `"deny"` |
-| `{"tool": "Bash", "command": "spec-gate audit --since 24h", "agent_type": "spec-gate-approver"}` | `"allow"` |
-| `{"tool": "Bash", "command": "spec-gate audit --since 24h"}` | `"allow"` |
-| `{"tool": "Bash", "command": "spec-gate audit; rm -rf claims", "agent_type": "spec-gate-approver"}` | `"deny"` |
-| `{"tool": "Bash", "command": "ls", "agent_type": "spec-gate-approver"}` | `"deny"` |
-| `{"tool": "Edit", "path": "pkg/domain/claim.go", "agent_type": "spec-gate-approver"}` | `"deny"` |
-| `{"tool": "Bash", "command": "spec-gate revoke AUTO-001 --reason x"}` | `"deny"` |
 | `{"tool": "Bash", "command": "go test ./..."}` | `"allow"` |
 | `{"tool": "Edit", "path": ".claude/gate.yaml"}` | `"deny"` |
 | `{"tool": "Write", "path": ".claude/feedback/protect_spec_claims.md"}` | `"deny"` |

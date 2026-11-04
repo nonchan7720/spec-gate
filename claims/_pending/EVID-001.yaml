@@ -1,0 +1,58 @@
+# confidence: 3/3
+# dry-run: fail: 6 件中 6 件が期待と違う
+# 承認するには内容を確認して claims/<領域>/ に移し、`spec-gate approve EVID-001` を実行する
+id: EVID-001
+kind: example
+title: check は approved.by が auto の claim について、証拠ファイルの有無・sha256 の一致・判定 ok を確かめ、満たさなければ unapproved とし、理由はファイルが無い→sha256 が違う→判定が ok でないの順に最初に当てはまったものにする（auto でない claim は証拠を見ない）
+source:
+    type: markdown
+    ref: docs/spec/auto-approval.md#証拠の照合
+binding: go run ./tools/bind auto-evidence
+examples:
+    - in:
+        by: nonchan7720
+        evidence: null
+      out:
+        approved: true
+        detail: ""
+    - in:
+        by: auto
+        evidence:
+            sha_match: true
+            verdict: ok
+      out:
+        approved: true
+        detail: ""
+    - in:
+        by: auto
+        evidence: null
+      out:
+        approved: false
+        detail: 自動承認の証拠が無い
+    - in:
+        by: auto
+        evidence:
+            sha_match: false
+            verdict: ok
+      out:
+        approved: false
+        detail: 証拠が承認時と違う
+    - in:
+        by: auto
+        evidence:
+            sha_match: true
+            verdict: reverse
+      out:
+        approved: false
+        detail: 証拠の判定が ok でない
+    - in:
+        by: auto
+        evidence:
+            sha_match: false
+            verdict: reverse
+      out:
+        approved: false
+        detail: 証拠が承認時と違う
+properties:
+    - output.approved == (output.detail == "")
+    - 'input.by != "auto" ? (output.approved == true && output.detail == "") : true'

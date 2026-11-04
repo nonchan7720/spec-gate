@@ -1,0 +1,19 @@
+# confidence: 1/3
+# dry-run: fail: 1 件中 1 件が期待と違う
+# 承認するには内容を確認して claims/<領域>/ に移し、`spec-gate approve EVID-005` を実行する
+id: EVID-005
+kind: example
+title: approved.by が auto でない claim は証拠を見ない（証拠の有無にかかわらず承認済みのまま）
+source:
+    type: markdown
+    ref: docs/spec/auto-approval.md#証拠の照合
+binding: go run ./tools/bind auto-evidence
+examples:
+    - in:
+        by: nonchan7720
+        evidence: null
+      out:
+        approved: true
+        detail: ""
+properties:
+    - 'input.by != "auto" ? (output.approved == true && output.detail == "") : true'

@@ -1,0 +1,9 @@
+# confidence: 3/3
+# 承認するには内容を確認して claims/<領域>/ に移し、`spec-gate approve EVID-003` を実行する
+id: EVID-003
+kind: manual
+title: 仕様が変わったときの stale の扱いは自動承認した claim でもこれまでと同じ
+source:
+    type: markdown
+    ref: docs/spec/auto-approval.md#証拠の照合
+hint: '「これまで」の stale 判定の定義がこの節に無いため、approved.by が auto と人間の claim で仕様変更時に同じ stale 判定になることを比べる binding（入力: by と仕様の変化有無、出力: 状態）が必要'
