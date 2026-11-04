@@ -404,9 +404,7 @@ func DecideRemote(in RemoteHookInput, current map[string]AskQuestion) (decisions
 	for _, q := range in.ToolInput.Questions {
 		id := RemoteCandidateID(q.Question)
 		if id == "" {
-			if RemoteBulkIDs(q.Question) == nil { // まとめ承認の質問は DecideRemoteBulk が扱う
-				notes = append(notes, fmt.Sprintf("%q は spec-gate の質問ではない", q.Question))
-			}
+			notes = append(notes, fmt.Sprintf("%q は spec-gate の質問ではない", q.Question))
 			continue
 		}
 		ans := strings.TrimSpace(answers[q.Question])
@@ -440,90 +438,4 @@ func verdictFor(id, answer string) RemoteDecision {
 		// Other の自由入力は、その文を理由にした曖昧
 		return RemoteDecision{ID: id, Verdict: VerdictAmbiguous, Reason: answer}
 	}
-}
-
-// まとめ承認の質問（docs/spec/harness.md「まとめ承認」）。
-
-// 選択肢のラベル（まとめ承認）。
-const (
-	RemoteLabelBulkApprove = "まとめて承認"
-	RemoteLabelBulkSkip    = "1 件ずつ見る"
-	// RemoteBulkHeader はまとめ承認の質問の header
-	RemoteBulkHeader = "まとめ承認"
-)
-
-var remoteBulkQuestionRE = regexp.MustCompile(`^候補 (\d+) 件（(.+)）をまとめて承認しますか？$`)
-
-// NewRemoteBulkQuestion は候補 ids（並びどおり）とそれぞれの preview から、まとめ承認の質問を作る。
-func NewRemoteBulkQuestion(ids, previews []string) AskQuestion {
-	preview := strings.Join(previews, "\n---\n\n")
-	return AskQuestion{
-		Question: fmt.Sprintf("候補 %d 件（%s）をまとめて承認しますか？", len(ids), strings.Join(ids, ", ")),
-		Header:   RemoteBulkHeader,
-		Options: []AskOption{
-			{Label: RemoteLabelBulkApprove, Description: "並んだ候補をすべて仕様として確定する（1 件ずつの承認と同じ処理。試し実行が pass でない候補は承認しない）", Preview: preview},
-			{Label: RemoteLabelBulkSkip, Description: "何もしない。review ask で 1 件ずつ確かめる", Preview: preview},
-		},
-	}
-}
-
-// RemoteBulkIDs はまとめ承認の question 文から候補 ID の並びを取り出す。形が違う・件数が合わなければ nil。
-func RemoteBulkIDs(question string) []string {
-	m := remoteBulkQuestionRE.FindStringSubmatch(question)
-	if m == nil {
-		return nil
-	}
-	ids := strings.Split(m[2], ", ")
-	if n, err := strconv.Atoi(m[1]); err != nil || n != len(ids) {
-		return nil
-	}
-	return ids
-}
-
-// DecideRemoteBulk はまとめ承認の質問への回答を、承認する候補 ID の並びにする。
-// previews は候補 ID → spec-gate が今作る preview。表示された質問が、その ID の並びから今作る質問と
-// 完全に一致し、回答が「まとめて承認」のときだけ ID を返す。
-func DecideRemoteBulk(in RemoteHookInput, previews map[string]string) (approve []string, notes []string) {
-	if in.ToolName != RemoteToolName {
-		return nil, nil
-	}
-	answers, err := RemoteAnswers(in)
-	if err != nil {
-		return nil, []string{err.Error()}
-	}
-	for _, q := range in.ToolInput.Questions {
-		ids := RemoteBulkIDs(q.Question)
-		if ids == nil {
-			continue
-		}
-		ans := strings.TrimSpace(answers[q.Question])
-		if ans == "" {
-			notes = append(notes, "まとめ承認: 回答が無い")
-			continue
-		}
-		ps := make([]string, 0, len(ids))
-		missing := ""
-		for _, id := range ids {
-			p, ok := previews[id]
-			if !ok {
-				missing = id
-				break
-			}
-			ps = append(ps, p)
-		}
-		if missing != "" {
-			notes = append(notes, "まとめ承認: "+missing+" が承認待ちの候補に無いので反映しない")
-			continue
-		}
-		if !reflect.DeepEqual(q, NewRemoteBulkQuestion(ids, ps)) {
-			notes = append(notes, "まとめ承認: 表示された内容が今の候補と一致しないので反映しない")
-			continue
-		}
-		if ans != RemoteLabelBulkApprove {
-			notes = append(notes, "まとめ承認: 「"+ans+"」が選ばれたので何もしない")
-			continue
-		}
-		approve = append(approve, ids...)
-	}
-	return approve, notes
 }

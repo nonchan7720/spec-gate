@@ -1,0 +1,338 @@
+<!doctype html>
+<html lang="ja">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>spec-gate 承認</title>
+<style>
+:root {
+  --bg: #ffffff; --fg: #1f2328; --muted: #59636e; --line: #d1d9e0; --card: #f6f8fa;
+  --accent: #0969da; --ok: #1a7f37; --ng: #cf222e; --warn: #9a6700; --chip: #eaeef2;
+}
+:root[data-theme="dark"] {
+  --bg: #0d1117; --fg: #e6edf3; --muted: #9198a1; --line: #3d444d; --card: #151b23;
+  --accent: #4493f8; --ok: #3fb950; --ng: #f85149; --warn: #d29922; --chip: #212830;
+}
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    --bg: #0d1117; --fg: #e6edf3; --muted: #9198a1; --line: #3d444d; --card: #151b23;
+    --accent: #4493f8; --ok: #3fb950; --ng: #f85149; --warn: #d29922; --chip: #212830;
+  }
+}
+* { box-sizing: border-box; }
+body { margin: 0; background: var(--bg); color: var(--fg); font: 15px/1.6 system-ui, -apple-system, "Hiragino Sans", "Noto Sans JP", sans-serif; }
+main { padding: 12px 16px 24px; max-width: 760px; margin: 0 auto; }
+h1 { font-size: 17px; margin: 0 0 4px; }
+.sub { color: var(--muted); font-size: 13px; margin: 0 0 12px; }
+.bar { position: sticky; top: 0; z-index: 2; background: var(--bg); padding: 8px 0; border-bottom: 1px solid var(--line); margin-bottom: 12px; }
+.tabs { display: flex; gap: 6px; overflow-x: auto; padding-bottom: 6px; }
+.tabs button { flex: none; }
+.bulk { display: flex; gap: 8px; flex-wrap: wrap; align-items: center; }
+button { font: inherit; font-size: 14px; border: 1px solid var(--line); background: var(--card); color: var(--fg); border-radius: 8px; padding: 8px 12px; min-height: 40px; cursor: pointer; }
+button[aria-pressed="true"] { border-color: var(--accent); color: var(--accent); }
+button.ok { background: var(--ok); border-color: var(--ok); color: #fff; }
+button.ng { color: var(--ng); border-color: var(--ng); background: transparent; }
+button.amb { color: var(--warn); border-color: var(--warn); background: transparent; }
+button.primary { background: var(--accent); border-color: var(--accent); color: #fff; }
+button:disabled { opacity: .5; cursor: default; }
+.card { border: 1px solid var(--line); border-radius: 10px; background: var(--card); padding: 12px; margin-bottom: 12px; }
+.card.done { opacity: .6; }
+.head { display: flex; gap: 10px; align-items: flex-start; }
+.head input { width: 22px; height: 22px; margin-top: 2px; flex: none; }
+.title { font-weight: 600; word-break: break-word; }
+.chips { display: flex; flex-wrap: wrap; gap: 4px; margin: 6px 0; }
+.chip { font-size: 12px; background: var(--chip); border-radius: 999px; padding: 1px 8px; color: var(--muted); }
+.chip.pass { color: var(--ok); } .chip.fail, .chip.error { color: var(--ng); } .chip.all { color: var(--accent); }
+.doc { background: var(--bg); border: 1px solid var(--line); border-radius: 8px; padding: 10px 12px; margin: 8px 0; max-height: 520px; overflow: auto; word-break: break-word; }
+.doc h3 { font-size: 14px; margin: 10px 0 4px; color: var(--muted); }
+.doc ul { margin: 4px 0; padding-left: 18px; }
+.doc .ex { border-top: 1px solid var(--line); padding: 6px 0; }
+.doc .ex:first-of-type { border-top: 0; }
+.doc .k { font-size: 12px; color: var(--muted); }
+.doc code { font: 13px/1.5 ui-monospace, SFMono-Regular, Menlo, monospace; white-space: pre-wrap; word-break: break-all; }
+pre { white-space: pre-wrap; word-break: break-word; font: 13px/1.55 ui-monospace, SFMono-Regular, Menlo, monospace; background: var(--bg); border: 1px solid var(--line); border-radius: 8px; padding: 10px; margin: 8px 0; max-height: 420px; overflow: auto; }
+details summary { cursor: pointer; color: var(--accent); font-size: 14px; }
+.hint { font-size: 13px; color: var(--warn); }
+.err { color: var(--ng); font-size: 13px; }
+.actions { display: flex; gap: 8px; flex-wrap: wrap; margin-top: 8px; }
+textarea { width: 100%; font: inherit; color: var(--fg); background: var(--bg); border: 1px solid var(--line); border-radius: 8px; padding: 8px; min-height: 64px; margin-top: 8px; }
+.result { font-size: 13px; margin-top: 6px; }
+.result.ok { color: var(--ok); } .result.ng { color: var(--ng); }
+.empty { color: var(--muted); text-align: center; padding: 32px 0; }
+.toast { font-size: 13px; margin: 6px 0 0; }
+</style>
+</head>
+<body>
+<main>
+  <h1>spec-gate 承認待ちの候補</h1>
+  <p class="sub" id="sub">読み込み中…</p>
+  <div class="bar">
+    <div class="tabs" id="tabs"></div>
+    <div class="bulk">
+      <button id="selectEligible">まとめ承認の対象を選ぶ</button>
+      <button id="bulkApprove" class="primary" disabled>選んだ 0 件を承認</button>
+      <button id="reload">読み直す</button>
+    </div>
+    <p class="toast" id="toast" role="status"></p>
+  </div>
+  <div id="list"></div>
+</main>
+<script>
+(() => {
+  "use strict";
+  // ---- MCP Apps の JSON-RPC（View ⇄ Host）----
+  let seq = 0;
+  const waiting = new Map();
+  function send(msg) { window.parent.postMessage(msg, "*"); }
+  function request(method, params) {
+    const id = ++seq;
+    send({ jsonrpc: "2.0", id, method, params });
+    return new Promise((resolve, reject) => {
+      waiting.set(id, { resolve, reject });
+      setTimeout(() => { if (waiting.delete(id)) reject(new Error(method + " が応答しない")); }, 120000);
+    });
+  }
+  function notify(method, params) { send({ jsonrpc: "2.0", method, params: params || {} }); }
+  async function callTool(name, args) {
+    const res = await request("tools/call", { name, arguments: args || {} });
+    if (res && res.isError) throw new Error(textOf(res) || name + " がエラーを返した");
+    return (res && res.structuredContent) || {};
+  }
+  function textOf(res) { return ((res && res.content) || []).filter(c => c.type === "text").map(c => c.text).join("\n"); }
+
+  window.addEventListener("message", (ev) => {
+    const m = ev.data;
+    if (!m || m.jsonrpc !== "2.0") return;
+    if (m.id !== undefined && waiting.has(m.id) && (m.result !== undefined || m.error !== undefined)) {
+      const w = waiting.get(m.id); waiting.delete(m.id);
+      if (m.error) w.reject(new Error(m.error.message || "エラー")); else w.resolve(m.result);
+      return;
+    }
+    if (m.method === "ui/notifications/tool-result" && m.params && m.params.structuredContent && m.params.structuredContent.items) {
+      render(m.params.structuredContent);
+    } else if (m.method === "ui/notifications/host-context-changed" && m.params) {
+      applyTheme(m.params.theme);
+    }
+  });
+
+  function applyTheme(theme) {
+    if (theme === "light" || theme === "dark") document.documentElement.dataset.theme = theme;
+  }
+
+  // ---- 画面 ----
+  const $ = (id) => document.getElementById(id);
+  const state = { items: [], counts: {}, filter: "all", selected: new Set(), done: new Map() };
+  const FILTERS = [
+    ["all", "全部"], ["eligible", "まとめ承認の対象"], ["example", "example"],
+    ["manual", "manual"], ["other", "structure / ui"], ["broken", "承認できない"],
+  ];
+  function esc(s) { return String(s == null ? "" : s).replace(/[&<>"']/g, c => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c])); }
+  function toast(msg, ok) { const t = $("toast"); t.textContent = msg; t.style.color = ok === false ? "var(--ng)" : ""; }
+  function dryState(d) { const s = String(d || "").split(":")[0]; return ["pass", "fail", "error"].includes(s) ? s : ""; }
+  function allAgree(c) { const m = /^(\d+)\/(\d+)$/.exec(c || ""); return !!m && m[1] === m[2]; }
+
+  function visible() {
+    return state.items.filter(it => {
+      switch (state.filter) {
+        case "eligible": return it.eligible;
+        case "example": return it.kind === "example" && !it.error;
+        case "manual": return it.kind === "manual" && !it.error;
+        case "other": return (it.kind === "structure" || it.kind === "ui") && !it.error;
+        case "broken": return !!it.error;
+        default: return true;
+      }
+    });
+  }
+
+  function renderTabs() {
+    const n = (f) => state.items.filter(it => { const s = state.filter; state.filter = f; const r = visible().includes(it); state.filter = s; return r; }).length;
+    $("tabs").innerHTML = FILTERS.map(([k, label]) =>
+      `<button data-filter="${k}" aria-pressed="${state.filter === k}">${esc(label)} ${n(k)}</button>`).join("");
+  }
+
+  function render(data) {
+    if (data) {
+      state.items = data.items || [];
+      state.counts = data.counts || {};
+      const names = new Set(state.items.map(i => i.name));
+      for (const n of [...state.selected]) if (!names.has(n)) state.selected.delete(n);
+    }
+    const c = state.counts;
+    $("sub").textContent = `${c.total || 0} 件（まとめ承認の対象 ${c.eligible || 0} 件）。承認しやすい順に並んでいます。判断はこの画面で押したものだけが反映されます。`;
+    renderTabs();
+    const items = visible();
+    $("list").innerHTML = items.length ? items.map(card).join("") : `<p class="empty">候補はありません</p>`;
+    updateBulk();
+    reportSize();
+  }
+
+  function card(it) {
+    const done = state.done.get(it.name);
+    const ds = dryState(it.dry_run);
+    const chips = [
+      `<span class="chip">${esc(it.kind)}</span>`,
+      it.confidence ? `<span class="chip ${allAgree(it.confidence) ? "all" : ""}">一致 ${esc(it.confidence)}</span>` : "",
+      it.dry_run ? `<span class="chip ${ds}">試し実行 ${esc(it.dry_run)}</span>` : "",
+      it.eligible ? `<span class="chip all">まとめ承認の対象</span>` : "",
+    ].join("");
+    const spec = it.spec_excerpt ? `<details><summary>仕様の該当箇所を見る</summary><pre>${esc(it.spec_excerpt)}</pre></details>`
+      : it.spec_error ? `<p class="err">仕様を読めない: ${esc(it.spec_error)}</p>` : "";
+    const actions = done ? `<p class="result ${done.ok ? "ok" : "ng"}">${esc(done.msg)}</p>` : `
+      <div class="actions">
+        <button class="ok" data-act="approve" data-name="${esc(it.name)}" ${it.error ? "disabled" : ""}>承認</button>
+        <button class="ng" data-act="reject" data-name="${esc(it.name)}">却下</button>
+        <button class="amb" data-act="ambiguous" data-name="${esc(it.name)}">曖昧</button>
+      </div>
+      <div data-amb="${esc(it.name)}" hidden>
+        <textarea placeholder="仕様のどこが決まっていないか" data-reason="${esc(it.name)}"></textarea>
+        <div class="actions"><button class="amb" data-act="ambiguous-ok" data-name="${esc(it.name)}">曖昧として記録</button></div>
+      </div>`;
+    return `<section class="card ${done ? "done" : ""}">
+      <div class="head">
+        ${it.error || done ? "" : `<input type="checkbox" aria-label="選ぶ" data-select="${esc(it.name)}" ${state.selected.has(it.name) ? "checked" : ""}>`}
+        <div><div class="title">${esc(it.id)} ${esc(it.title)}</div><div class="chips">${chips}</div></div>
+      </div>
+      ${it.error ? `<p class="err">承認できない（却下か曖昧にする）: ${esc(it.error)}</p>` : ""}
+      ${it.hint ? `<p class="hint">機械で確かめるには: ${esc(it.hint)}</p>` : ""}
+      <div class="doc">${doc(it.preview)}</div>
+      ${spec}
+      ${actions}
+    </section>`;
+  }
+
+  // 候補の内容（Markdown）を、スマホで読める形にする。見出しは外し（タイトルはカードの見出しに出ている）、
+  // 箇条書きはそのまま、表は 1 行を「列名: 値」のブロックにする（横に並べると狭い画面で読めない）。
+  function doc(md) {
+    const out = []; let list = false, cols = null;
+    const close = () => { if (list) { out.push("</ul>"); list = false; } };
+    const cells = (row) => row.replace(/^\|/, "").replace(/\|$/, "").split(/(?<!\\)\|/).map(c => c.trim().replace(/\\\|/g, "|"));
+    for (const line of String(md || "").split("\n")) {
+      const t = line.trim();
+      if (t.startsWith("|")) {
+        close();
+        if (!cols) { cols = cells(t); continue; }
+        if (/^\|[\s:|-]+\|$/.test(t)) continue;
+        const v = cells(t);
+        out.push(`<div class="ex">${cols.map((c, i) => v[i] ? `<div><span class="k">${esc(c)}</span><br><code>${esc(v[i])}</code></div>` : "").join("")}</div>`);
+        continue;
+      }
+      cols = null;
+      if (t.startsWith("# ")) continue;
+      if (t.startsWith("## ")) { close(); out.push(`<h3>${esc(t.slice(3))}</h3>`); continue; }
+      if (t.startsWith("- ")) { if (!list) { out.push("<ul>"); list = true; } out.push(`<li>${esc(t.slice(2))}</li>`); continue; }
+      close();
+      if (t) out.push(`<p>${esc(t)}</p>`);
+    }
+    close();
+    return out.join("");
+  }
+
+  function updateBulk() {
+    const b = $("bulkApprove");
+    const n = state.selected.size;
+    b.disabled = n === 0;
+    b.textContent = b.dataset.confirm === "1" ? `本当に ${n} 件を承認する` : `選んだ ${n} 件を承認`;
+  }
+
+  function byName(name) { return state.items.find(i => i.name === name); }
+
+  let armed = null; // 却下は 2 回押して確定（ファイルを消すので）
+  async function decide(name, verdict, reason) {
+    const it = byName(name);
+    if (!it) return;
+    try {
+      const out = await callTool("review_decide", { name, verdict, reason: reason || "", content_sha256: it.content_sha256 });
+      if (out.ok) {
+        state.done.set(name, { ok: true, msg: { approve: "承認しました", reject: "却下しました", ambiguous: "曖昧として記録しました" }[verdict] });
+        state.selected.delete(name);
+      } else {
+        state.done.set(name, { ok: false, msg: "反映できませんでした: " + (out.error || "不明") });
+      }
+    } catch (e) {
+      state.done.set(name, { ok: false, msg: "反映できませんでした: " + e.message });
+    }
+    render();
+    if (state.done.get(name) && !state.done.get(name).ok) setTimeout(() => { state.done.delete(name); render(); }, 6000);
+  }
+
+  document.addEventListener("click", async (ev) => {
+    const t = ev.target.closest("button");
+    if (!t) return;
+    if (t.dataset.filter) { state.filter = t.dataset.filter; render(); return; }
+    const name = t.dataset.name;
+    switch (t.dataset.act) {
+      case "approve": t.disabled = true; await decide(name, "approve"); return;
+      case "reject":
+        if (armed !== name) { armed = name; t.textContent = "もう一度押すと却下（ファイルを消す）"; return; }
+        armed = null; t.disabled = true; await decide(name, "reject"); return;
+      case "ambiguous": document.querySelector(`[data-amb="${CSS.escape(name)}"]`).hidden = false; reportSize(); return;
+      case "ambiguous-ok": {
+        const reason = document.querySelector(`[data-reason="${CSS.escape(name)}"]`).value.trim();
+        if (!reason) { toast("曖昧とする理由を入力してください", false); return; }
+        t.disabled = true; await decide(name, "ambiguous", reason); return;
+      }
+    }
+  });
+  document.addEventListener("change", (ev) => {
+    const n = ev.target.dataset && ev.target.dataset.select;
+    if (!n) return;
+    if (ev.target.checked) state.selected.add(n); else state.selected.delete(n);
+    $("bulkApprove").dataset.confirm = "";
+    updateBulk();
+  });
+  $("selectEligible").addEventListener("click", () => {
+    for (const it of state.items) if (it.eligible && !state.done.has(it.name)) state.selected.add(it.name);
+    state.filter = "eligible";
+    $("bulkApprove").dataset.confirm = "";
+    render();
+    toast(`まとめ承認の対象 ${state.selected.size} 件を選びました。内容を確かめてから承認してください。`);
+  });
+  $("bulkApprove").addEventListener("click", async () => {
+    const b = $("bulkApprove");
+    if (b.dataset.confirm !== "1") { b.dataset.confirm = "1"; updateBulk(); return; }
+    b.dataset.confirm = ""; b.disabled = true;
+    const items = [...state.selected].map(name => ({ name, content_sha256: (byName(name) || {}).content_sha256 }));
+    try {
+      const out = await callTool("review_bulk_approve", { items });
+      let ok = 0;
+      for (const r of out.results || []) {
+        if (r.error) state.done.set(r.name, { ok: false, msg: "承認できませんでした: " + r.error });
+        else { ok++; state.done.set(r.name, { ok: true, msg: "承認しました" }); }
+        state.selected.delete(r.name);
+      }
+      toast(`${ok} / ${items.length} 件を承認しました`, ok === items.length);
+    } catch (e) { toast("まとめ承認に失敗: " + e.message, false); }
+    render();
+  });
+  $("reload").addEventListener("click", load);
+
+  async function load() {
+    toast("読み込み中…");
+    try { state.done.clear(); render(await callTool("review_list")); toast(""); }
+    catch (e) { toast("一覧を読めない: " + e.message, false); }
+  }
+
+  let lastH = 0;
+  function reportSize() {
+    const h = Math.ceil(document.documentElement.scrollHeight);
+    if (h !== lastH) { lastH = h; notify("ui/notifications/size-changed", { width: Math.ceil(document.documentElement.scrollWidth), height: h }); }
+  }
+  new ResizeObserver(reportSize).observe(document.body);
+
+  (async () => {
+    try {
+      const res = await request("ui/initialize", {
+        protocolVersion: "2026-01-26",
+        appInfo: { name: "spec-gate-review", version: "1" },
+        clientInfo: { name: "spec-gate-review", version: "1" },
+        appCapabilities: {}, capabilities: {},
+      });
+      applyTheme(res && res.hostContext && res.hostContext.theme);
+    } catch (e) { /* 初期化に応答しないホストでも一覧は読みにいく */ }
+    notify("ui/notifications/initialized");
+    if (!state.items.length) load();
+  })();
+})();
+</script>
+</body>
+</html>

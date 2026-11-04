@@ -1,5 +1,5 @@
 # confidence: 3/3
-# dry-run: pass
+# dry-run: fail: 9 件中 4 件が期待と違う
 # 承認するには内容を確認して claims/<領域>/ に移し、`spec-gate approve REMOTE-001` を実行する
 id: REMOTE-001
 kind: example

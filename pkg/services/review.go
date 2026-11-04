@@ -110,9 +110,9 @@ func (s *ReviewService) Approve(ctx context.Context, name, by string) (ApproveRe
 
 // BulkOutcome はまとめ承認の 1 件分の結果。Error が空なら承認できた。
 type BulkOutcome struct {
-	Name  string
-	ID    string
-	Error string
+	Name  string `json:"name"`
+	ID    string `json:"id,omitempty"`
+	Error string `json:"error,omitempty"`
 }
 
 // BulkTargets はまとめ承認の対象（domain.BulkEligible）を承認しやすい順に返す。kinds が空でなければ kind で絞る。

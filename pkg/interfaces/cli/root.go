@@ -164,6 +164,7 @@ func Execute() {
 		newLintCmd(&a),
 		newApproveCmd(&a),
 		newReviewCmd(&a),
+		newMCPCmd(&a),
 		newCoverageCmd(&a),
 		newMetricsCmd(&a),
 		newTraceCmd(&a),

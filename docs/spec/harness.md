@@ -358,17 +358,12 @@ binding: `go run ./tools/bind remote-decisions`（入力は `{"hook": hook の s
 自己適用（`docs/spec/harness.md` の 16 節）では候補が 149 件出た。1 件ずつの承認では、確かめる価値の高い候補に人間の時間が回らない。
 承認しやすい候補から順に出し、確かめるまでもない候補はまとめて承認できるようにする。承認は人間の操作のまま（エージェントには実行させない）。
 
-- 承認画面・`review ask` は、候補を承認しやすい順に並べる。順は、試し実行（`# dry-run:`）が pass → none → fail → error、同じなら合意数の多い順（`n/N` の n/N が大きい順）、同じなら kind が example → structure → ui → manual、同じならファイル名の順。`# dry-run:` の無い候補は none と同じ
+- 承認画面・`review ask`・MCP Apps の承認 UI は、候補を承認しやすい順に並べる。順は、試し実行（`# dry-run:`）が pass → none → fail → error、同じなら合意数の多い順（`n/N` の n/N が大きい順）、同じなら kind が example → structure → ui → manual、同じならファイル名の順。`# dry-run:` の無い候補は none と同じ
 - まとめ承認の対象（既定）は、合意数が全員一致（`N/N`）で、kind が example なら試し実行が pass のもの。読めない候補・ID が重複する候補は対象にしない
 - `spec-gate approve --pending` は対象の候補を一覧するだけで、承認しない。`--yes` を付けたときだけ、1 件ずつ承認画面の承認と同じ処理で承認する。1 件が拒否されても残りは続け、拒否が 1 件でもあれば exit 1
   - `--min-agree <n>` は合意数の下限を n にする（既定は全員一致）。`--kind <kind>` は kind で絞る（繰り返し可）
   - 試し実行の条件は承認時の試し実行で判定する（ヘッダは使わない）
-- 承認画面は候補ごとにチェックボックスを持ち、「まとめ承認の対象を選ぶ」と「選んだ候補を承認」のボタンを出す。承認は `/api/approve-bulk` に候補名の配列を送り、1 件ずつの結果を返す
-- `spec-gate review ask --bulk` は、まとめ承認の対象を最大 8 件、1 つの質問にまとめる
-  - question は「候補 <n> 件（<ID>, <ID>, …）をまとめて承認しますか？」、header は「まとめ承認」、multiSelect は false
-  - 選択肢は「まとめて承認」「1 件ずつ見る」の 2 つ。preview は、対象の候補の preview を `---` の行で区切って並べたもの（2 つとも同じ）
-  - 対象が無ければ `[]` を出し、stderr に案内する
-- `review record` は、まとめ承認の質問も、spec-gate がその ID の並びから今作る質問と完全に一致するときだけ反映する。回答が「まとめて承認」なら並んだ候補を 1 件ずつ承認する。それ以外の回答は何もしない
+- まとめ承認の画面は「MCP Apps の承認 UI」で出す（リモートセッションでも押せるように）
 - 候補の preview には、試し実行の結果（`# dry-run:`）と、manual の手がかり（`hint`）があれば出す
 
 binding: `go run ./tools/bind review-order`（入力は候補の配列 `{"name", "kind", "confidence", "dry_run"}`、出力は並べたあとの name の配列）
@@ -409,6 +404,30 @@ binding: `go run ./tools/bind manual-rate`（入力は claim の kind の配列�
 | `["example"]` | `0` |
 | `[]` | `0` |
 
+## MCP Apps の承認 UI
+
+利用者はスマホからリモートセッション（claude.ai/code・Claude アプリ）で作業することが多い。承認画面（`review`）は 127.0.0.1 でしか待ち受けないので開けず、
+質問ダイアログ（リモート承認）は preview が表示されない。そこで、承認待ちの候補を MCP Apps（MCP の UI 拡張。ホストが `ui://` の HTML を表示する）で出し、
+リモートセッションでも内容を読んでタップで判断できるようにする。外部サービスに候補を送らない（MCP サーバはセッションのコンテナで動く）。
+
+**実機未検証**: Claude Code（とくにスマホのアプリ）が MCP Apps の画面を表示するかは公式に書かれていない。表示されないホストでも、ツールの結果に候補の要約（テキスト）を返す。
+
+- `spec-gate mcp` は stdio の MCP サーバ。リポジトリの `.mcp.json` から起動する（cloud セッションでもプロジェクトの `.mcp.json` は読まれる）
+- 画面は resource `ui://spec-gate/review`（mimeType `text/html;profile=mcp-app`）。外部のスクリプト・通信を使わない 1 つの HTML
+- ツール
+  - `review`（`_meta.ui.visibility: ["model", "app"]`、読み取りのみ）: エージェントが呼んで画面を開く。結果は、候補の要約のテキストと、候補の一覧（structuredContent）
+  - `review_list`（`["app"]`、読み取りのみ）: 候補の一覧。候補ごとに、名前・ID・title・kind・合意数・試し実行・hint・まとめ承認の対象か・内容（preview）とその sha256・仕様の抜粋・承認できない理由
+  - `review_decide`（`["app"]`）: 候補 1 件への判断（approve / reject / ambiguous と理由、見せた内容の sha256）を反映する
+  - `review_bulk_approve`（`["app"]`）: 候補の名前と見せた内容の sha256 の配列をまとめて承認する
+  - すべてのツールの `_meta.ui.resourceUri` は `ui://spec-gate/review`
+- 判断を反映するツールは `["app"]` だけにする。エージェントには見えず、呼べない（ホストは app 以外からの呼び出しを拒否する。MCP Apps 仕様の MUST）
+- 反映は承認画面と同じ処理（承認は lint・試し実行・仕様のハッシュ記録）。見せた内容の sha256 が今の候補の内容（`review ask` の preview と同じもの）の sha256 と違えば反映しない
+- 曖昧は理由が必須。却下は画面で 2 回押して確定する（候補ファイルを消すので）。まとめ承認も 2 回押して確定する
+- まとめ承認は「まとめ承認」の対象と同じ条件で選び、承認の前に example を試し実行し直して pass のものだけを承認する
+- 承認すると lint で拒否される候補・ID が重複する候補は、画面に理由を出し、承認のボタンを押せなくする（まとめ承認の対象にもしない）
+- 反映した判定は `.spec-gate/review-decisions.jsonl` に記録する（リモート承認と同じ形）
+- 画面は狭い幅（スマホ）で読めること。候補の内容は Markdown をそのまま出さず、箇条書きと「列名: 値」のブロックにする。ライト・ダークの両方に対応する
+
 ## 変更履歴
 
 - 2026-11-04 初版
@@ -420,3 +439,4 @@ binding: `go run ./tools/bind manual-rate`（入力は claim の kind の配列�
 - 2026-11-04 リモート承認の question に候補の内容を入れる（スマホのダイアログでは preview が表示されなかった）
 - 2026-11-04 合議の同定を追加（例の無い claim の言い換えを、title の文字 bigram の Dice 係数 0.6 以上で同じ主張とみなす）
 - 2026-11-04 manual と例のある claim の同定・抽出結果の試し実行・まとめ承認・manual の手がかりを追加（自己適用で manual が 76%、候補が 149 件、example 候補 28 件中 9 件が入力を JSON 文字列で書いていたため）
+- 2026-11-04 MCP Apps の承認 UI を追加（リモートセッションでも承認できるように）。質問ダイアログでのまとめ承認はやめた（preview が表示されないため）
