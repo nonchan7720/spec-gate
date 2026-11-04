@@ -58,6 +58,9 @@ Natural language is never compared with code directly. A **claim (a verifiable s
 | Check | `spec-gate check` | machine | approval → spec drift → per-kind check (examples, holdout, fuzz) → plan verify |
 | Coverage | `spec-gate coverage` | machine | Lists the parts of the specs no claim covers, and the parts marked ambiguous ("to confirm") |
 | Reverse | `spec-gate reverse [<id>...] --emit` / `--collect` | AI (subagents) | Rewrites each claim as spec prose without seeing the spec, then compares it with the original excerpt and lists what the claim adds, misses or contradicts (review aid; `--strict` exits 1 on a mismatch) |
+| Auto-approve | `spec-gate auto-approve <ref> --area <area>` | approver subagent | Extracts, reverses and dry-runs with the commands in the human-written policy (`.spec-gate/policy.yaml`) only, and approves just the candidates the policy and the evidence accept (approver `auto`, evidence in `.spec-gate/evidence/`). See `docs/spec/auto-approval.md` |
+| Audit | `spec-gate audit [--since 24h]` | anyone | Lists auto approvals newest first (agreement, reverse, dry run, evidence, revoked or not) |
+| Revoke | `spec-gate revoke <ID> --reason <why>` | **human** | Takes an approval back to `claims/_pending/`. Repeated revokes trip the breaker and stop auto-approval |
 
 ### Order of the verdict and states
 

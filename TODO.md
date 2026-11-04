@@ -162,4 +162,11 @@ README「人間の関わり方 — HITL と HOTL」の「この先」を spec-ga
 - [x] 実機で確認（2026-11-04、同じセッションで承認役が使えるようになった）: hook の入力に agent_type が入る。
       承認役からの auto-approve は承認役の規則で判定され（`cd … ;` を足したものは「1 つだけ」として拒否）、メインからの auto-approve は拒否された。
       仕様の「実機で確かめること」の段落は承認済み claim（APPROVER-013）の節にあるので、仕様は書き換えずここに記録する
-- [ ] 残りの実装: `spec-gate auto-approve`（抽出・逆変換・試し実行・証拠の書き込み）、`audit` / `revoke`、check での証拠の照合、承認記録の経路の追加、metrics
+- [x] 残りの実装（2026-11-04、利用者の指示で PdM として判断して進めた）: check での証拠の照合、`revoke` / `audit`、全経路の判定の記録、
+      `spec-gate auto-approve`、metrics の auto_approved / revoked。プランの verify 9 項目はすべて通る（凍結はまだ）
+  - スクラッチのプロジェクトで承認役から auto-approve を実行し、自動承認 → check pass → audit に出る → 証拠を書き換えると unapproved、を確認
+  - PdM として決めたこと: 方針が無効なら auto-approve は実行しない（エラー）／逆変換は ok になりうる候補だけ（既にある ID はその前に exists）／
+    exists のときは既存の証拠を上書きしないよう証拠を書かない／読めない抽出の回答は、その run が何も主張しなかったものとして数える
+  - 仕様とのずれ: 仕様は「check --json の metrics」に足すと書くが、manual_rate などの指標は `spec-gate metrics` にあるので、そちらに足した
+- [ ] 人間: 残りの候補の承認か却下（自動承認の仕様は約 60 件。AUDIT-001・002・004・005・009 は実装済みの規則なので承認してよい）
+- [ ] 実プロジェクトで `.spec-gate/policy.yaml` を書き、本物の LLM（別モデルを並べる）で auto-approve を試す

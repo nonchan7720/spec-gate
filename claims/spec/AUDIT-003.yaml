@@ -1,9 +1,11 @@
-# confidence: 3/3
-# 承認するには内容を確認して claims/<領域>/ に移し、`spec-gate approve AUDIT-003` を実行する
 id: AUDIT-003
 kind: manual
 title: spec-gate audit は自動承認した claim を新しい順に一覧し、ID・title・ref・合意数・逆変換・試し実行・時刻・証拠のパス・差し戻し済みかを表示する
 source:
     type: markdown
     ref: docs/spec/auto-approval.md#見張りと差し戻し
+approved:
+    by: nonchan7720
+    at: "2026-11-04T17:52:39Z"
+    source_hash: sha256:81efbdba1ca3f960d57fbdfa7fb76af1da442dfabc1154a336376f646ce9198a
 hint: 記録 jsonl の内容を入力に audit の出力行（順序と各列）を返す binding と、出力形式の定義があれば example にできる

@@ -1,9 +1,11 @@
-# confidence: 3/3
-# 承認するには内容を確認して claims/<領域>/ に移し、`spec-gate approve AUDIT-008` を実行する
 id: AUDIT-008
 kind: manual
 title: revoke は記録（review-decisions.jsonl）に判定 revoke で書く
 source:
     type: markdown
     ref: docs/spec/auto-approval.md#見張りと差し戻し
+approved:
+    by: nonchan7720
+    at: "2026-11-04T17:52:39Z"
+    source_hash: sha256:81efbdba1ca3f960d57fbdfa7fb76af1da442dfabc1154a336376f646ce9198a
 hint: revoke 実行後に追記された jsonl 行を返す binding があれば example にできる

@@ -56,6 +56,9 @@ flowchart LR
 | 判定 | `spec-gate check` | 機械 | 承認 → 仕様ドリフト → 種類別チェック（examples・holdout・fuzz）→ プランの verify |
 | 漏れ | `spec-gate coverage` | 機械 | 仕様のうち claim に紐づかない箇所と、曖昧と記録された箇所（要確認）を列挙 |
 | 逆変換 | `spec-gate reverse [<id>...] --emit` / `--collect` | AI（サブエージェント） | 仕様を見せずに claim だけから仕様文を書き起こし、原文の該当箇所と比べて、claim にだけある主張・抜けている規範・矛盾を列挙（レビュー補助。`--strict` で食い違いがあれば exit 1） |
+| 自動承認 | `spec-gate auto-approve <ref> --area <領域>` | 承認役のサブエージェント | 人間が書いた方針（`.spec-gate/policy.yaml`）のコマンドだけで抽出・逆変換・試し実行をし、方針と証拠が認めた候補だけを承認する（承認者 `auto`、証拠は `.spec-gate/evidence/`）。`docs/spec/auto-approval.md` |
+| 見張り | `spec-gate audit [--since 24h]` | 誰でも | 自動承認を新しい順に一覧する（合意数・逆変換・試し実行・証拠・差し戻し済みか） |
+| 差し戻し | `spec-gate revoke <ID> --reason <理由>` | **人間** | 承認を取り消して `claims/_pending/` に戻す。差し戻しが続くと自動承認はブレーカーで止まる |
 
 ### 判定の順序と状態
 

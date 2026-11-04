@@ -1,7 +1,7 @@
 ---
 title: 承認の自動化（HOTL 承認）の実装
 status: draft        # claim を承認し、claims を埋めて凍結してから active にする
-claims: [POLICY-001, AUTO-001, ELIG-001, EVID-001, BREAKER-001, PROTECT-001, APPROVER-013]  # 承認済み（2026-11-04、リモート承認）。残りの候補は承認され次第足す
+claims: [POLICY-001, AUTO-001, ELIG-001, EVID-001, BREAKER-001, PROTECT-001, APPROVER-013, AUDIT-003, AUDIT-006, AUDIT-007, AUDIT-008]  # 承認済み（2026-11-04、リモート承認）。残りの候補は承認され次第足す
 mutation: 0.8        # auto-eligible / auto-breaker の binding が触る実装に対して
 ---
 
