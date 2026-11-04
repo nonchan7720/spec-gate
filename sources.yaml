@@ -14,6 +14,12 @@ sources:
   - type: mermaid
     path: docs/arch/layers.mmd
 
+  - type: markdown
+    path: docs/spec/harness.md
+    non_normative:
+      - 背景
+      - 変更履歴
+
   # Figma はファイルキーとノードIDで指す。snapshot には FIGMA_TOKEN が必要。
   # - type: figma
   #   ref: figma://<fileKey>/<nodeId>
