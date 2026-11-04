@@ -222,6 +222,42 @@ docs/spec/rounding.md#端数処理 から読み取った主張
 （入出力例は表、層、画面の状態と文言）。YAML は見せない。承認すると `claims/spec|arch|ui/` に移して `approve` し、
 lint や仕様の読み取りで拒否されたら `_pending/` に戻して理由を表示する。却下は候補を削除する。CDN や外部リソースは使わない。
 
+### リモート承認（Claude Code の質問ダイアログ）
+
+Claude Code をリモートセッション（スマホなど）だけで操作しているときは、このローカル画面を開けない。
+リモート承認は、Claude Code の質問ダイアログ（`AskUserQuestion` ツール）に候補ごとの「承認」「却下」「曖昧」ボタンと
+候補の内容（preview）を出し、選んだ結果を PostToolUse hook で spec-gate に渡す。回答はハーネスが作り、hook も
+ハーネスが起動するので、エージェントは回答を偽造できない。外部サービス・サーバ・ネットワークは使わない。
+
+**実機未検証**: hook に渡る回答の形は、実際の Claude Code のセッションではまだ確かめていない。最初の実際の承認で結果を確認すること。
+
+1. `.claude/settings.json` に hook を自分で追加する（エージェントに設定ファイルを書き換えさせない）:
+
+   ```json
+   {
+     "hooks": {
+       "PostToolUse": [
+         {
+           "matcher": "AskUserQuestion",
+           "hooks": [{ "type": "command", "command": "spec-gate review record" }]
+         }
+       ]
+     }
+   }
+   ```
+
+2. エージェントに「`spec-gate review ask` の結果で AskUserQuestion を出して」と頼む。`review ask [--limit N]` は
+   `claims/_pending/` の候補を最大 4 件、ダイアログに渡す `questions` の JSON にして出す（候補が無ければ空配列と stderr の案内）。
+3. 候補ごとにボタンを選ぶ。仕様が決まっていない理由を残したいときは「Other」に書く。自由入力は、その文を理由にした「曖昧」として記録される。
+
+`review record` は、表示された質問が spec-gate がその候補から今作る質問（preview を含む）と完全に一致するときだけ反映する。
+エージェントが内容をすり替えた質問は反映されない。回答は `tool_response` からだけ読み、`tool_input.answers` は使わない
+（tool_input はエージェントが自分で埋める欄で承認を偽造できるため。回答が tool_input にだけあるときは何も反映しない）。承認・却下・曖昧は承認画面と同じ処理で反映し、
+`.spec-gate/review-decisions.jsonl` に追記する（時刻・候補 ID・判定・理由・承認者・表示した preview の sha256）。
+結果は `additionalContext` として Claude に返す。ダイアログの操作を壊さないよう、hook は常に exit 0。
+エージェントが `review record` を自分で実行することと、承認画面の `/api/approve`・`/api/reject`・`/api/ambiguous` を
+シェルから叩くことは hook-gate で拒否する。
+
 ## 設計上の制約と未実装
 
 - **claim が正しいかは最終的に人間が決める**。合議・lint・coverage は「間違いを人間の前で減らす」

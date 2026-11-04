@@ -147,6 +147,12 @@ type TraceLog interface {
 	All() ([]TraceEntry, error)
 }
 
+// ReviewDecisionLog はリモート承認で反映した判定の記録（.spec-gate/review-decisions.jsonl）。
+type ReviewDecisionLog interface {
+	// Append は判定を 1 件末尾に追記する
+	Append(ReviewDecision) error
+}
+
 // Extractor は仕様テキストから claim 候補を抽出する（LLM）。
 type Extractor interface {
 	Extract(ctx context.Context, ref, excerpt string) ([]Claim, error)

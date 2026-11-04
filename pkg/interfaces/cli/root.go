@@ -132,7 +132,8 @@ func Execute() {
   metrics  → claim の kind 別件数・割合と unverified 率（CI 用）
   trace    → claim ごとに、最後に pass になったときの直前の連続 fail 回数と変更行数（通り方のログ）
   reverse  → claim だけから仕様文を再生成し、原文と食い違いがないかを突き合わせる（逆変換）
-  review   → _pending の候補をローカルの Web ページで平易に並べ、人間が承認する（承認 UI）
+  review   → _pending の候補をローカルの Web ページで平易に並べ、人間が承認する（承認 UI）。
+             review ask / review record は Claude Code の質問ダイアログと PostToolUse hook で承認する（リモート承認）
   leak     → 実装ファイルに examples・holdout の値がそのまま書かれていないかを調べる
   holdout  → holdout add で holdout を足す（期待値はハッシュだけを保存。人間だけが使う）`,
 		Version:       version.Version,
