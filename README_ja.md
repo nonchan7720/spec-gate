@@ -117,6 +117,57 @@ Markdown の claim が参照する見出しが仕様から消えたとき（`sou
 - **examples だけ通しても通らない**。エージェントが読めない holdout、ランダム入力、例の値の直書きの警告、
   通り方のログで、よくある抜け道を塞ぐ（[抜け道を塞ぐ](#抜け道を塞ぐ)）
 
+### 人間の関わり方 — HITL と HOTL
+
+spec-gate は 2 つの関わり方を組み合わせている。「何が正しいか」を決めるところは
+Human-in-the-loop（HITL）、「コードがそれを守っているか」を判定するところは Human-on-the-loop（HOTL）。
+
+```mermaid
+flowchart LR
+  subgraph HITL["HITL: 承認"]
+    direction TB
+    spec["仕様"] --> cand["claim の候補<br/>（AI が抽出）"] --> ap{{"approve<br/>（人間）"}}
+  end
+  subgraph HOTL["HOTL: 実装と判定"]
+    direction TB
+    impl["エージェントが実装"] --> ck["check<br/>（exit code）"]
+    ck -- fail --> impl
+    ck -- unverified --> watch["人間があとで見る<br/>trace / metrics / coverage"]
+  end
+  HITL -- "承認済みの claim" --> HOTL
+  classDef human fill:#f59e0b,stroke:#b45309,color:#000
+  classDef machine fill:#2563eb,stroke:#1e40af,color:#fff
+  class ap,watch human
+  class ck machine
+```
+
+| | HITL（承認） | HOTL（実装と判定） |
+|---|---|---|
+| 何を決めるか | 仕様から作った claim が正しいか | コードが claim を満たすか |
+| 人間がしないと | 進まない。未承認は `unapproved`、仕様が変わると `stale` で、人間が（再）承認するまで blocking | 進む。`fail` はエージェントが自分で直し、`unverified` はエージェントを止めない |
+| 人間の道具 | 承認画面（`review`）、MCP Apps の承認 UI、リモート承認 | `trace`、`metrics` / `check --json`、`check --role`、`coverage` |
+
+設計思想の「モデルが賢くなればハーネスは素通りになり、往復が減る」は、今は HOTL 側の話。賢いモデルほど一度で `check` を通し、
+人間が見張るものが減る。HITL の承認は、モデルが賢くなっても今は減らない。
+
+#### この先: 承認も HOTL に寄せる
+
+モデルが賢くなれば、承認も「人間はゴールだけ渡し、あとは自然と回って、人間は見張るだけ」に寄せられるはずだ。ただし前提が 1 つある。
+**claim を書いた AI と、その claim を正しいと認める者は別でなければならない**。同じ AI が書いて同じ AI が認めると、
+「AI は嘘をつく前提」がそこで崩れる。だから承認を自動にするには、作者とは独立した確かめ方がそろっている必要がある。
+今あるものは、その土台になる:
+
+- **合議**（`extract --runs N`）: 互いの回答を見ない複数のサブエージェントが同じ主張を出したか
+- **試し実行**（`# dry-run:`）: 候補の例が、今のコードで実際に通るか
+- **逆変換**（`reverse`）: 仕様を見せずに claim から書き起こした文が、原文と食い違わないか
+- **まとめ承認**（`approve --pending`、MCP Apps のまとめ承認）: 全員一致で、example なら試し実行も pass の候補だけをまとめて通す。
+  今は最後のボタンを人間が押すが、条件そのものは機械が決めている
+- **曖昧の記録**（`claims/_ambiguous/`）と `coverage`: 決めきれなかったものと、claim の無い仕様の箇所を人間に見せる
+
+これらがすべて「問題なし」と言った候補は自動で承認し、人間は承認の記録（今はリモート承認と MCP Apps の分を `.spec-gate/review-decisions.jsonl` に残している）と `coverage` を見張って、
+おかしければ差し戻す。そういう HOTL の承認に移れる。**まだ実装していない**。今の承認は HITL のまま。
+移るとしても、ゴール（仕様そのもの）を決めるのは人間に残る。
+
 ## インストール
 
 **GitHub Releases（推奨）。** [Releases](https://github.com/nonchan7720/spec-gate/releases) から OS / CPU に合うアーカイブを取得する。

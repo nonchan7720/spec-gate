@@ -123,6 +123,59 @@ the harness.
   when example values are written into the implementation, and a log of how each claim came to pass close the
   usual shortcuts (see [Closing the shortcuts](#closing-the-shortcuts))
 
+### How humans take part — HITL and HOTL
+
+spec-gate combines two ways of involving humans. Deciding **what is correct** is Human-in-the-loop (HITL);
+checking **whether the code honours it** is Human-on-the-loop (HOTL).
+
+```mermaid
+flowchart LR
+  subgraph HITL["HITL: approval"]
+    direction TB
+    spec["spec"] --> cand["claim candidates<br/>(extracted by AI)"] --> ap{{"approve<br/>(human)"}}
+  end
+  subgraph HOTL["HOTL: build and check"]
+    direction TB
+    impl["the agent implements"] --> ck["check<br/>(exit code)"]
+    ck -- fail --> impl
+    ck -- unverified --> watch["humans look later<br/>trace / metrics / coverage"]
+  end
+  HITL -- "approved claims" --> HOTL
+  classDef human fill:#f59e0b,stroke:#b45309,color:#000
+  classDef machine fill:#2563eb,stroke:#1e40af,color:#fff
+  class ap,watch human
+  class ck machine
+```
+
+| | HITL (approval) | HOTL (implementation and check) |
+|---|---|---|
+| What is decided | Is a claim made from the spec correct? | Does the code satisfy the claim? |
+| If no human acts | Nothing moves. An unapproved claim is `unapproved`, a changed spec makes it `stale`, and both block until a human (re-)approves | Work goes on. The agent fixes a `fail` by itself, and `unverified` does not stop it |
+| Human tools | the review page (`review`), the MCP Apps review UI, remote approval | `trace`, `metrics` / `check --json`, `check --role`, `coverage` |
+
+The principle "as models get better, the harness simply lets them through and the round trips shrink" is about the
+HOTL side today: a better model passes `check` in one go, and humans have less to watch. HITL approval does not
+shrink with a better model yet.
+
+#### Where this could go: approval on the loop too
+
+As models get better, approval could also move towards "a human hands over only the goal, the rest runs by itself,
+and the human just watches". There is one condition: **the AI that wrote a claim must not be the one that accepts
+it**. If the same AI writes and accepts a claim, "assume the AI lies" breaks right there. So automatic approval needs
+ways of checking that are independent of the author. What exists today is the groundwork:
+
+- **Consensus** (`extract --runs N`): did several subagents that never see each other's answers state the same claim?
+- **Dry run** (`# dry-run:`): do the candidate's examples actually pass against the current code?
+- **Reverse** (`reverse`): does prose rewritten from the claim alone, without the spec, agree with the original?
+- **Bulk approval** (`approve --pending`, bulk approve in the MCP Apps UI): passes only unanimous candidates (for
+  `example`, only when the dry run also passes). A human still presses the last button, but the conditions are decided by machines
+- **Ambiguity records** (`claims/_ambiguous/`) and `coverage`: show humans what could not be decided and which parts
+  of the spec have no claim
+
+Approving candidates that all of these call fine automatically, while humans watch the approval log (remote
+and MCP Apps approvals are already recorded in `.spec-gate/review-decisions.jsonl`) and `coverage` and send back anything that looks wrong, would be HOTL approval.
+**It is not implemented**; approval is HITL today. Even then, the goal (the spec itself) stays a human's to set.
+
 ## Install
 
 **GitHub Releases (recommended).** Download the archive for your OS / CPU from
