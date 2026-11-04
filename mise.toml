@@ -13,6 +13,7 @@ actionlint = "1.7.12"
 # GitHub の stacked PR（gh stack）。PR は stack で積む（.claude/feedback/stack_prs_on_the_top.md）
 "github:github/gh-stack" = { version = "0.3.0", bin = "gh-stack" }
 gh = "2.98.0"
+"github:nonchan7720/depgraph" = "0.1.2"
 
 [env]
 # pure Go: build and test without cgo so cross builds stay plain `go build`

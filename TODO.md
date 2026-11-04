@@ -126,3 +126,13 @@ HANDOFF.md は人間の引き継ぎ文書なので触らず、エージェント
   抽出は例を捏造しないので、manual を減らすには仕様側に例を足すか binding を足すしかない。hint はその手がかりになっている
 - [ ] hint を見て、例を足せる節（mutation score の演算子一覧、fuzz の入力定義、holdout の読み込みエラーなど）に入出力例を足す
 - [ ] 読めない 3 件: AMBIG-001 / AMBIG-002（kind: ui なのに story も strings も無い）、HOLDOUT-004-2（example なのに binding が無い）
+
+## 2026-11-04 cloud セッションの環境構築
+
+- [x] mise に gh 2.98.0 / gh-stack 0.3.0 / depgraph 0.1.2 を固定（`mise.toml`）
+- [x] Neo4j: `dockerd` を起動してから `docker compose up -d`（cloud コンテナでは docker デーモンが止まっている）。depgraph scan と ARCH-001 が通る
+- [x] hook-gate（feedback-gate プラグイン）: `.claude/settings.json` の `extraKnownMarketplaces` / `enabledPlugins` で有効化（次のセッションから）
+- [x] 承認 UI の MCP: `.mcp.json` を `scripts/mcp.sh`（bin/spec-gate を使い回す）に変更。`go run` だと起動タイムアウトしていた
+- [x] cloud セッションの準備は SessionStart hook の `scripts/session-start.sh` が行う（`CLAUDE_CODE_REMOTE=true` のときだけ。mise install、dockerd、`docker compose up -d`、bin/spec-gate のビルドをバックグラウンドで）。cloud 環境のセットアップスクリプトは他のリポジトリと共有なので使わない
+- [ ] depgraph の warn 4 件（duplicate-code 3、duplicate-symbol 1）を直す
+- gh stack: このセッションの環境では GraphQL が使えないので `gh stack` のコマンドは動かない。stack の REST（`/repos/{o}/{r}/stacks`、`/pulls/{n}/merge-async`）は動く

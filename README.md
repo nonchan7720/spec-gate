@@ -452,7 +452,7 @@ Remote sessions cannot open `review` (127.0.0.1), and the question dialog's prev
   Starting `spec-gate mcp` from a shell to call them directly is denied by hook-gate (`protect_spec_claims`)
 - A decision is applied only when the sha256 of the content shown matches the current candidate. Approval runs the same steps as the review page (lint, dry-run, spec hash) and is logged in `.spec-gate/review-decisions.jsonl`
 - **Not verified on a device**: whether Claude Code (especially the mobile app) renders MCP Apps is not documented. If it does not, `review` still returns a text summary of the candidates
-- The first `go run . mcp` has to build. If the MCP server times out on start, raise `MCP_TIMEOUT` or point `.mcp.json` at a built `spec-gate`
+- `.mcp.json` starts `scripts/mcp.sh`, which reuses `bin/spec-gate` and rebuilds it only when the Go sources or the screen HTML are newer (a `go run` on every start exceeded the 30 s MCP startup timeout). In a fresh cloud container the first build can still be slow: build it in the environment's setup script (`mise run setup`) or raise `MCP_TIMEOUT`
 
 ### Remote approval (Claude Code's question dialog)
 

@@ -6,10 +6,23 @@
       "Write(./holdout/**)"
     ]
   },
+  "extraKnownMarketplaces": {
+    "claude-hook-gate": {
+      "source": { "source": "github", "repo": "nonchan7720/claude-hook-gate" }
+    }
+  },
+  "enabledPlugins": {
+    "feedback-gate@claude-hook-gate": true
+  },
   "hooks": {
     "SessionStart": [
       {
         "hooks": [
+          {
+            "type": "command",
+            "timeout": 10,
+            "command": "bash \"$CLAUDE_PROJECT_DIR/scripts/session-start.sh\""
+          },
           {
             "type": "command",
             "timeout": 10,

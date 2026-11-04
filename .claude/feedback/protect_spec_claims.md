@@ -39,9 +39,9 @@ enforce:
   - event: pre_bash
     # MCP Apps の承認 UI のサーバ（spec-gate mcp）はホストが .mcp.json から起動する。シェルから起動すると、
     # 画面専用のツール（review_decide / review_bulk_approve）を JSON-RPC で直接呼べてしまう。review record と同じ位置の規則
-    when: '(^|[\n;&|(]\s*|\b(ba|z)?sh\s+-c\s+["'']\s*)(\w+=\S*\s+)*(env\s+(\w+=\S*\s+)*)?(mise\s+(exec|x)\s+--\s+)?((\S*/)?spec-gate|go\s+run\s+\S+|(pnpm|npm\s+run)\s+gate(\s+--)?)((\s+(-C|--root)(\s+|=)\S+)*)\s+mcp\b'
+    when: '(^|[\n;&|(]\s*|\b(ba|z)?sh\s+-c\s+["'']\s*)(\w+=\S*\s+)*(env\s+(\w+=\S*\s+)*)?(mise\s+(exec|x)\s+--\s+)?((\S*/)?spec-gate|go\s+run\s+\S+|(pnpm|npm\s+run)\s+gate(\s+--)?)((\s+(-C|--root)(\s+|=)\S+)*)\s+mcp\b|(^|[\n;&|(]\s*)(\w+=\S*\s+)*((ba|z)?sh\s+)?(\./)?scripts/mcp\.sh\b'
     severity: deny
-    message: 'spec-gate mcp は MCP Apps の承認 UI のサーバで、ホスト（.mcp.json）が起動するもの。エージェントがシェルから起動してはいけない（画面専用の承認ツールを直接呼べてしまう）。承認は mcp__spec-gate__review で画面を開いて利用者に押してもらうこと。'
+    message: 'spec-gate mcp は MCP Apps の承認 UI のサーバで、ホスト（.mcp.json）が起動するもの。エージェントがシェルから起動してはいけない（scripts/mcp.sh 経由も同じ。画面専用の承認ツールを直接呼べてしまう）。承認は mcp__spec-gate__review で画面を開いて利用者に押してもらうこと。'
 ---
 
 承認済みの claim（`claims/**`、`_pending/` を除く）とハーネスの状態（`.spec-gate/`）はエージェントが書き換えない。
