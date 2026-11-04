@@ -29,7 +29,8 @@ const reverseHelp = `reverse は LLM を直接呼ばない。次のどちらか�
      SPEC_GATE_REVERSE_CMD='claude -p' spec-gate reverse [<claim-id>...]`
 
 func newReverseCmd(a **app) *cobra.Command {
-	var strict, emit, collect bool
+	var strict bool
+	var llm llmFlags
 	cmd := &cobra.Command{
 		Use:   "reverse [<claim-id>...]",
 		Short: "claim だけから仕様文を再生成し、元の仕様と食い違いがないかを LLM で突き合わせる（逆変換）",
@@ -49,7 +50,7 @@ spec-gate 自身は LLM を呼ばない。--emit / --collect でサブエージ�
 環境変数 SPEC_GATE_REVERSE_CMD に LLM コマンド（stdin に prompt、stdout に応答）を指定する。
 作業ディレクトリは .spec-gate-llm/（レポートを出したら消す）。`,
 		RunE: func(cmd *cobra.Command, args []string) error {
-			mode, err := pickLLMMode(emit, collect, os.Getenv("SPEC_GATE_REVERSE_CMD"), reverseHelp)
+			mode, err := llm.mode("SPEC_GATE_REVERSE_CMD", reverseHelp)
 			if err != nil {
 				return err
 			}
@@ -84,8 +85,9 @@ spec-gate 自身は LLM を呼ばない。--emit / --collect でサブエージ�
 		},
 	}
 	cmd.Flags().BoolVar(&strict, "strict", false, "mismatch / error があれば exit 1")
-	cmd.Flags().BoolVar(&emit, "emit", false, "LLM を呼ばず、claim ごとの再生成のプロンプトを .spec-gate-llm/ に書き出してパスを表示する")
-	cmd.Flags().BoolVar(&collect, "collect", false, "サブエージェントの回答を読み、次の段階のプロンプトかレポートを出す")
+	llm.bind(cmd,
+		"LLM を呼ばず、claim ごとの再生成のプロンプトを .spec-gate-llm/ に書き出してパスを表示する",
+		"サブエージェントの回答を読み、次の段階のプロンプトかレポートを出す")
 	return cmd
 }
 
