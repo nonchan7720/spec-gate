@@ -47,15 +47,15 @@ func newStatusCmd(a **app) *cobra.Command {
 func newLintCmd(a **app) *cobra.Command {
 	return &cobra.Command{
 		Use:   "lint",
-		Short: "claim の内部整合を検査する（examples vs properties、claim 間の矛盾）",
+		Short: "claim の内部整合を検査する（examples・holdout vs properties、claim 間の矛盾）",
 		RunE: func(cmd *cobra.Command, _ []string) error {
-			claims, err := (*a).claims.All()
+			// holdout も properties との整合を見る。holdout の指摘は番号だけで、値は出さない
+			issues, n, err := (*a).lint.Run()
 			if err != nil {
 				return err
 			}
-			issues := domain.Lint(claims)
 			if len(issues) == 0 {
-				fmt.Printf("ok: %d claims\n", len(claims))
+				fmt.Printf("ok: %d claims\n", n)
 				return nil
 			}
 			for _, is := range issues {
