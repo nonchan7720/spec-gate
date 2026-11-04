@@ -270,8 +270,11 @@ examples:
   **件数だけ**を出す（「holdout 2 件中 1 件が不一致（値は表示しない）」）。入力・期待値・実際の値は出さない
 - 平文の `out`、`in` / `out_sha256` の欠落、形の崩れたハッシュは読み込みで拒否する。`lint` は形だけを確かめる
   （対応する claim があり `kind: example` であること）
-- **holdout を足すのは人間だけ**: `spec-gate holdout add <claim-id> --in <json> --out <json>` が `in` と `out_sha256` を末尾に足す
-  （ファイルが無ければ作る）。out の平文はどこにも保存も表示もしない（ただしコマンドラインには載るので、シェルの履歴に注意）
+- **holdout を足すのは人間だけ**: `spec-gate holdout add <claim-id> --in <json>` が期待する出力（JSON）を標準入力から読み、
+  `in` と `out_sha256` を末尾に足す（ファイルが無ければ作る）。out の平文はどこにも保存も表示もしない。
+  端末ならプロンプトを出してエコーなしで読み、端末でなければパイプ全体を読む
+  （`spec-gate holdout add ID-001 --in '{"amount": 100}' < out.json`）。`--out -` は省略と同じ。
+  `--out <json>` も動くが、値がシェル履歴に残るので警告を出す
 - エージェントは `holdout/` を読めず、書けない。`.claude/settings.json` の `permissions.deny` に `Read` / `Edit` / `Write(./holdout/**)` があり、
   hook-gate が holdout を読み書きするシェルコマンド（`.claude/feedback/protect_holdout.md`）と `holdout add` の実行
   （`.claude/feedback/protect_holdout_add.md`）を拒否する。読むのは spec-gate 本体（`check` / `lint`）だけ
