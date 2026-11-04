@@ -285,9 +285,11 @@ examples:
   never the input, the expected value or the actual value
 - A plain `out`, a missing `in` / `out_sha256` or a malformed hash is rejected when the file is read. `lint` checks
   only the shape (the claim exists and is `kind: example`)
-- **Only humans add holdouts**: `spec-gate holdout add <claim-id> --in <json> --out <json>` appends `in` and
-  `out_sha256`, creating the file if needed; the plain `out` is neither stored nor printed. (It still passes through
-  your shell's command line, so mind your shell history)
+- **Only humans add holdouts**: `spec-gate holdout add <claim-id> --in <json>` reads the expected output (JSON) from
+  stdin and appends `in` and `out_sha256`, creating the file if needed; the plain `out` is neither stored nor printed.
+  On a terminal it prompts and reads without echo; otherwise it reads the whole pipe
+  (`spec-gate holdout add ID-001 --in '{"amount": 100}' < out.json`). `--out -` is the same as omitting it.
+  `--out <json>` still works but leaves the value in your shell history, so it prints a warning
 - The agent can neither read nor write `holdout/`: `.claude/settings.json` has `permissions.deny` for
   `Read` / `Edit` / `Write(./holdout/**)`, and hook-gate denies shell commands that read or write it
   (`.claude/feedback/protect_holdout.md`) and running `holdout add` (`.claude/feedback/protect_holdout_add.md`).
