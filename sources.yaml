@@ -20,6 +20,14 @@ sources:
       - 背景
       - 変更履歴
 
+  - type: markdown
+    path: docs/spec/auto-approval.md
+    non_normative:
+      - 背景
+      - 原則
+      - 未決事項
+      - 変更履歴
+
   # Figma はファイルキーとノードIDで指す。snapshot には FIGMA_TOKEN が必要。
   # - type: figma
   #   ref: figma://<fileKey>/<nodeId>

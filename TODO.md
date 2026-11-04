@@ -145,3 +145,14 @@ HANDOFF.md は人間の引き継ぎ文書なので触らず、エージェント
 - [x] それでも新しいコンテナの最初のビルドは 20〜40 秒かかり、30 秒を超えうるので、`.claude/settings.json` の `env` に
       `"MCP_TIMEOUT": "120000"` を足した（利用者の指示による）
 - gh stack: このセッションの環境では GraphQL が使えないので `gh stack` のコマンドは動かない。stack の REST（`/repos/{o}/{r}/stacks`、`/pulls/{n}/merge-async`）は動く
+
+## 承認の自動化（HOTL 承認）— 環境づくり済み（2026-11-04）
+
+README「人間の関わり方 — HITL と HOTL」の「この先」を spec-gate 自身で開発する。
+
+- [x] 仕様の草案 `docs/spec/auto-approval.md`（sources.yaml に登録。coverage で未カバーの節が見える）
+- [x] プランの草案 `plans/2026-11-auto-approval.md`（verify 8 項目。claims は承認後に入れる）
+- [x] 開発の手順のスキル `.claude/skills/spec-gate-develop/`
+- [ ] 人間: 仕様の「未決事項」6 件を決める
+- [ ] エージェント: 節ごとに抽出 → 人間: 承認 → プランの claims を埋める → 人間: plan freeze・active
+- [ ] エージェント: 実装（`check --changed` とプランの verify が通るまで）
