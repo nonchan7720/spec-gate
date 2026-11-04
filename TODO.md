@@ -142,6 +142,6 @@ HANDOFF.md は人間の引き継ぎ文書なので触らず、エージェント
 - [x] cloud セッションで spec-gate の MCP が接続タイムアウトしていた（30 秒）。session-start.sh が Neo4j イメージの pull を待ってから
       bin をビルドしていたため、MCP の起動時に bin が無く、mcp.sh が自前で（Go のダウンロード込みで）ビルドしていた。
       session-start.sh は Go だけ先に入れて bin を最初にビルドし、mcp.sh と同じロック `bin/.build.lock` を取る（mcp.sh は二重にビルドせず待つ）
-- [ ] それでも新しいコンテナの最初のビルドは 20〜40 秒かかり、30 秒を超えうる。`.claude/settings.json` の `env` に
-      `"MCP_TIMEOUT": "120000"` を足すかを人間が判断する（settings はエージェントが書き換えない）
+- [x] それでも新しいコンテナの最初のビルドは 20〜40 秒かかり、30 秒を超えうるので、`.claude/settings.json` の `env` に
+      `"MCP_TIMEOUT": "120000"` を足した（利用者の指示による）
 - gh stack: このセッションの環境では GraphQL が使えないので `gh stack` のコマンドは動かない。stack の REST（`/repos/{o}/{r}/stacks`、`/pulls/{n}/merge-async`）は動く
