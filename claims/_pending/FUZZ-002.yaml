@@ -6,3 +6,4 @@ title: 'fuzz: には回数（runs）と入力の範囲（input.type: number / in
 source:
     type: markdown
     ref: docs/spec/harness.md#ランダム入力による検証
+hint: 'fuzz: の定義を入力にして受理されるかどうか（input.type が number / integer 以外なら拒否など）を返す binding があれば example にできる'

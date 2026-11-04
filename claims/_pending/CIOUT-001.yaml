@@ -2,7 +2,8 @@
 # 承認するには内容を確認して claims/<領域>/ に移し、`spec-gate approve CIOUT-001` を実行する
 id: CIOUT-001
 kind: manual
-title: check --json は判定結果を JSON で出力し、各 claim の id・status・title・detail・spec と件数の集計を含む
+title: check --json は判定結果を JSON で出し、各 claim の id・status・title・detail・spec と件数の集計を含む
 source:
     type: markdown
     ref: docs/spec/harness.md#CI 用の出力と指標
+hint: claim 集合を入力とし check --json の JSON 出力を返す binding があれば、各要素のキーと集計の有無を example で確かめられる（集計のキー名が仕様に無い）

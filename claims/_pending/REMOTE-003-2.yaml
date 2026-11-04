@@ -1,8 +1,9 @@
-# confidence: 2/3
+# confidence: 1/3
 # 承認するには内容を確認して claims/<領域>/ に移し、`spec-gate approve REMOTE-003-2` を実行する
 id: REMOTE-003-2
 kind: manual
-title: 'AskUserQuestion の hook に渡る回答の形は実機で未検証であり、最初の実際の承認で確認する【要確認: 検証が済んだ時点で記述を更新する必要があり、機械的に判定できない】'
+title: 'AskUserQuestion の hook に渡る tool_response の形（answers の map／文字列の並び）が実機と一致する【要確認: 回答の形は実機でまだ確かめていないと仕様に書かれている】'
 source:
     type: markdown
     ref: docs/spec/harness.md#リモート承認
+hint: 実機（Claude アプリのリモートセッション）で hook の stdin を記録する必要があり、機械だけでは確かめられない

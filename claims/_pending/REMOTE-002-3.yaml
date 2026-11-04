@@ -1,8 +1,9 @@
 # confidence: 1/3
 # 承認するには内容を確認して claims/<領域>/ に移し、`spec-gate approve REMOTE-002-3` を実行する
 id: REMOTE-002-3
-kind: properties
-title: リモート承認は外部サービス・サーバ・ネットワークを使わない
+kind: manual
+title: review record は配列の回答を「, 」でつないで 1 つの回答として読む
 source:
     type: markdown
     ref: docs/spec/harness.md#リモート承認
+hint: remote-decisions binding は既にあるが、配列の回答を含む入力と出力の例が仕様に無い。例を追加すれば example にできる

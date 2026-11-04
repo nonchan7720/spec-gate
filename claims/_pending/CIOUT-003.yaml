@@ -2,7 +2,8 @@
 # 承認するには内容を確認して claims/<領域>/ に移し、`spec-gate approve CIOUT-003` を実行する
 id: CIOUT-003
 kind: manual
-title: spec-gate metrics は claim の kind 別件数と割合、unverified 率を出力する
+title: spec-gate metrics は claim の kind 別件数と割合、unverified 率を出し、--json で JSON にする
 source:
     type: markdown
     ref: docs/spec/harness.md#CI 用の出力と指標
+hint: claim の kind と status の配列を入力とし metrics の出力（kind 別件数・割合・unverified 率）を返す binding と具体的な入出力例があれば example にできる

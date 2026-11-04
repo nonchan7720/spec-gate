@@ -1,0 +1,9 @@
+# confidence: 3/3
+# 承認するには内容を確認して claims/<領域>/ に移し、`spec-gate approve LLMDEL-006` を実行する
+id: LLMDEL-006
+kind: manual
+title: spec-gate reverse [<id>...] --emit は claim ごとに再生成のプロンプトを書き出す
+source:
+    type: markdown
+    ref: docs/spec/harness.md#LLM 処理のサブエージェント委譲
+hint: claim id の配列を入力に、書き出される再生成プロンプトのパス一覧を返す binding と入出力例が必要

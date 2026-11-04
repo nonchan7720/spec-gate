@@ -1,0 +1,9 @@
+# confidence: 3/3
+# 承認するには内容を確認して claims/<領域>/ に移し、`spec-gate approve MUT-008` を実行する
+id: MUT-008
+kind: manual
+title: 変異が 1 件も作れないときは score を出さず、閾値が書かれたプランの凍結は拒否する
+source:
+    type: markdown
+    ref: docs/spec/harness.md#mutation score
+hint: 変異 0 件の対象ファイルと閾値付きプランを入力に、score 無し・凍結拒否を返す binding と例が必要

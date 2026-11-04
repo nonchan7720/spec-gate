@@ -1,8 +1,19 @@
-# confidence: 3/3
+# confidence: 1/3
+# dry-run: pass
 # 承認するには内容を確認して claims/<領域>/ に移し、`spec-gate approve RELINK-001` を実行する
 id: RELINK-001
-kind: manual
-title: claim の source.ref の見出しが仕様に無いとき、check の fail の説明に最も近い見出しを「もしかして」として添える
+kind: example
+title: 参照先の見出しが無いとき、文字単位の編集距離が最も近い見出しを提案する
 source:
     type: markdown
     ref: docs/spec/harness.md#見出し変更時の再リンク提案
+binding: go run ./tools/bind relink
+examples:
+    - in:
+        headings:
+            - 端数の処理
+            - マイナス金額
+        missing: 端数処理
+      out: 端数の処理
+properties:
+    - output == null || output in input.headings

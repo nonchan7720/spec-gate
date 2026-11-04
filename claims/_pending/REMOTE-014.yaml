@@ -2,7 +2,8 @@
 # 承認するには内容を確認して claims/<領域>/ に移し、`spec-gate approve REMOTE-014` を実行する
 id: REMOTE-014
 kind: manual
-title: 回答が「曖昧」なら理由「リモート承認で曖昧と判断（理由未記入）」で曖昧の記録、それ以外（Other の自由入力）ならその文を理由にした曖昧の記録を行う
+title: hook の設定（.claude/settings.json）は利用者が自分で書き、エージェントは書き換えない
 source:
     type: markdown
     ref: docs/spec/harness.md#リモート承認
+hint: エージェントの書き込みを hook-gate が拒否するかを確かめる binding が必要。仕様には拒否の仕組みが書かれておらず、運用上の決まりなので機械では確かめにくい

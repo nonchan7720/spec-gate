@@ -1,0 +1,9 @@
+# confidence: 1/3
+# 承認するには内容を確認して claims/<領域>/ に移し、`spec-gate approve LEAK-002-2` を実行する
+id: LEAK-002-2
+kind: manual
+title: spec-gate leak は examples の in / out の値と holdout の in の値だけを検知対象にする（holdout の期待値は対象外）
+source:
+    type: markdown
+    ref: docs/spec/harness.md#リテラル漏れ検知
+hint: 'claim の examples と holdout を用意し、どの値が検知対象に集められるかを返す binding（入力: claim と holdout、出力: 対象値の配列）があれば example にできる'

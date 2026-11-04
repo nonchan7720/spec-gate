@@ -1,0 +1,9 @@
+# confidence: 3/3
+# 承認するには内容を確認して claims/<領域>/ に移し、`spec-gate approve LLMDEL-012` を実行する
+id: LLMDEL-012
+kind: manual
+title: 各サブエージェントは自分のプロンプトだけを読み、他の run の回答を読まない
+source:
+    type: markdown
+    ref: docs/spec/harness.md#LLM 処理のサブエージェント委譲
+hint: サブエージェントのファイル読み取りを記録・制限する仕組みが無いと機械で確かめられない

@@ -1,0 +1,9 @@
+# confidence: 2/3
+# 承認するには内容を確認して claims/<領域>/ に移し、`spec-gate approve FUZZ-003-2` を実行する
+id: FUZZ-003-2
+kind: manual
+title: input.type が integer のときは整数の入力を生成する
+source:
+    type: markdown
+    ref: docs/spec/harness.md#ランダム入力による検証
+hint: fuzz 設定（type・min・max・seed・runs）を入力し、生成した入力列を出力する binding があれば properties（各要素 isInteger()）で確かめられる

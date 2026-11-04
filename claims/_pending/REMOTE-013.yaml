@@ -1,8 +1,9 @@
-# confidence: 2/3
+# confidence: 3/3
 # 承認するには内容を確認して claims/<領域>/ に移し、`spec-gate approve REMOTE-013` を実行する
 id: REMOTE-013
 kind: manual
-title: 回答が「承認」なら承認画面の承認と同じ処理（claims/<領域>/ へ移して approve）、「却下」なら却下を行う
+title: エージェントが review record を直接実行することと、承認画面の変更系 API（/api/approve・/api/reject・/api/ambiguous）をシェルから叩くことは hook-gate の pre_bash で拒否する
 source:
     type: markdown
     ref: docs/spec/harness.md#リモート承認
+hint: Bash コマンド文字列を入力し pre_bash の許可/拒否を返す binding と具体的なコマンド例があれば example にできる

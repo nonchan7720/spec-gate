@@ -1,8 +1,9 @@
-# confidence: 3/3
+# confidence: 1/3
 # 承認するには内容を確認して claims/<領域>/ に移し、`spec-gate approve FUZZ-007` を実行する
 id: FUZZ-007
 kind: manual
-title: 'メタモルフィック関係（例: f(x + 1) == f(x) + 1）を relations: に書け、f は binding の呼び出しを表し、生成した各入力 x について評価する'
+title: 'relations: にメタモルフィック関係を書け、f は binding の呼び出しを表し、生成した各入力 x について評価する'
 source:
     type: markdown
     ref: docs/spec/harness.md#ランダム入力による検証
+hint: 'relations: 付きの claim を入力にして check を実行し、各入力 x について f の呼び出しと関係の評価結果を返す binding があれば example にできる'

@@ -1,8 +1,0 @@
-# confidence: 3/3
-# 承認するには内容を確認して claims/<領域>/ に移し、`spec-gate approve MUTATE-001` を実行する
-id: MUTATE-001
-kind: manual
-title: spec-gate plan mutate は、プランの claims が触るファイル（binding のパス・layers・story）に変異を 1 か所ずつ入れて verify を実行し、落ちた変異の割合（mutation score）を出す
-source:
-    type: markdown
-    ref: docs/spec/harness.md#mutation score

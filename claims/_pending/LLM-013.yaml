@@ -1,0 +1,9 @@
+# confidence: 1/3
+# 承認するには内容を確認して claims/<領域>/ に移し、`spec-gate approve LLM-013` を実行する
+id: LLM-013
+kind: manual
+title: サブエージェントの定義を .claude/agents/ に同梱する
+source:
+    type: markdown
+    ref: docs/spec/harness.md#LLM 処理のサブエージェント委譲
+hint: .claude/agents/ に定義ファイルが存在するかを確かめるコマンドが必要（ファイル名は仕様に無い）

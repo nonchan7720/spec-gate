@@ -1,8 +1,9 @@
-# confidence: 2/3
+# confidence: 3/3
 # 承認するには内容を確認して claims/<領域>/ に移し、`spec-gate approve AMBIG-004` を実行する
 id: AMBIG-004
 kind: manual
-title: '移した claim には入力された理由を「# ambiguous:」ヘッダとして記録する【要確認: 複数行の理由の書式が書かれていない】'
+title: claims/_ambiguous/ 配下の claim は _pending/ と同じく check の対象外になる
 source:
     type: markdown
     ref: docs/spec/harness.md#曖昧の記録
+hint: 'check の対象 claim を列挙する関数への binding（入力: claim ファイルのパス群、出力: 対象となるパス群）があれば、_ambiguous/ 配下のパスが出力に含まれないことを example / property で確かめられる'

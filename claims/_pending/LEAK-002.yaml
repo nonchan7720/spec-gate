@@ -2,7 +2,8 @@
 # 承認するには内容を確認して claims/<領域>/ に移し、`spec-gate approve LEAK-002` を実行する
 id: LEAK-002
 kind: manual
-title: spec-gate leak <file>... は、指定ファイルの内容に examples の in / out の値と holdout の in の値が現れるかを調べる
+title: spec-gate leak <file>... は指定ファイルに examples の in / out の値か holdout の in の値が現れたら、値と行番号を出して exit 1 する
 source:
     type: markdown
     ref: docs/spec/harness.md#リテラル漏れ検知
+hint: claims と holdout の fixture と対象ファイルを用意して CLI を実行し、exit code と出力（値・行番号）を比べるテストが要る

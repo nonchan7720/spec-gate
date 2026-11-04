@@ -1,0 +1,9 @@
+# confidence: 1/3
+# 承認するには内容を確認して claims/<領域>/ に移し、`spec-gate approve MUT-004` を実行する
+id: MUT-004
+kind: manual
+title: 変異の種類は一覧（算術 4 種・比較 6 種・整数リテラル n→n+1）で全部であり、それ以外の変異は作らない
+source:
+    type: markdown
+    ref: docs/spec/harness.md#mutation score
+hint: 仕様の例は一部の演算子のみ。-、/、<、>=、<=、!= を含む行の mutate 入出力例があれば example にできる

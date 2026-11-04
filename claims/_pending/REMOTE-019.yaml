@@ -2,9 +2,8 @@
 # 承認するには内容を確認して claims/<領域>/ に移し、`spec-gate approve REMOTE-019` を実行する
 id: REMOTE-019
 kind: manual
-title: リモート承認は外部サービス・サーバ・ネットワークを使わない
+title: review record は何があっても exit 0 で終わる
 source:
     type: markdown
     ref: docs/spec/harness.md#リモート承認
-properties:
-    - リモート承認の処理は外部サービス・サーバ・ネットワークを使わない
+hint: 任意の stdin を入力に exit code を出力する binding があれば property（output == 0）で確かめられる

@@ -6,3 +6,4 @@ title: check --role engineer は fail を仕様の位置（file:line）つきで
 source:
     type: markdown
     ref: docs/spec/harness.md#役割別レポート
+hint: role-filter binding は id の配列しか返さないため、claim と仕様位置を入力に取り file:line つきの出力行を返す binding が必要

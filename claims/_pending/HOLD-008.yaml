@@ -1,0 +1,9 @@
+# confidence: 1/3
+# 承認するには内容を確認して claims/<領域>/ に移し、`spec-gate approve HOLD-008` を実行する
+id: HOLD-008
+kind: manual
+title: out_sha256 が 16 進小文字 64 文字でないとエラー
+source:
+    type: markdown
+    ref: docs/spec/harness.md#holdout examples
+hint: out_sha256 の文字列を入力にとり、受理かエラーかを返す binding があれば example にできる

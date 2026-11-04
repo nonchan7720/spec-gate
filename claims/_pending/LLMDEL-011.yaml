@@ -1,0 +1,9 @@
+# confidence: 3/3
+# 承認するには内容を確認して claims/<領域>/ に移し、`spec-gate approve LLMDEL-011` を実行する
+id: LLMDEL-011
+kind: manual
+title: 回答はプロンプトと同じ場所の run-<k>.answer.md（reverse は <claim-id>.restate.answer.md / <claim-id>.compare.answer.md）に書く
+source:
+    type: markdown
+    ref: docs/spec/harness.md#LLM 処理のサブエージェント委譲
+hint: ref・runs・claim id を入力に回答ファイルのパスを返す binding と、仕様上の具体的な入出力例が必要

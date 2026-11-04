@@ -2,7 +2,8 @@
 # 承認するには内容を確認して claims/<領域>/ に移し、`spec-gate approve REMOTE-010` を実行する
 id: REMOTE-010
 kind: manual
-title: '回答は tool_response だけから読み、tool_response.answers（{質問文: 回答} の map、配列の回答は `, ` でつなぐ）→ 文字列の tool_response（"質問文"="回答" の並び）の順に試し、どれでも読めなければ何もしない（stderr に理由）'
+title: 回答が「承認」なら承認画面の承認と同じ処理（claims/<領域>/ へ移して approve）、「却下」なら却下、「曖昧」・Other なら曖昧の記録を行う
 source:
     type: markdown
     ref: docs/spec/harness.md#リモート承認
+hint: 判定への変換は REMOTE-001 で確認済み。ファイル移動など実際の副作用はリポジトリ状態を入力し移動後の状態を返す結合テストが必要

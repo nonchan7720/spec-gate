@@ -1,8 +1,0 @@
-# confidence: 3/3
-# 承認するには内容を確認して claims/<領域>/ に移し、`spec-gate approve LEAK-011` を実行する
-id: LEAK-011
-kind: manual
-title: hook-gate の post_edit から実装ファイルの編集ごとに leak を呼び、見つかったら警告する
-source:
-    type: markdown
-    ref: docs/spec/harness.md#リテラル漏れ検知

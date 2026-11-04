@@ -1,0 +1,9 @@
+# confidence: 3/3
+# 承認するには内容を確認して claims/<領域>/ に移し、`spec-gate approve MUT-007` を実行する
+id: MUT-007
+kind: manual
+title: front matter に mutation 閾値があるとき、plan freeze は score が閾値未満なら凍結を拒否する
+source:
+    type: markdown
+    ref: docs/spec/harness.md#mutation score
+hint: 閾値と score を入力に凍結可否を返す binding と、閾値ちょうど・未満・以上の入出力例が必要

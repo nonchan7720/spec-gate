@@ -2,7 +2,8 @@
 # 承認するには内容を確認して claims/<領域>/ に移し、`spec-gate approve ROLE-005` を実行する
 id: ROLE-005
 kind: manual
-title: --role を付けても exit code は通常の check と同じ
+title: --role を付けても check の exit code は --role なしの通常の check と同じ
 source:
     type: markdown
     ref: docs/spec/harness.md#役割別レポート
+hint: '同じ claim 群に対して check と check --role <役割> を実行し exit code を比較する binding（入力: 結果集合と役割、出力: 両者の exit code）が必要'

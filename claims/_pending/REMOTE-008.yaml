@@ -1,8 +1,9 @@
-# confidence: 3/3
+# confidence: 2/3
 # 承認するには内容を確認して claims/<領域>/ に移し、`spec-gate approve REMOTE-008` を実行する
 id: REMOTE-008
 kind: manual
-title: review record は PostToolUse hook（matcher AskUserQuestion）から呼ばれ、stdin の hook の JSON（tool_name・tool_input.questions・tool_response）を読む
+title: '回答は tool_response.answers（{質問文: 回答}、配列の回答は ", " でつなぐ）→ 文字列の tool_response（"質問文"="回答" の並び）の順で読み、どれでも読めなければ何もせず stderr に理由を出す【要確認: hook に渡る回答の形は実機で未確認と仕様に明記されている】'
 source:
     type: markdown
     ref: docs/spec/harness.md#リモート承認
+hint: 配列の回答や読めない tool_response を含む入力例が仕様に無い。remote-decisions に配列回答の例と stderr を返す binding があれば example にできる

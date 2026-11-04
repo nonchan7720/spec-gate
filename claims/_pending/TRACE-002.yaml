@@ -2,7 +2,8 @@
 # 承認するには内容を確認して claims/<領域>/ に移し、`spec-gate approve TRACE-002` を実行する
 id: TRACE-002
 kind: manual
-title: 変更行数は git diff --numstat HEAD の追加行と削除行の合計とする。git リポジトリでなければ 0 とする
+title: '変更行数は git diff --numstat HEAD の追加行と削除行の合計とし、git リポジトリでなければ 0 とする【要確認: バイナリファイル（numstat が - を出す）や未追跡ファイルの扱いが書かれていない】'
 source:
     type: markdown
     ref: docs/spec/harness.md#通り方のログ
+hint: numstat の出力テキスト（または git リポジトリかどうか）を入力にして変更行数を返す binding があれば example にできる。仕様に具体例がない

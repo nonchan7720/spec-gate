@@ -1,8 +1,0 @@
-# confidence: 3/3
-# 承認するには内容を確認して claims/<領域>/ に移し、`spec-gate approve HARNESS-011` を実行する
-id: HARNESS-011
-kind: manual
-title: サブエージェントの定義（.claude/agents/）と、emit → 並列起動 → collect の手順（.claude/skills/）を同梱する
-source:
-    type: markdown
-    ref: docs/spec/harness.md#LLM 処理のサブエージェント委譲

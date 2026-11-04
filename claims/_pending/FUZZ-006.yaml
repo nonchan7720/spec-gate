@@ -6,3 +6,4 @@ title: properties を満たさない入力が見つかったら fail にし、�
 source:
     type: markdown
     ref: docs/spec/harness.md#ランダム入力による検証
+hint: 'properties を満たさない binding を持つ fuzz: 付き claim を入力にして check の結果（fail かどうかと反例）を返す binding があれば example にできる'

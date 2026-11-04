@@ -1,0 +1,9 @@
+# confidence: 2/3
+# 承認するには内容を確認して claims/<領域>/ に移し、`spec-gate approve HOLD-005` を実行する
+id: HOLD-005
+kind: manual
+title: holdout に平文の out を書くと、読み込みのときにエラーとして拒否する
+source:
+    type: markdown
+    ref: docs/spec/harness.md#holdout examples
+hint: holdout の YAML 内容を入力にとり、受理かエラーかを返す binding があれば example にできる

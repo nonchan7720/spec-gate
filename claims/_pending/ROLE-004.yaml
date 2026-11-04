@@ -3,7 +3,7 @@
 # 承認するには内容を確認して claims/<領域>/ に移し、`spec-gate approve ROLE-004` を実行する
 id: ROLE-004
 kind: example
-title: check --role pm は stale と unapproved を出す
+title: check --role pm は status が stale と unapproved の claim を出す
 source:
     type: markdown
     ref: docs/spec/harness.md#役割別レポート

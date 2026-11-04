@@ -1,0 +1,9 @@
+# confidence: 1/3
+# 承認するには内容を確認して claims/<領域>/ に移し、`spec-gate approve CIOUT-004-2` を実行する
+id: CIOUT-004-2
+kind: manual
+title: spec-gate metrics は --json で出力を JSON にする
+source:
+    type: markdown
+    ref: docs/spec/harness.md#CI 用の出力と指標
+hint: metrics --json の出力形式（フィールド名など）の例と、それを返す binding が仕様に必要

@@ -1,0 +1,9 @@
+# confidence: 3/3
+# 承認するには内容を確認して claims/<領域>/ に移し、`spec-gate approve RELINK-005` を実行する
+id: RELINK-005
+kind: manual
+title: 再リンクは提案だけで、claim は書き換えない
+source:
+    type: markdown
+    ref: docs/spec/harness.md#見出し変更時の再リンク提案
+hint: 参照切れの claim で check を実行し、実行前後の claim ファイルの内容を比べる binding があれば機械で確かめられる

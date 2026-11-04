@@ -2,7 +2,8 @@
 # 承認するには内容を確認して claims/<領域>/ に移し、`spec-gate approve LEAK-006` を実行する
 id: LEAK-006
 kind: manual
-title: 数値は数字が 3 桁以上のものだけを対象にする（0・1・10 のようなありふれた値は対象外）
+title: 数値は前後が数字・小数点・英字でない位置に表記がそのまま現れたときだけ検知する（1234.56 の中の 1234 は数えない）
 source:
     type: markdown
     ref: docs/spec/harness.md#リテラル漏れ検知
+hint: code が 1234.56 だけを含み values に 1234 を持つ binding の入出力例（out に 1234 が含まれない）があれば example にできる

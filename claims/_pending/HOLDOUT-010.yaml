@@ -2,7 +2,8 @@
 # 承認するには内容を確認して claims/<領域>/ に移し、`spec-gate approve HOLDOUT-010` を実行する
 id: HOLDOUT-010
 kind: manual
-title: holdout が不一致でも、レポートとエージェントへの出力に holdout の入力・期待値・実際の値を出してはならない。件数だけを出す
+title: 'spec-gate holdout add <claim-id> --in <json> --out <json> は out の正規化 JSON の SHA-256 を計算し、holdout/<claim-id>.yaml の examples: 末尾に in と out_sha256 を追加する（ファイルが無ければ作る）'
 source:
     type: markdown
     ref: docs/spec/harness.md#holdout examples
+hint: 既存ファイル内容と引数を入力に、コマンド実行後のファイル内容を出力する binding と具体例があれば example にできる

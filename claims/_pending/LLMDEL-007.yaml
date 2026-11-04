@@ -1,0 +1,9 @@
+# confidence: 3/3
+# 承認するには内容を確認して claims/<領域>/ に移し、`spec-gate approve LLMDEL-007` を実行する
+id: LLMDEL-007
+kind: manual
+title: reverse --collect は再生成の回答がそろっていれば比較のプロンプトを書き出し、比較の回答もそろっていればレポートを出す
+source:
+    type: markdown
+    ref: docs/spec/harness.md#LLM 処理のサブエージェント委譲
+hint: 回答ファイルの有無の状態を入力に、次に行う動作（比較プロンプト書き出し／レポート出力）を返す binding があれば example にできる

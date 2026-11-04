@@ -1,0 +1,9 @@
+# confidence: 3/3
+# 承認するには内容を確認して claims/<領域>/ に移し、`spec-gate approve LLMDEL-014` を実行する
+id: LLMDEL-014
+kind: manual
+title: 環境変数 SPEC_GATE_EXTRACT_CMD / SPEC_GATE_REVERSE_CMD を設定したときだけ、従来どおりそのコマンドを呼ぶ
+source:
+    type: markdown
+    ref: docs/spec/harness.md#LLM 処理のサブエージェント委譲
+hint: 環境変数の有無を入力に、外部コマンドが呼ばれたかを返す binding があれば example にできる

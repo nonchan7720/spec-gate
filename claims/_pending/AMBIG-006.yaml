@@ -1,8 +1,0 @@
-# confidence: 3/3
-# 承認するには内容を確認して claims/<領域>/ に移し、`spec-gate approve AMBIG-006` を実行する
-id: AMBIG-006
-kind: manual
-title: 'coverage は、曖昧として記録された claim が参照する単位を「要確認」として出す【要確認: 「単位」が何を指すか（ファイル・節・シンボル等）と、出力の形式が書かれていない】'
-source:
-    type: markdown
-    ref: docs/spec/harness.md#曖昧の記録

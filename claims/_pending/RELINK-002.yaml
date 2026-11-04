@@ -1,9 +1,9 @@
-# confidence: 2/3
+# confidence: 3/3
 # dry-run: pass
 # 承認するには内容を確認して claims/<領域>/ に移し、`spec-gate approve RELINK-002` を実行する
 id: RELINK-002
 kind: example
-title: 見出しの近さは文字単位の編集距離で測り、距離が見つからない見出しの文字数の半分以下の候補だけを提案する（無ければ null）
+title: 編集距離が見つからない見出しの文字数の半分以下の候補だけを提案し、無ければ null を返す
 source:
     type: markdown
     ref: docs/spec/harness.md#見出し変更時の再リンク提案

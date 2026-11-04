@@ -2,7 +2,8 @@
 # 承認するには内容を確認して claims/<領域>/ に移し、`spec-gate approve REMOTE-009-2` を実行する
 id: REMOTE-009-2
 kind: manual
-title: '`review ask` は候補が無ければ `[]` を stdout に出し、stderr に案内する'
+title: preview の平文化で " と \ を全角の ” と ＼ に置き換える
 source:
     type: markdown
     ref: docs/spec/harness.md#リモート承認
+hint: 平文化の binding と、" や \ を含む入力の例があれば example にできる

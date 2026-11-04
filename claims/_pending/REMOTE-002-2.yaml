@@ -1,8 +1,9 @@
-# confidence: 1/3
+# confidence: 2/3
 # 承認するには内容を確認して claims/<領域>/ に移し、`spec-gate approve REMOTE-002-2` を実行する
 id: REMOTE-002-2
 kind: manual
-title: リモート承認は外部サービス・サーバ・ネットワークを使わず、AskUserQuestion のダイアログと PostToolUse hook だけで完結する
+title: review ask --limit N は N が 1〜4（既定 4）で、範囲外はエラーになる
 source:
     type: markdown
     ref: docs/spec/harness.md#リモート承認
+hint: limit の値と claims/_pending/ の候補数を入力に、出力件数またはエラーを返す binding があれば example にできる

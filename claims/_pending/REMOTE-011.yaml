@@ -2,9 +2,8 @@
 # 承認するには内容を確認して claims/<領域>/ に移し、`spec-gate approve REMOTE-011` を実行する
 id: REMOTE-011
 kind: manual
-title: tool_input.answers は回答として使わない。回答が tool_input にだけあるときは何も反映せず、stderr と additionalContext に「回答が tool_response に無いため反映しない（tool_input の回答は偽造できるので使わない）」と出す
+title: 反映した判定は .spec-gate/review-decisions.jsonl に 1 件 1 行で追記する（時刻・候補 ID・判定・理由・承認者・表示した preview の sha256）。このファイルは .gitignore でリポジトリに入れない
 source:
     type: markdown
     ref: docs/spec/harness.md#リモート承認
-properties:
-    - tool_input.answers だけから承認・却下・曖昧が反映されることは決してない
+hint: record 実行後の jsonl の追記行とフィールドを返す binding、および .gitignore に該当パスがあるかの検査が必要

@@ -2,7 +2,8 @@
 # 承認するには内容を確認して claims/<領域>/ に移し、`spec-gate approve HOLDOUT-011` を実行する
 id: HOLDOUT-011
 kind: manual
-title: holdout が 1 件でも不一致なら、その claim は fail
+title: holdout add は out の平文をどこにも保存も表示もしない
 source:
     type: markdown
     ref: docs/spec/harness.md#holdout examples
+hint: コマンド実行後のファイル・標準出力・標準エラーに out の平文が含まれないことを確かめる仕組みが要る

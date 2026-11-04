@@ -1,8 +1,24 @@
 # confidence: 3/3
+# dry-run: pass
 # 承認するには内容を確認して claims/<領域>/ に移し、`spec-gate approve HOLDOUT-001` を実行する
 id: HOLDOUT-001
-kind: manual
-title: claude の examples とは別に、エージェントに見せない入出力例（holdout）を持てる
+kind: example
+title: holdout-summary は holdout の判定結果の配列から、件数だけを含むレポート用の 1 行を返す（値は表示しない）
 source:
     type: markdown
     ref: docs/spec/harness.md#holdout examples
+binding: go run ./tools/bind holdout-summary
+examples:
+    - in:
+        - pass: true
+        - pass: true
+      out: holdout 2 件すべて一致
+    - in:
+        - pass: true
+        - got: 2
+          in: 1.5
+          out: 1
+          pass: false
+      out: holdout 2 件中 1 件が不一致（値は表示しない）
+    - in: []
+      out: holdout なし

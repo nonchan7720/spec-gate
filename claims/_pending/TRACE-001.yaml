@@ -2,7 +2,8 @@
 # 承認するには内容を確認して claims/<領域>/ に移し、`spec-gate approve TRACE-001` を実行する
 id: TRACE-001
 kind: manual
-title: check --hook を実行するたびに、claim ごとの判定（時刻・claim id・status・その時点の変更行数）を .spec-gate/trace.jsonl に 1 行ずつ追記する
+title: check --hook を実行するたびに、claim ごとの判定を .spec-gate/trace.jsonl に 1 行ずつ追記する（時刻・claim id・status・その時点の変更行数）
 source:
     type: markdown
     ref: docs/spec/harness.md#通り方のログ
+hint: check --hook を複数回実行した前後の trace.jsonl の行数と各行のフィールド（時刻・claim id・status・変更行数）を比べる統合テストか、binding が要る。各行のフィールド名と時刻の形式は仕様に書かれていない
