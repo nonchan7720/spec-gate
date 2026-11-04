@@ -1,8 +1,9 @@
 # confidence: 3/3
+# dry-run: pass
 # 承認するには内容を確認して claims/<領域>/ に移し、`spec-gate approve FUZZ-008` を実行する
 id: FUZZ-008
 kind: example
-title: relation binding は関係式と f の値と x を受け取り、関係が成り立つかを真偽で返す
+title: relation 式を、x と f の呼び出し結果（values）を与えて評価し真偽を返す
 source:
     type: markdown
     ref: docs/spec/harness.md#ランダム入力による検証

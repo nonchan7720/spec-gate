@@ -1,8 +1,0 @@
-# confidence: 3/3
-# 承認するには内容を確認して claims/<領域>/ に移し、`spec-gate approve MUTATE-003` を実行する
-id: MUTATE-003
-kind: manual
-title: プランの front matter に mutation の閾値が書かれている場合、plan freeze は score が閾値未満なら凍結を拒否する
-source:
-    type: markdown
-    ref: docs/spec/harness.md#mutation score

@@ -1,8 +1,0 @@
-# confidence: 2/3
-# 承認するには内容を確認して claims/<領域>/ に移し、`spec-gate approve HOLDOUT-013-2` を実行する
-id: HOLDOUT-013-2
-kind: manual
-title: holdout を書くのは人間だけ。エージェントに spec-gate holdout add を実行させない（holdout の読み取り拒否）
-source:
-    type: markdown
-    ref: docs/spec/harness.md#holdout examples

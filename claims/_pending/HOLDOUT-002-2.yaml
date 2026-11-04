@@ -1,23 +1,9 @@
-# confidence: 1/3
+# confidence: 3/3
 # 承認するには内容を確認して claims/<領域>/ に移し、`spec-gate approve HOLDOUT-002` を実行する
 id: HOLDOUT-002
-kind: example
-title: 'holdout/ を読む・表示するシェルコマンドを hook-gate の pre_bash で拒否する【要確認: 「など」で対象コマンドが開放的。例の引数（holdout/ 配下のパス）は仕様に明記がなく、コマンド名のみ記載】'
+kind: manual
+title: 'hook-gate の `pre_bash` は `holdout/` を読む・表示するシェルコマンド（cat / less / head / tail / grep / git show / git log -p など）を拒否する【要確認: 「など」の範囲が未確定で、対象コマンドの完全な一覧がない】'
 source:
     type: markdown
     ref: docs/spec/harness.md#holdout の読み取り拒否
-examples:
-    - in: 'pre_bash: cat holdout/...'
-      out: deny
-    - in: 'pre_bash: less holdout/...'
-      out: deny
-    - in: 'pre_bash: head holdout/...'
-      out: deny
-    - in: 'pre_bash: tail holdout/...'
-      out: deny
-    - in: 'pre_bash: grep ... holdout/...'
-      out: deny
-    - in: 'pre_bash: git show (holdout/ を対象)'
-      out: deny
-    - in: 'pre_bash: git log -p (holdout/ を対象)'
-      out: deny
+hint: 仕様にはコマンド名だけで具体的なコマンド文字列の例がない。コマンド文字列を入力に取り pre_bash の許可/拒否を返す binding と、具体的な入力例（例 cat holdout/... ）があれば example にできる

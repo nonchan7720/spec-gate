@@ -1,8 +1,9 @@
-# confidence: 1/3
+# confidence: 3/3
 # 承認するには内容を確認して claims/<領域>/ に移し、`spec-gate approve TRACE-004` を実行する
 id: TRACE-004
 kind: manual
-title: spec-gate trace は claim ごとに、最後に pass になったときについて、その直前の連続 fail 回数と、その pass の時点の変更行数を出す
+title: .spec-gate/trace.jsonl は git の管理対象外にする
 source:
     type: markdown
     ref: docs/spec/harness.md#通り方のログ
+hint: git check-ignore .spec-gate/trace.jsonl が成功し、かつ git ls-files に含まれないことを確かめるコマンドがあれば機械で確かめられる

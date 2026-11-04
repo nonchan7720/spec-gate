@@ -19,15 +19,20 @@ type Metrics struct {
 	ByKind         []KindMetric `json:"by_kind"`
 	Unverified     int          `json:"unverified"`
 	UnverifiedRate float64      `json:"unverified_rate"`
+	// ManualRate は manual の claim の割合（docs/spec/harness.md「manual の手がかり」）
+	ManualRate float64 `json:"manual_rate"`
 }
 
 // ComputeMetrics は claim の判定結果から指標を出す。
 func ComputeMetrics(rs domain.Results) Metrics {
 	m := Metrics{Total: len(rs), Unverified: rs.Count(domain.StatusUnverified), UnverifiedRate: domain.UnverifiedRate(rs.Statuses())}
 	count := map[domain.ClaimKind]int{}
+	kinds := make([]domain.ClaimKind, 0, len(rs))
 	for _, r := range rs {
 		count[r.Kind]++
+		kinds = append(kinds, r.Kind)
 	}
+	m.ManualRate = domain.ManualRate(kinds)
 	for _, k := range Kinds {
 		km := KindMetric{Kind: k, Count: count[k]}
 		if m.Total > 0 {

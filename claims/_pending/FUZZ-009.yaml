@@ -1,0 +1,9 @@
+# confidence: 2/3
+# 承認するには内容を確認して claims/<領域>/ に移し、`spec-gate approve FUZZ-009` を実行する
+id: FUZZ-009
+kind: manual
+title: 'relations: の関係は生成した各入力 x について評価する'
+source:
+    type: markdown
+    ref: docs/spec/harness.md#ランダム入力による検証
+hint: 'relations: 付き fuzz claim を check に流し、関係が評価された x の列が生成入力列と一致することを返す binding が要る'

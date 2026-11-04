@@ -86,17 +86,18 @@ type RemoteHookInput struct {
 	ToolResponse json.RawMessage `json:"tool_response"`
 }
 
-var remoteQuestionRE = regexp.MustCompile(`^候補 (\S+) をどうしますか？$`)
+var remoteQuestionRE = regexp.MustCompile(`^候補 (\S+) をどうしますか？(?:\n|$)`)
 
 // NewRemoteQuestion は候補 id とその preview から質問を作る。
-// 3 つの選択肢すべてに同じ preview を付ける（どれを選んでいても候補の内容が見える）。
+// preview はスマホのダイアログに表示されない（2026-11-04、Android で確認）ので、question 文にも
+// preview を平文にした内容（RemoteQuestionBody）を入れる。3 つの選択肢すべてに同じ preview を付ける。
 func NewRemoteQuestion(id, preview string) AskQuestion {
 	header := []rune(id)
 	if len(header) > RemoteHeaderMax {
 		header = header[:RemoteHeaderMax]
 	}
 	return AskQuestion{
-		Question: "候補 " + id + " をどうしますか？",
+		Question: "候補 " + id + " をどうしますか？" + bodySuffix(RemoteQuestionBody(preview)),
 		Header:   string(header),
 		Options: []AskOption{
 			{Label: RemoteLabelApprove, Description: "内容は正しい。このまま仕様として確定する", Preview: preview},
@@ -104,6 +105,104 @@ func NewRemoteQuestion(id, preview string) AskQuestion {
 			{Label: RemoteLabelAmbiguous, Description: "仕様がまだ決まっていない。保留として記録する（理由は Other に書ける）", Preview: preview},
 		},
 	}
+}
+
+func bodySuffix(body string) string {
+	if body == "" {
+		return ""
+	}
+	return "\n\n" + body
+}
+
+// question 文に入れる内容の上限（1 行・全体の文字数、例の行数）。
+const (
+	remoteBodyLineMax    = 140
+	remoteBodyMax        = 1500
+	remoteBodyExampleMax = 6
+)
+
+// RemoteQuestionBody は preview（Markdown）を、ダイアログの question 文に入れる平文にする。
+// 見出しの # を外し、例の表は「・<入力> → <出力>」の行にする。長い行・多すぎる例は省略する。
+// 回答が文字列（"質問文"="回答" の並び）で返っても読めるよう、" と \ は全角（” ＼）に置き換える。
+func RemoteQuestionBody(preview string) string {
+	var out []string
+	inTable, header, rows, omitted := false, false, 0, 0
+	for line := range strings.SplitSeq(strings.TrimSpace(preview), "\n") {
+		t := strings.TrimSpace(line)
+		switch {
+		case strings.HasPrefix(t, "|"):
+			if !inTable {
+				inTable, header = true, true
+				continue // 表の見出し行
+			}
+			if strings.HasPrefix(t, "|---") || strings.HasPrefix(t, "|:") {
+				continue
+			}
+			cells := splitCells(t)
+			if header && len(cells) >= 2 {
+				rows++
+				if rows > remoteBodyExampleMax {
+					omitted++
+					continue
+				}
+				l := "・" + cells[0] + " → " + cells[1]
+				if len(cells) > 2 && cells[2] != "" {
+					l += "（" + cells[2] + "）"
+				}
+				out = append(out, l)
+				continue
+			}
+			out = append(out, "・"+strings.Join(cells, " / "))
+			continue
+		case inTable:
+			if omitted > 0 {
+				out = append(out, fmt.Sprintf("・ほか %d 件", omitted))
+			}
+			inTable, header, rows, omitted = false, false, 0, 0
+		}
+		switch {
+		case strings.HasPrefix(t, "## "):
+			out = append(out, "【"+strings.TrimPrefix(t, "## ")+"】")
+		case strings.HasPrefix(t, "# "):
+			out = append(out, strings.TrimPrefix(t, "# "))
+		case t == "" && len(out) > 0 && out[len(out)-1] == "":
+		default:
+			out = append(out, t)
+		}
+	}
+	if inTable && omitted > 0 {
+		out = append(out, fmt.Sprintf("・ほか %d 件", omitted))
+	}
+	for i, l := range out {
+		if r := []rune(l); len(r) > remoteBodyLineMax {
+			out[i] = string(r[:remoteBodyLineMax]) + "…"
+		}
+	}
+	body := strings.TrimSpace(strings.Join(out, "\n"))
+	if r := []rune(body); len(r) > remoteBodyMax {
+		body = string(r[:remoteBodyMax]) + "…（長いので省略。全文は承認画面で確認する）"
+	}
+	return strings.NewReplacer(`"`, "”", `\`, "＼").Replace(body)
+}
+
+// splitCells は Markdown の表の行をセルに分ける（\| はセルの区切りにしない）。
+func splitCells(row string) []string {
+	row = strings.TrimSuffix(strings.TrimPrefix(row, "|"), "|")
+	var cells []string
+	var cur strings.Builder
+	for i := 0; i < len(row); i++ {
+		switch {
+		case row[i] == '\\' && i+1 < len(row) && row[i+1] == '|':
+			cur.WriteByte('|')
+			i++
+		case row[i] == '|':
+			cells = append(cells, strings.TrimSpace(cur.String()))
+			cur.Reset()
+		default:
+			cur.WriteByte(row[i])
+		}
+	}
+	return append(cells, strings.TrimSpace(cur.String()))
 }
 
 // RemoteQuestion は承認待ち候補の質問を作る。
@@ -139,6 +238,12 @@ func RenderRemotePreview(p PendingClaim) string {
 	}
 	if c.Binding != "" {
 		fmt.Fprintf(&b, "- 確かめるコマンド: %s\n", c.Binding)
+	}
+	if p.DryRun != "" {
+		fmt.Fprintf(&b, "- 試し実行: %s\n", p.DryRun)
+	}
+	if c.Hint != "" {
+		fmt.Fprintf(&b, "- 機械で確かめるには: %s\n", c.Hint)
 	}
 	switch c.Kind {
 	case KindExample:

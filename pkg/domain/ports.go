@@ -18,7 +18,9 @@ type PendingClaim struct {
 	Path string
 	// Confidence は extract の合議の一致数（例: "2/3"）。ヘッダが無ければ空
 	Confidence string
-	Claim      Claim
+	// DryRun は試し実行の結果（`# dry-run:` ヘッダの値）。無ければ空。エージェントが書き換えられるので表示と並び順にだけ使う
+	DryRun string
+	Claim  Claim
 	// Error は読めない・必須項目が無いときの理由。空でなければ承認できない（却下のみ）
 	Error string
 }
@@ -36,6 +38,8 @@ type PendingRepository interface {
 	// MarkAmbiguous は候補 name を claims/_ambiguous/ に移し、理由を `# ambiguous:` ヘッダに記録する。
 	// claim の誤りではなく「仕様が決まっていない」ことの記録。移動後の絶対パスを返す。
 	MarkAmbiguous(name, reason string) (path string, err error)
+	// WriteDryRun は候補 name の `# dry-run:` ヘッダを summary にする（無ければ足す）。
+	WriteDryRun(name, summary string) error
 }
 
 // AmbiguousClaim は claims/_ambiguous/ にある、仕様が決まっていないと記録された候補 1 件。
@@ -202,4 +206,9 @@ type ReversePrompter interface {
 	ComparePrompt(restated, original string) string
 	// ParseCompare は比較の回答を読む。読めなければ error（一致とはみなさない）。
 	ParseCompare(answer string) (Comparison, error)
+}
+
+// BindingProbe は claim の examples だけを binding に流して試す（fuzz・holdout は流さない）。
+type BindingProbe interface {
+	Probe(ctx context.Context, c Claim) DryRun
 }

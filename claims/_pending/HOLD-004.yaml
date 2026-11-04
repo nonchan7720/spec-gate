@@ -1,0 +1,9 @@
+# confidence: 2/3
+# 承認するには内容を確認して claims/<領域>/ に移し、`spec-gate approve HOLD-004` を実行する
+id: HOLD-004
+kind: manual
+title: 正規化 JSON は値を JSON として読み直し（数値は float64）encoding/json で書いたもので、キーは辞書順、< > & の HTML エスケープなし、末尾改行なし
+source:
+    type: markdown
+    ref: docs/spec/harness.md#holdout examples
+hint: 値を入力にとり正規化 JSON 文字列を返す binding と、仕様側の入出力例があれば example にできる（現状は例が無い）

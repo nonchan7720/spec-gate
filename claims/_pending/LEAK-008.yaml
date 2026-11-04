@@ -2,7 +2,8 @@
 # 承認するには内容を確認して claims/<領域>/ に移し、`spec-gate approve LEAK-008` を実行する
 id: LEAK-008
 kind: manual
-title: 数値は、前後が数字・小数点・英字でない位置にその値の表記がそのまま現れたときだけ検知する（1234.56 の中の 1234 は 1234 として数えない）
+title: テストファイル（_test.go、.test.ts、.spec.ts）と claims/・holdout/・docs/ 配下は検知の対象外
 source:
     type: markdown
     ref: docs/spec/harness.md#リテラル漏れ検知
+hint: ファイルパス → 対象かどうか を返す binding か、各除外パスに値を書いた fixture で CLI が exit 0 になることを確かめるテストが要る

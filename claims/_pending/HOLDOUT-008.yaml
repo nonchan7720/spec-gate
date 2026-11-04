@@ -2,7 +2,8 @@
 # 承認するには内容を確認して claims/<領域>/ に移し、`spec-gate approve HOLDOUT-008` を実行する
 id: HOLDOUT-008
 kind: manual
-title: check は examples に続けて holdout の in も binding に流し、出力の正規化 JSON の SHA-256 を out_sha256 と比べる
+title: holdout が 1 件でも不一致なら、その claim は fail になる
 source:
     type: markdown
     ref: docs/spec/harness.md#holdout examples
+hint: holdout の判定結果の配列を入力に、claim の判定（pass/fail）を出力する binding があれば example にできる

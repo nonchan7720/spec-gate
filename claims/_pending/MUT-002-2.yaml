@@ -1,0 +1,9 @@
+# confidence: 1/3
+# 承認するには内容を確認して claims/<領域>/ に移し、`spec-gate approve MUT-002-2` を実行する
+id: MUT-002-2
+kind: manual
+title: 変異の種類は算術・比較・整数リテラルの一覧で全部とし、例に無い演算子（- / < >= <= !=）も一覧どおりに変異させる
+source:
+    type: markdown
+    ref: docs/spec/harness.md#mutation score
+hint: 仕様に例があるのは + * > == と整数リテラルだけ。- → +、/ → *、< → <= と >、>= → >、<= → <、!= → == の入出力例を仕様に足せば MUT-001 と同じ binding で example にできる

@@ -1,8 +1,9 @@
 # confidence: 3/3
+# dry-run: pass
 # 承認するには内容を確認して claims/<領域>/ に移し、`spec-gate approve LEAK-001` を実行する
 id: LEAK-001
 kind: example
-title: コード内に値の表記がそのまま現れた場合のみ、その値を検知して返す（3桁以上の数値・4文字以上の文字列が対象）
+title: leak の検知関数は、code に現れる対象値（3 桁以上の数値・4 文字以上の文字列）だけを見つかった値として返す
 source:
     type: markdown
     ref: docs/spec/harness.md#リテラル漏れ検知
@@ -35,3 +36,5 @@ examples:
             - ok
       out:
         - 円未満は切り捨て
+properties:
+    - all(output, {# in input.values})

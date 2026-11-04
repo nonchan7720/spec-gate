@@ -1,0 +1,9 @@
+# confidence: 3/3
+# 承認するには内容を確認して claims/<領域>/ に移し、`spec-gate approve LLMDEL-005` を実行する
+id: LLMDEL-005
+kind: manual
+title: extract --collect で回答が欠けていれば、欠けている run を表示してエラーにする
+source:
+    type: markdown
+    ref: docs/spec/harness.md#LLM 処理のサブエージェント委譲
+hint: 存在する回答の run 番号と runs を入力に、終了コードと表示される欠けた run を返す binding があれば example にできる

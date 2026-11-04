@@ -2,7 +2,8 @@
 # 承認するには内容を確認して claims/<領域>/ に移し、`spec-gate approve HOLDOUT-007` を実行する
 id: HOLDOUT-007
 kind: manual
-title: holdout で in が無い、out_sha256 が無い、out_sha256 が 16 進小文字 64 文字でない、のいずれもエラーになる
+title: holdout が不一致でも、レポートとエージェントへの出力に holdout の入力・期待値・実際の値を出してはならず、件数だけを出す
 source:
     type: markdown
     ref: docs/spec/harness.md#holdout examples
+hint: 不一致の holdout を含む check を実行し、レポートとエージェント向け出力全体に入力・期待値・実際の値が含まれないことを確かめる仕組みが要る

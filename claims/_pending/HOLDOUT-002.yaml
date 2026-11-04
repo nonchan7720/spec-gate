@@ -2,7 +2,8 @@
 # 承認するには内容を確認して claims/<領域>/ に移し、`spec-gate approve HOLDOUT-002` を実行する
 id: HOLDOUT-002
 kind: manual
-title: holdout には期待値を平文で持たず、ハッシュ（out_sha256）だけを持つ
+title: holdout は holdout/<claim-id>.yaml に置き、examples:（in / out_sha256 の配列）だけを書く
 source:
     type: markdown
     ref: docs/spec/harness.md#holdout examples
+hint: holdout ファイルのパスと内容を入力に、受理/拒否を出力する binding があれば example にできる

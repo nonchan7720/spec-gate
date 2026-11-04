@@ -1,0 +1,9 @@
+# confidence: 3/3
+# 承認するには内容を確認して claims/<領域>/ に移し、`spec-gate approve MUT-002` を実行する
+id: MUT-002
+kind: manual
+title: 変異は文字列リテラルとコメントの中では行わない
+source:
+    type: markdown
+    ref: docs/spec/harness.md#mutation score
+hint: 仕様に例が無い。文字列リテラルやコメント内に演算子・整数を含む行を入力にした mutate の入出力例があれば example にできる

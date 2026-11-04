@@ -1,8 +1,25 @@
-# confidence: 1/3
+# confidence: 3/3
+# dry-run: pass
 # 承認するには内容を確認して claims/<領域>/ に移し、`spec-gate approve CIOUT-004` を実行する
 id: CIOUT-004
-kind: manual
-title: spec-gate metrics --json は metrics の出力を JSON にする
+kind: example
+title: unverified 率は unverified の件数 / claim の総数で、claim が 0 件なら 0 とする
 source:
     type: markdown
     ref: docs/spec/harness.md#CI 用の出力と指標
+binding: go run ./tools/bind unverified-rate
+examples:
+    - in:
+        - pass
+        - pass
+        - unverified
+        - unverified
+        - fail
+      out: 0.4
+    - in: []
+      out: 0
+    - in:
+        - unverified
+      out: 1
+properties:
+    - output >= 0 && output <= 1

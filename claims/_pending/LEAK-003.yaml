@@ -1,8 +1,9 @@
-# confidence: 3/3
+# confidence: 2/3
 # 承認するには内容を確認して claims/<領域>/ に移し、`spec-gate approve LEAK-003` を実行する
 id: LEAK-003
 kind: manual
-title: spec-gate leak は値が見つかった場合、値と行番号を出して exit 1 で終了する
+title: holdout だけにある値が見つかったときは、値を出さず行番号だけを出す
 source:
     type: markdown
     ref: docs/spec/harness.md#リテラル漏れ検知
+hint: holdout だけに値を持つ fixture で CLI を実行し、出力にその値が含まれず行番号だけが出ることを確かめるテストが要る

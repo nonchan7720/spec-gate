@@ -31,6 +31,7 @@ Natural language is never compared with code directly. A **claim (a verifiable s
 | Lint | `spec-gate lint` | machine | Do examples satisfy properties; are holdouts well-formed; do claims contradict each other |
 | Approve | `spec-gate approve <id>` | **human** | Shows the spec excerpt and freezes its hash. Refused when lint fails |
 | Review | `spec-gate review` | **human** | A local web page (127.0.0.1) listing `claims/_pending/` in plain language with the spec excerpt; approve / reject / ambiguous per candidate. Approving moves the claim into `claims/<area>/` and runs `approve` |
+| Review UI (remote) | `spec-gate mcp` (started from `.mcp.json`) | **human** | An MCP Apps screen that also opens in remote sessions (claude.ai/code, the Claude mobile app). Candidates are sorted by how easy they are to approve; approve / reject / ambiguous / bulk approve by tapping. See [Review UI (MCP Apps)](#review-ui-mcp-apps) |
 | Remote approval | `spec-gate review ask` → question dialog | **human** answers | The same three buttons in Claude Code's question dialog, for remote sessions. See [Remote approval](#remote-approval-claude-codes-question-dialog) |
 | Check | `spec-gate check` | machine | approval → spec drift → per-kind check (examples, holdout, fuzz) → plan verify |
 | Coverage | `spec-gate coverage` | machine | Lists the parts of the specs no claim covers, and the parts marked ambiguous ("to confirm") |
@@ -437,6 +438,21 @@ Not every candidate is right or wrong: sometimes the spec itself is not decided.
 candidate to `claims/_ambiguous/` and writes `# ambiguous: <reason>` at the top. Like `_pending/`, `_ambiguous/` is
 not checked. `coverage` shows the spec units those claims point to as "to confirm" (`?`); they are a record that the
 spec is undecided, so they do not count towards coverage's exit code.
+
+### Review UI (MCP Apps)
+
+Remote sessions cannot open `review` (127.0.0.1), and the question dialog's preview is not shown in the mobile app.
+`spec-gate mcp` is an MCP server that shows the pending candidates as an MCP Apps screen (`ui://spec-gate/review`); it starts from the repository's `.mcp.json`.
+
+1. Ask the agent to open the review screen (it calls `mcp__spec-gate__review`)
+2. Read each candidate's content, dry-run result, and spec excerpt, then tap approve / reject / ambiguous. "Select bulk-approval targets" → "Approve the N selected" (press twice to confirm) approves several at once
+
+- Candidates are sorted by how easy they are to approve (dry-run pass → higher agreement → example → structure → ui → manual)
+- The tools that apply a decision (`review_decide` / `review_bulk_approve`) have `_meta.ui.visibility: ["app"]`: only the screen can call them and the agent does not see them.
+  Starting `spec-gate mcp` from a shell to call them directly is denied by hook-gate (`protect_spec_claims`)
+- A decision is applied only when the sha256 of the content shown matches the current candidate. Approval runs the same steps as the review page (lint, dry-run, spec hash) and is logged in `.spec-gate/review-decisions.jsonl`
+- **Not verified on a device**: whether Claude Code (especially the mobile app) renders MCP Apps is not documented. If it does not, `review` still returns a text summary of the candidates
+- The first `go run . mcp` has to build. If the MCP server times out on start, raise `MCP_TIMEOUT` or point `.mcp.json` at a built `spec-gate`
 
 ### Remote approval (Claude Code's question dialog)
 

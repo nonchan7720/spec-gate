@@ -2,7 +2,8 @@
 # 承認するには内容を確認して claims/<領域>/ に移し、`spec-gate approve REMOTE-015` を実行する
 id: REMOTE-015
 kind: manual
-title: '反映した判定は .spec-gate/review-decisions.jsonl に 1 件 1 行で追記し（時刻・候補 ID・判定・理由・承認者・表示した preview の sha256）、リポジトリには入れない（.gitignore）【要確認: 承認者の値の決め方が書かれていない】'
+title: リモート承認は外部サービス・サーバ・ネットワークを使わない
 source:
     type: markdown
     ref: docs/spec/harness.md#リモート承認
+hint: ネットワーク不使用は、ネットワーク遮断環境での実行や import の静的検査が必要

@@ -1,8 +1,0 @@
-# confidence: 3/3
-# 承認するには内容を確認して claims/<領域>/ に移し、`spec-gate approve HARNESS-012` を実行する
-id: HARNESS-012
-kind: manual
-title: 環境変数 SPEC_GATE_EXTRACT_CMD / SPEC_GATE_REVERSE_CMD を設定したときだけ、従来どおりコマンド（claude -p など）を呼ぶ
-source:
-    type: markdown
-    ref: docs/spec/harness.md#LLM 処理のサブエージェント委譲

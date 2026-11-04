@@ -2,7 +2,8 @@
 # 承認するには内容を確認して claims/<領域>/ に移し、`spec-gate approve HOLDOUT-005` を実行する
 id: HOLDOUT-005
 kind: manual
-title: 正規化 JSON は、値を JSON として読み直した値（数値は float64）を encoding/json で書いたもの。キーは辞書順、HTML エスケープ（< > &）なし、末尾改行なし
+title: check は examples に続けて holdout の in も binding に流し、出力の正規化 JSON の SHA-256 を out_sha256 と比べる
 source:
     type: markdown
     ref: docs/spec/harness.md#holdout examples
+hint: binding の出力と out_sha256 を入力に一致/不一致を出力する binding があれば example にできる

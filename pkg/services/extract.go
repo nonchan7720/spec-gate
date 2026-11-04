@@ -3,6 +3,7 @@ package services
 import (
 	"context"
 	"fmt"
+	"path/filepath"
 	"sort"
 
 	"github.com/nonchan7720/spec-gate/pkg/domain"
@@ -18,6 +19,9 @@ type ExtractService struct {
 	// Prompter と Work は委譲（Emit / Collect）で使う
 	Prompter domain.ExtractPrompter
 	Work     domain.LLMWorkspace
+	// Probe と Pending があれば、置いた example 候補を試し実行して `# dry-run:` を書く（docs/spec/harness.md「抽出結果の試し実行」）
+	Probe   domain.BindingProbe
+	Pending domain.PendingRepository
 }
 
 type Candidate struct {
@@ -25,6 +29,8 @@ type Candidate struct {
 	Agreements int
 	Runs       int
 	Path       string
+	// DryRun は試し実行の結果（`# dry-run:` に書いた文字列）。試していなければ空
+	DryRun string
 }
 
 func (s *ExtractService) Extract(ctx context.Context, srcType domain.SourceType, ref string, runs int) ([]Candidate, error) {
@@ -95,7 +101,14 @@ func (s *ExtractService) consensus(srcType domain.SourceType, perRun [][]domain.
 		if err != nil {
 			return nil, err
 		}
-		out = append(out, Candidate{Claim: b.claim, Agreements: b.hits, Runs: runs, Path: p})
+		cand := Candidate{Claim: b.claim, Agreements: b.hits, Runs: runs, Path: p}
+		if s.Probe != nil && s.Pending != nil && b.claim.NeedsDryRun() {
+			cand.DryRun = s.Probe.Probe(context.Background(), b.claim).Summary()
+			if err := s.Pending.WriteDryRun(filepath.Base(p), cand.DryRun); err != nil {
+				return nil, err
+			}
+		}
+		out = append(out, cand)
 	}
 	sort.SliceStable(out, func(i, j int) bool {
 		if out[i].Agreements != out[j].Agreements {

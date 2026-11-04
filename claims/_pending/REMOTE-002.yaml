@@ -1,8 +1,9 @@
-# confidence: 3/3
+# confidence: 2/3
 # 承認するには内容を確認して claims/<領域>/ に移し、`spec-gate approve REMOTE-002` を実行する
 id: REMOTE-002
 kind: manual
-title: review ask [--limit N] は claims/_pending/ の候補から AskUserQuestion の questions にそのまま渡せる JSON 配列を stdout に出す
+title: spec-gate review ask [--limit N] は claims/_pending/ の候補から AskUserQuestion の questions にそのまま渡せる JSON 配列を stdout に出す。N は 1〜4（既定 4）で、範囲外はエラー
 source:
     type: markdown
     ref: docs/spec/harness.md#リモート承認
+hint: _pending の候補数と --limit N を入力、出力配列の長さ（最大 N）と範囲外 N（0, 5 など）での非ゼロ exit を返す binding があれば example にできる

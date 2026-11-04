@@ -2,7 +2,8 @@
 # 承認するには内容を確認して claims/<領域>/ に移し、`spec-gate approve HOLDOUT-009` を実行する
 id: HOLDOUT-009
 kind: manual
-title: properties は、holdout の in と binding の実際の出力に対して check のときに評価する。満たさなければその holdout は不一致
+title: 'lint は holdout の形だけを確かめ（対応する claim があり kind: example であること、各要素に in と正しい形の out_sha256 があること）、properties との整合は見ない'
 source:
     type: markdown
     ref: docs/spec/harness.md#holdout examples
+hint: holdout ファイルと claim 集合を入力に、lint の結果を出力する binding があれば example にできる

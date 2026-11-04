@@ -1,0 +1,9 @@
+# confidence: 3/3
+# 承認するには内容を確認して claims/<領域>/ に移し、`spec-gate approve LLMDEL-003` を実行する
+id: LLMDEL-003
+kind: manual
+title: spec-gate extract <ref> --runs N --emit は抽出のプロンプトを N 個書き出し、そのパスを表示し、LLM を呼ばない
+source:
+    type: markdown
+    ref: docs/spec/harness.md#LLM 処理のサブエージェント委譲
+hint: 入力 {ref, runs} に対し、書き出されたファイル一覧と標準出力のパス一覧、LLM 呼び出しの有無を返す binding があれば example にできる

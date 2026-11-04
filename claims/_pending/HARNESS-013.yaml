@@ -1,8 +1,0 @@
-# confidence: 3/3
-# 承認するには内容を確認して claims/<領域>/ に移し、`spec-gate approve HARNESS-013` を実行する
-id: HARNESS-013
-kind: manual
-title: 環境変数を設定せず --emit / --collect も付けなければ、委譲の手順を案内してエラーにする（意図せず LLM を呼ばない）
-source:
-    type: markdown
-    ref: docs/spec/harness.md#LLM 処理のサブエージェント委譲

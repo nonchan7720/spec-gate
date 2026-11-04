@@ -1,8 +1,0 @@
-# confidence: 3/3
-# 承認するには内容を確認して claims/<領域>/ に移し、`spec-gate approve HARNESS-007` を実行する
-id: HARNESS-007
-kind: manual
-title: プロンプトと回答は作業ディレクトリ .spec-gate-llm/ に置き、.spec-gate/ は使わない（エージェントの書き込みを禁止しているため）
-source:
-    type: markdown
-    ref: docs/spec/harness.md#LLM 処理のサブエージェント委譲

@@ -2,7 +2,8 @@
 # 承認するには内容を確認して claims/<領域>/ に移し、`spec-gate approve REMOTE-005` を実行する
 id: REMOTE-005
 kind: manual
-title: review ask の選択肢は「承認」「却下」「曖昧」の 3 つで、各 description に操作の意味を平易に書き、3 つとも同じ preview を持つ
+title: review ask の選択肢は「承認」「却下」「曖昧」の 3 つで、各 description に操作の意味を平易に書き、preview に候補の内容（タイトル・仕様の場所・種類・例の表・確かめるコマンドなど）を Markdown で書く。3 つとも同じ preview
 source:
     type: markdown
     ref: docs/spec/harness.md#リモート承認
+hint: review ask の出力 JSON を検査する binding があれば、ラベル 3 つと preview の同一性は property で確かめられる。「平易に書く」は機械で確かめられない

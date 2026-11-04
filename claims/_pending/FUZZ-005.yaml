@@ -2,7 +2,8 @@
 # 承認するには内容を確認して claims/<領域>/ に移し、`spec-gate approve FUZZ-005` を実行する
 id: FUZZ-005
 kind: manual
-title: seed を省略したら claim ID の FNV-1a（64 bit）を種にする
+title: seed を省略したら claim ID の FNV-1a（64 bit）を seed にする
 source:
     type: markdown
     ref: docs/spec/harness.md#ランダム入力による検証
+hint: claim ID を入力にして実際に使われた seed を返す binding があれば、FNV-1a 64 bit のハッシュ値と比べる example にできる（仕様に具体的な ID とハッシュ値の例が無い）

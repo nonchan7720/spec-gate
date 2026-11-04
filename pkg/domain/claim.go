@@ -80,6 +80,9 @@ type Claim struct {
 	URL     string   `yaml:"url,omitempty"`
 	Strings []string `yaml:"strings,omitempty"`
 
+	// Hint は「機械で確かめるには何が要るか」（主に kind: manual。docs/spec/harness.md「manual の手がかり」）。判定には使わない
+	Hint string `yaml:"hint,omitempty"`
+
 	// File は読み込み元。永続化しない。
 	File string `yaml:"-"`
 }

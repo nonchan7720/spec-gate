@@ -1,0 +1,9 @@
+# confidence: 1/3
+# 承認するには内容を確認して claims/<領域>/ に移し、`spec-gate approve REMOTE-007-2` を実行する
+id: REMOTE-007-2
+kind: manual
+title: 'preview の平文化: 見出しの # を外し ## は【】で囲む、例の表は「・<入力> → <出力>（<メモ>）」の 1 行 1 例にする'
+source:
+    type: markdown
+    ref: docs/spec/harness.md#リモート承認
+hint: Markdown の preview を入力に平文を出力する binding と例の表があれば example にできる

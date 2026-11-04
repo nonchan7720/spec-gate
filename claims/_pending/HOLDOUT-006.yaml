@@ -2,7 +2,8 @@
 # 承認するには内容を確認して claims/<領域>/ に移し、`spec-gate approve HOLDOUT-006` を実行する
 id: HOLDOUT-006
 kind: manual
-title: holdout に平文の out を書くと、読み込みで拒否されエラーになる
+title: check のとき claim の properties を holdout の in と binding の実際の出力に対して評価し、満たさなければその holdout は不一致とする
 source:
     type: markdown
     ref: docs/spec/harness.md#holdout examples
+hint: properties・holdout の in・binding の出力を入力に、holdout の判定結果を出力する binding があれば example にできる

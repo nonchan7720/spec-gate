@@ -1,0 +1,31 @@
+# confidence: 3/3
+# dry-run: pass
+# 承認するには内容を確認して claims/<領域>/ に移し、`spec-gate approve MUT-001` を実行する
+id: MUT-001
+kind: example
+title: mutate はコード 1 行に対し、定められた変異の種類で 1 か所だけ変えた行の配列を返す
+source:
+    type: markdown
+    ref: docs/spec/harness.md#mutation score
+binding: go run ./tools/bind mutate
+examples:
+    - in: a + b
+      out:
+        - a - b
+    - in: a * b
+      out:
+        - a / b
+    - in: x > 0
+      out:
+        - x >= 0
+        - x < 0
+    - in: x == y
+      out:
+        - x != y
+    - in: return 100
+      out:
+        - return 101
+    - in: return x
+      out: []
+properties:
+    - output.all(o, o != input)

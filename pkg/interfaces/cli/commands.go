@@ -1,12 +1,15 @@
 package cli
 
 import (
+	"context"
+	"errors"
 	"fmt"
 	"io"
 	"os"
 	"os/user"
 	"strings"
 
+	"github.com/nonchan7720/spec-gate/pkg/domain"
 	"github.com/nonchan7720/spec-gate/pkg/services"
 	"github.com/spf13/cobra"
 )
@@ -70,13 +73,40 @@ func newLintCmd(a **app) *cobra.Command {
 
 func newApproveCmd(a **app) *cobra.Command {
 	var by string
+	var bulk, yes bool
+	var minAgree int
+	var kinds []string
 	cmd := &cobra.Command{
-		Use:   "approve <claim-id>...",
-		Short: "claim を承認し、仕様の現在のハッシュを記録する（lint 失敗時は拒否）",
-		Args:  cobra.MinimumNArgs(1),
+		Use:   "approve <claim-id>... | approve --pending [--min-agree N] [--kind K] [--yes]",
+		Short: "claim を承認し、仕様の現在のハッシュを記録する（lint 失敗時・試し実行が error のときは拒否）",
+		Long: `approve <claim-id>... は claims/<領域>/ に置いた claim を承認する。
+
+approve --pending は claims/_pending/ のまとめ承認の対象（既定: 合意が全員一致で、kind: example なら試し実行が pass）を
+承認しやすい順に一覧する。--yes を付けたときだけ、1 件ずつ承認画面の承認と同じ処理で承認する
+（example は承認の前に試し実行し直し、pass でなければ承認しない）。拒否が 1 件でもあれば exit 1。`,
 		RunE: func(cmd *cobra.Command, args []string) error {
 			if by == "" {
 				by = currentUser()
+			}
+			if bulk {
+				if len(args) > 0 {
+					return errors.New("--pending と claim ID は同時に指定できない")
+				}
+				ks := make([]domain.ClaimKind, 0, len(kinds))
+				for _, k := range kinds {
+					ks = append(ks, domain.ClaimKind(k))
+				}
+				failed, err := runBulkApprove(cmd.Context(), newReviewService(*a), cmd.OutOrStdout(), minAgree, ks, yes, by)
+				if err != nil {
+					return err
+				}
+				if failed {
+					os.Exit(1)
+				}
+				return nil
+			}
+			if len(args) == 0 {
+				return errors.New("承認する claim ID を指定する（まとめ承認は --pending）")
 			}
 			for _, id := range args {
 				res, err := (*a).approve.Approve(cmd.Context(), id, by)
@@ -92,7 +122,49 @@ func newApproveCmd(a **app) *cobra.Command {
 		},
 	}
 	cmd.Flags().StringVar(&by, "by", "", "承認者（既定: OS ユーザー名）")
+	cmd.Flags().BoolVar(&bulk, "pending", false, "claims/_pending/ のまとめ承認の対象を一覧する（--yes で承認）")
+	cmd.Flags().BoolVar(&yes, "yes", false, "--pending の対象を実際に承認する")
+	cmd.Flags().IntVar(&minAgree, "min-agree", 0, "--pending: 合意数の下限（既定 0 = 全員一致）")
+	cmd.Flags().StringSliceVar(&kinds, "kind", nil, "--pending: kind で絞る（繰り返し可）")
 	return cmd
+}
+
+// runBulkApprove はまとめ承認の対象を一覧し、yes なら承認する。拒否が 1 件でもあれば failed。
+func runBulkApprove(ctx context.Context, svc *services.ReviewService, w io.Writer, minAgree int, kinds []domain.ClaimKind, yes bool, by string) (failed bool, err error) {
+	targets, err := svc.BulkTargets(minAgree, kinds)
+	if err != nil {
+		return false, err
+	}
+	if len(targets) == 0 {
+		_, _ = fmt.Fprintln(w, "まとめ承認の対象はありません")
+		return false, nil
+	}
+	names := make([]string, 0, len(targets))
+	for _, p := range targets {
+		dr := p.DryRun
+		if dr == "" {
+			dr = "-"
+		}
+		_, _ = fmt.Fprintf(w, "  %-5s %-9s %-6s %-16s %s\n", p.Confidence, p.Claim.Kind, dr, p.Claim.ID, p.Claim.Title)
+		names = append(names, p.Name)
+	}
+	if !yes {
+		_, _ = fmt.Fprintf(w, "\n%d 件。内容を確かめたら --yes を付けて実行すると承認する（example は承認の前に試し実行し直す）。\n", len(targets))
+		return false, nil
+	}
+	_, _ = fmt.Fprintln(w)
+	ok := 0
+	for _, o := range svc.BulkApprove(ctx, names, by, true) {
+		if o.Error != "" {
+			failed = true
+			_, _ = fmt.Fprintf(w, "✗ %s: %s\n", o.Name, o.Error)
+			continue
+		}
+		ok++
+		_, _ = fmt.Fprintf(w, "✓ %s approved by %s\n", o.ID, by)
+	}
+	_, _ = fmt.Fprintf(w, "\n%d / %d 件を承認した\n", ok, len(names))
+	return failed, nil
 }
 
 func newCoverageCmd(a **app) *cobra.Command {

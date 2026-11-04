@@ -36,7 +36,7 @@ type RemoteRecordResult struct {
 }
 
 // candidates は承認待ち候補を ID ごとにまとめる。読めない候補と ID が重複する候補は外し、理由を notes に返す。
-// order は候補ファイル名の順の ID。
+// order は承認しやすい順（domain.SortForReview）の ID。
 func (s *RemoteReviewService) candidates() (byID map[string]domain.PendingClaim, order, notes []string, err error) {
 	s.Review.mu.Lock()
 	pending, err := s.Review.Pending.Pending()
@@ -44,6 +44,7 @@ func (s *RemoteReviewService) candidates() (byID map[string]domain.PendingClaim,
 	if err != nil {
 		return nil, nil, nil, err
 	}
+	domain.SortForReview(pending) // 承認しやすい順に出す（docs/spec/harness.md「まとめ承認」）
 	byID = map[string]domain.PendingClaim{}
 	dup := map[string]bool{}
 	for _, p := range pending {

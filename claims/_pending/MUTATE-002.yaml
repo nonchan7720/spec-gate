@@ -1,8 +1,0 @@
-# confidence: 3/3
-# 承認するには内容を確認して claims/<領域>/ に移し、`spec-gate approve MUTATE-002` を実行する
-id: MUTATE-002
-kind: manual
-title: 変異を入れたファイルは、成功・失敗・中断に関わらず必ず元に戻す
-source:
-    type: markdown
-    ref: docs/spec/harness.md#mutation score

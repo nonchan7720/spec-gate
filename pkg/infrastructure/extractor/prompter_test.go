@@ -51,3 +51,30 @@ func TestPrompter_Parse(t *testing.T) {
 		t.Fatal("claim が読めなければ error")
 	}
 }
+
+func TestPrompter_ParseNormalizesJSONStringExamples(t *testing.T) {
+	answer := "```yaml\n- id: C-1\n  kind: example\n  title: \"t\"\n  binding: go run ./tools/bind touched\n  hint: \"\"\n  examples:\n    - in: '{\"touches\": [\"a.ts\"], \"changed\": \"a.ts\"}'\n      out: true\n    - in: \"123\"\n      out: '[1, 2]'\n```"
+	claims, err := Prompter{}.Parse(answer, "a.md#x")
+	if err != nil {
+		t.Fatal(err)
+	}
+	ex := claims[0].Examples
+	if m, ok := ex[0].In.(map[string]any); !ok || m["changed"] != "a.ts" {
+		t.Errorf("JSON 文字列のオブジェクトは構造に戻す: %#v", ex[0].In)
+	}
+	if ex[1].In != "123" {
+		t.Errorf("数値に読める文字列は変えない: %#v", ex[1].In)
+	}
+	if arr, ok := ex[1].Out.([]any); !ok || len(arr) != 2 {
+		t.Errorf("out も構造に戻す: %#v", ex[1].Out)
+	}
+}
+
+func TestPrompter_PromptAsksForHintAndStructuredValues(t *testing.T) {
+	p := Prompter{}.Prompt("a.md#x", "本文")
+	for _, want := range []string{"hint", "JSON の文字列にしない"} {
+		if !strings.Contains(p, want) {
+			t.Errorf("プロンプトに %q が必要", want)
+		}
+	}
+}

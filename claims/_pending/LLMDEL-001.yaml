@@ -1,0 +1,24 @@
+# confidence: 3/3
+# dry-run: pass
+# 承認するには内容を確認して claims/<領域>/ に移し、`spec-gate approve LLMDEL-001` を実行する
+id: LLMDEL-001
+kind: example
+title: extract のプロンプトのパスは .spec-gate-llm/extract/<ref の /・#・空白を _ に置換した名前>/run-<k>.prompt.md で、runs 個並ぶ
+source:
+    type: markdown
+    ref: docs/spec/harness.md#LLM 処理のサブエージェント委譲
+binding: go run ./tools/bind llm-paths
+examples:
+    - in:
+        ref: docs/spec/rounding.md#端数処理
+        runs: 2
+      out:
+        - .spec-gate-llm/extract/docs_spec_rounding.md_端数処理/run-1.prompt.md
+        - .spec-gate-llm/extract/docs_spec_rounding.md_端数処理/run-2.prompt.md
+    - in:
+        ref: docs/arch/layers.mmd
+        runs: 1
+      out:
+        - .spec-gate-llm/extract/docs_arch_layers.mmd/run-1.prompt.md
+properties:
+    - size(output) == input.runs

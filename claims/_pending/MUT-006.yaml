@@ -1,0 +1,9 @@
+# confidence: 3/3
+# 承認するには内容を確認して claims/<領域>/ に移し、`spec-gate approve MUT-006` を実行する
+id: MUT-006
+kind: manual
+title: 変異を入れたファイルは成功・失敗・中断に関わらず必ず元に戻す
+source:
+    type: markdown
+    ref: docs/spec/harness.md#mutation score
+hint: plan mutate 実行前後（中断を含む）の対象ファイル内容を比較する仕組みが必要。中断の再現は binding の入出力では表せない

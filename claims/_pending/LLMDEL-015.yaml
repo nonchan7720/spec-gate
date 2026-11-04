@@ -1,0 +1,9 @@
+# confidence: 3/3
+# 承認するには内容を確認して claims/<領域>/ に移し、`spec-gate approve LLMDEL-015` を実行する
+id: LLMDEL-015
+kind: manual
+title: 環境変数を設定せず --emit / --collect も付けなければ、委譲の手順を案内してエラーにする
+source:
+    type: markdown
+    ref: docs/spec/harness.md#LLM 処理のサブエージェント委譲
+hint: 環境変数・フラグの組を入力に、終了コードと案内の有無を返す binding があれば example にできる（案内文言は未記載）

@@ -2,7 +2,8 @@
 # 承認するには内容を確認して claims/<領域>/ に移し、`spec-gate approve CHANGED-003` を実行する
 id: CHANGED-003
 kind: manual
-title: binding の中の語のうち、リポジトリ内に実在するファイルまたはディレクトリを指すものを、その claim が触るパスとする
+title: 触るパスがモジュール内の Go パッケージのディレクトリまたは Go ファイルなら、そのパッケージが直接・間接に import するモジュール内パッケージのディレクトリも触るパスに加える
 source:
     type: markdown
     ref: docs/spec/harness.md#変更検知の精度
+hint: 入力が触るパスの配列（とモジュールの import 関係）、出力が依存パッケージを加えた触るパスの配列となる binding と、その入出力例があれば example にできる

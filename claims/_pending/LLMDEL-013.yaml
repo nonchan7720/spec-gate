@@ -1,0 +1,9 @@
+# confidence: 3/3
+# 承認するには内容を確認して claims/<領域>/ に移し、`spec-gate approve LLMDEL-013` を実行する
+id: LLMDEL-013
+kind: manual
+title: サブエージェントの定義を .claude/agents/ に、emit → 並列起動 → collect の手順を .claude/skills/ に同梱する
+source:
+    type: markdown
+    ref: docs/spec/harness.md#LLM 処理のサブエージェント委譲
+hint: 具体的なファイル名が未記載のため、存在確認の対象パスが決まれば検証できる

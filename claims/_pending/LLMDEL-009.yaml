@@ -1,0 +1,9 @@
+# confidence: 3/3
+# 承認するには内容を確認して claims/<領域>/ に移し、`spec-gate approve LLMDEL-009` を実行する
+id: LLMDEL-009
+kind: manual
+title: .spec-gate-llm/ は git の管理対象外にする
+source:
+    type: markdown
+    ref: docs/spec/harness.md#LLM 処理のサブエージェント委譲
+hint: git check-ignore .spec-gate-llm/ が成功することを確かめるコマンドがあれば検証できる（どの仕組みで除外するかは未記載）

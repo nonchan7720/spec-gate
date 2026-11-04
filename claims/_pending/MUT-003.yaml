@@ -1,0 +1,9 @@
+# confidence: 3/3
+# 承認するには内容を確認して claims/<領域>/ に移し、`spec-gate approve MUT-003` を実行する
+id: MUT-003
+kind: manual
+title: 整数リテラル 0 と 1 は変異させない（2 以上の n のみ n+1 にする）
+source:
+    type: markdown
+    ref: docs/spec/harness.md#mutation score
+hint: 仕様に 0 / 1 を含む行の例が無い。例えば 0 や 1 のみを含む行を入力に空配列を返す mutate の例があれば example にできる

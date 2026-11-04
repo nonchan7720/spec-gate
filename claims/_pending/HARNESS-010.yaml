@@ -1,8 +1,0 @@
-# confidence: 3/3
-# 承認するには内容を確認して claims/<領域>/ に移し、`spec-gate approve HARNESS-010` を実行する
-id: HARNESS-010
-kind: manual
-title: 各サブエージェントは自分のプロンプトだけを読み、他の run の回答を読まない（合議の独立性）
-source:
-    type: markdown
-    ref: docs/spec/harness.md#LLM 処理のサブエージェント委譲

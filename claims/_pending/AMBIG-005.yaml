@@ -1,8 +1,9 @@
-# confidence: 2/3
+# confidence: 3/3
 # 承認するには内容を確認して claims/<領域>/ に移し、`spec-gate approve AMBIG-005` を実行する
 id: AMBIG-005
 kind: manual
-title: claims/_ambiguous/ 配下の claim は _pending/ と同じく check の対象外である
+title: coverage は、曖昧として記録された claim が参照する単位を「要確認」として出力する
 source:
     type: markdown
     ref: docs/spec/harness.md#曖昧の記録
+hint: 'coverage の集計関数への binding（入力: 仕様の単位一覧と _ambiguous/ の claim の source.ref、出力: 単位ごとの状態）と具体例があれば、該当単位の状態が「要確認」になることを example で確かめられる'

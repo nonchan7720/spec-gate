@@ -1,8 +1,0 @@
-# confidence: 1/3
-# 承認するには内容を確認して claims/<領域>/ に移し、`spec-gate approve RELINK-003-2` を実行する
-id: RELINK-003-2
-kind: manual
-title: '近さは見出しの文字列の編集距離（文字単位）で測り、距離が見つからない見出しの文字数の半分以下のものだけを提案する【要確認: 文字数が奇数のとき「半分」を小数（例 2.5）で比較するか切り捨てるか、不明】'
-source:
-    type: markdown
-    ref: docs/spec/harness.md#見出し変更時の再リンク提案

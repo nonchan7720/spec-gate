@@ -29,6 +29,7 @@ Figma / PNG / PDF                    ↑ 人間承認はここ 1 回だけ
 | 整合 | `spec-gate lint` | 機械 | examples が properties を満たすか、holdout の形が正しいか、claim 同士が矛盾しないか |
 | 承認 | `spec-gate approve <id>` | **人間** | 仕様の該当箇所を表示し、ハッシュを凍結。lint 失敗なら拒否 |
 | 承認 UI | `spec-gate review` | **人間** | `claims/_pending/` を仕様の抜粋つきで平易に並べるローカルの Web ページ（127.0.0.1）。候補ごとに承認・却下・曖昧を選ぶ。承認すると `claims/<領域>/` に移して `approve` する |
+| 承認 UI（リモート） | `spec-gate mcp`（`.mcp.json` から起動） | **人間** | リモートセッション（claude.ai/code・スマホの Claude アプリ）でも開ける MCP Apps の画面。承認しやすい順に並べ、承認・却下・曖昧・まとめ承認をタップで決める。下の「承認 UI（MCP Apps）」を参照 |
 | リモート承認 | `spec-gate review ask` → 質問ダイアログ | **人間**が回答 | リモートセッション向けに、同じ 3 つのボタンを Claude Code の質問ダイアログに出す。下の「リモート承認」を参照 |
 | 判定 | `spec-gate check` | 機械 | 承認 → 仕様ドリフト → 種類別チェック（examples・holdout・fuzz）→ プランの verify |
 | 漏れ | `spec-gate coverage` | 機械 | 仕様のうち claim に紐づかない箇所と、曖昧と記録された箇所（要確認）を列挙 |
@@ -410,6 +411,21 @@ lint や仕様の読み取りで拒否されたら `_pending/` に戻して理�
 **「曖昧」ボタン**がある。押すと理由を入力させ、候補を `claims/_ambiguous/` に移して先頭に `# ambiguous: <理由>` を書く。
 `_ambiguous/` は `_pending/` と同じく check の対象外。`coverage` は、それらの claim が参照する仕様の単位を「要確認」（`?`）として出す。
 要確認は仕様が決まっていないことの記録なので、coverage の exit code には数えない。
+
+### 承認 UI（MCP Apps）
+
+リモートセッションでは `review`（127.0.0.1）を開けず、質問ダイアログの preview はスマホのアプリに表示されない。
+`spec-gate mcp` は承認待ちの候補を MCP Apps の画面（`ui://spec-gate/review`）で出す MCP サーバで、リポジトリの `.mcp.json` から起動する。
+
+1. エージェントに「承認画面を開いて」と頼む（エージェントは `mcp__spec-gate__review` を呼ぶ）
+2. 画面で候補の内容・試し実行の結果・仕様の抜粋を見て、承認・却下・曖昧を押す。「まとめ承認の対象を選ぶ」→「選んだ N 件を承認」（2 回押して確定）でまとめて承認できる
+
+- 候補は承認しやすい順（試し実行 pass → 合意の多い順 → example → structure → ui → manual）
+- 判断を反映するツール（`review_decide` / `review_bulk_approve`）は `_meta.ui.visibility: ["app"]` で、画面からだけ呼べる。エージェントには見えない。
+  シェルから `spec-gate mcp` を起動して直接呼ぶ経路は hook-gate（`protect_spec_claims`）が拒否する
+- 画面に見せた内容の sha256 が今の候補と違えば反映しない。承認は承認画面と同じ処理（lint・試し実行・仕様のハッシュ記録）で、`.spec-gate/review-decisions.jsonl` に記録する
+- **実機未検証**: Claude Code（とくにスマホのアプリ）が MCP Apps の画面を表示するかは公式に書かれていない。表示されなくても、`review` の結果に候補の要約が返る
+- 初回の `go run . mcp` はビルドに時間がかかる。MCP の起動がタイムアウトするなら `MCP_TIMEOUT` を延ばすか、ビルド済みの `spec-gate` を `.mcp.json` の command にする
 
 ### リモート承認（Claude Code の質問ダイアログ）
 

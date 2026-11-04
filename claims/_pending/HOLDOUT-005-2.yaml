@@ -6,3 +6,4 @@ title: spec-gate 本体（`check` / `lint`）は holdout を読める
 source:
     type: markdown
     ref: docs/spec/harness.md#holdout の読み取り拒否
+hint: holdout に既知のファイルを置いた状態で `check` / `lint` を実行し、その内容を読めたことを観測できる binding（読み取り結果や exit code）があれば確かめられる

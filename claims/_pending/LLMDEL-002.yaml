@@ -1,0 +1,9 @@
+# confidence: 2/3
+# 承認するには内容を確認して claims/<領域>/ に移し、`spec-gate approve LLMDEL-002` を実行する
+id: LLMDEL-002
+kind: manual
+title: spec-gate 自身は LLM を呼ばず、プロンプトの書き出し（emit）と回答の取り込み（collect）だけを行う
+source:
+    type: markdown
+    ref: docs/spec/harness.md#LLM 処理のサブエージェント委譲
+hint: LLM コマンドの呼び出し有無を観測する仕組み（コマンド実行のフック等）と、emit/collect 実行時に外部プロセスが起動されないことを確かめる binding が必要

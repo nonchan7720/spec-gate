@@ -1,0 +1,9 @@
+# confidence: 3/3
+# 承認するには内容を確認して claims/<領域>/ に移し、`spec-gate approve LLMDEL-010` を実行する
+id: LLMDEL-010
+kind: manual
+title: collect が終わったら .spec-gate-llm/ のプロンプトと回答を消す
+source:
+    type: markdown
+    ref: docs/spec/harness.md#LLM 処理のサブエージェント委譲
+hint: collect 実行後に該当の作業ディレクトリが存在しないことを確かめる binding が必要

@@ -1,0 +1,9 @@
+# confidence: 1/3
+# 承認するには内容を確認して claims/<領域>/ に移し、`spec-gate approve REMOTE-014-2` を実行する
+id: REMOTE-014-2
+kind: manual
+title: 回答が読めないときは何もせず stderr に理由を出す
+source:
+    type: markdown
+    ref: docs/spec/harness.md#リモート承認
+hint: 判定が空になることは REMOTE-001 で確かめられるが、stderr を出力に含む binding が無い

@@ -2,7 +2,8 @@
 # 承認するには内容を確認して claims/<領域>/ に移し、`spec-gate approve REMOTE-007` を実行する
 id: REMOTE-007
 kind: manual
-title: review ask は読めない候補と同じ ID が複数のファイルにある候補を出さず（stderr に案内）、候補が無ければ [] を出して stderr に案内する
+title: review record は PostToolUse hook（matcher AskUserQuestion）から呼ばれ、stdin の hook JSON（tool_name・tool_input.questions・tool_response）を読む。tool_name が AskUserQuestion でない、または候補 ID を含む質問が無いときは何も出さずに終わる
 source:
     type: markdown
     ref: docs/spec/harness.md#リモート承認
+hint: review record の stdin を入力し stdout が空であることを返す binding があれば example にできる（判定部分は REMOTE-001 で確認済み）

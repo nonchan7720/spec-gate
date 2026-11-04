@@ -210,6 +210,7 @@ func TestExtract_OneRunCountsOnceForParaphrases(t *testing.T) {
 }
 
 // 言い換えとして束ねるのは、同じ ref・同じ kind の例の無い claim だけ。
+// ただし manual は、同じ ref の同じ主張の example に寄せる（harness.md「manual と例のある claim の同定」）。
 func TestExtract_ParaphraseNeedsSameRefAndKind(t *testing.T) {
 	title := "提案だけを行い、claim は書き換えない（claim の修正は人間が行う）"
 	other := manualClaim("M-2", "見出しの提案だけを行い、claim は書き換えない（claim の修正は人間が行う）")
@@ -220,8 +221,16 @@ func TestExtract_ParaphraseNeedsSameRefAndKind(t *testing.T) {
 		[]domain.Claim{manualClaim("M-1", title)},
 		[]domain.Claim{other, ui, withEx},
 	)
-	if len(cands) != 4 {
-		t.Fatalf("ref・kind・例の有無が違えば別の候補: %+v", cands)
+	if len(cands) != 3 {
+		t.Fatalf("ref・kind が違えば別の候補（manual は同じ主張の example に寄る）: %+v", cands)
+	}
+	for _, c := range cands {
+		if c.Claim.ID == "E-1" && c.Agreements != 2 {
+			t.Fatalf("example の束が manual の run を数える: %+v", c)
+		}
+		if c.Claim.ID == "M-1" {
+			t.Fatalf("manual の束は example に寄せて消える: %+v", cands)
+		}
 	}
 }
 

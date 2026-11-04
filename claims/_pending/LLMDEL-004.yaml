@@ -1,0 +1,9 @@
+# confidence: 3/3
+# 承認するには内容を確認して claims/<領域>/ に移し、`spec-gate approve LLMDEL-004` を実行する
+id: LLMDEL-004
+kind: manual
+title: spec-gate extract <ref> --collect は N 個の回答を読み、従来と同じ合議で claims/_pending/ に置く
+source:
+    type: markdown
+    ref: docs/spec/harness.md#LLM 処理のサブエージェント委譲
+hint: 回答ファイル群を入力に、claims/_pending/ に置かれる内容を返す binding と、仕様上の入出力例が必要

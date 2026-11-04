@@ -1,0 +1,9 @@
+# confidence: 3/3
+# 承認するには内容を確認して claims/<領域>/ に移し、`spec-gate approve LLMDEL-008` を実行する
+id: LLMDEL-008
+kind: manual
+title: プロンプトと回答は作業ディレクトリ .spec-gate-llm/ に置き、.spec-gate/ は使わない
+source:
+    type: markdown
+    ref: docs/spec/harness.md#LLM 処理のサブエージェント委譲
+hint: emit 実行後に .spec-gate/ 配下に新規ファイルが無く .spec-gate-llm/ にのみ書かれたことを確かめる binding が必要

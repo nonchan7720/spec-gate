@@ -1,4 +1,4 @@
-# confidence: 2/3
+# confidence: 3/3
 # 承認するには内容を確認して claims/<領域>/ に移し、`spec-gate approve RELINK-003` を実行する
 id: RELINK-003
 kind: manual
@@ -6,3 +6,4 @@ title: 編集距離が同じ候補が複数あるときは、仕様の中で先�
 source:
     type: markdown
     ref: docs/spec/harness.md#見出し変更時の再リンク提案
+hint: relink binding は使えるが、仕様に同距離の候補がある入出力例が無いため、その例（headings に同距離の見出しを 2 つ以上含むもの）が追加されれば example にできる

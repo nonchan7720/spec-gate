@@ -2,7 +2,8 @@
 # 承認するには内容を確認して claims/<領域>/ に移し、`spec-gate approve LEAK-005` を実行する
 id: LEAK-005
 kind: manual
-title: holdout から調べる対象は in の値だけで、期待値（out）は調べない（holdout は期待値をハッシュでしか持たないため）
+title: 数値は数字が 3 桁以上のものだけを対象にし、桁は符号と小数点を除いた数字の個数で数える（1.25 は 3 桁、-12 は 2 桁）
 source:
     type: markdown
     ref: docs/spec/harness.md#リテラル漏れ検知
+hint: '1.25 や -12 を values に含む binding の入出力例が仕様に無い。{code, values} → 見つかった値 の例（例: 1.25 は検知、-12 は非検知）があれば example にできる'

@@ -2,7 +2,8 @@
 # 承認するには内容を確認して claims/<領域>/ に移し、`spec-gate approve LEAK-007` を実行する
 id: LEAK-007
 kind: manual
-title: 桁数は符号と小数点を除いた数字（0〜9）の個数で数える（1.25 は 3 桁、-12 は 2 桁）
+title: 文字列は 4 文字以上のものだけを対象にする
 source:
     type: markdown
     ref: docs/spec/harness.md#リテラル漏れ検知
+hint: 3 文字と 4 文字の境界の文字列を values に含む binding の入出力例があれば example にできる（仕様の例は "ok" の非検知のみ）

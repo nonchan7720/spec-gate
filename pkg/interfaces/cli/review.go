@@ -4,16 +4,17 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"io"
 	"net"
 	"net/http"
 	"os"
 	"os/signal"
+	"sort"
 	"syscall"
 	"time"
 
-	"github.com/nonchan7720/spec-gate/pkg/infrastructure/claimrepo"
+	"github.com/nonchan7720/spec-gate/pkg/domain"
 	"github.com/nonchan7720/spec-gate/pkg/interfaces/handler/review"
-	"github.com/nonchan7720/spec-gate/pkg/services"
 	"github.com/spf13/cobra"
 )
 
@@ -38,8 +39,7 @@ Ctrl+C で終了。`,
 			if err != nil {
 				return err
 			}
-			repo := claimrepo.New((*a).root)
-			svc := &services.ReviewService{Pending: repo, Adapters: (*a).adapters, Approver: (*a).approve}
+			svc := newReviewService(*a)
 			srv := &http.Server{Handler: review.New(svc, by), ReadHeaderTimeout: 10 * time.Second}
 
 			ctx, stop := signal.NotifyContext(cmd.Context(), os.Interrupt, syscall.SIGTERM)
@@ -61,7 +61,7 @@ Ctrl+C で終了。`,
 	cmd.Flags().StringVar(&by, "by", "", "承認者（既定: OS ユーザー名）")
 	cmd.Flags().StringVar(&addr, "addr", "127.0.0.1:7790", "待ち受けアドレス（ループバックのみ）")
 	// リモート承認（質問ダイアログ + PostToolUse hook）
-	cmd.AddCommand(newReviewAskCmd(a), newReviewRecordCmd(a))
+	cmd.AddCommand(newReviewAskCmd(a), newReviewRecordCmd(a), newReviewProbeCmd(a))
 	return cmd
 }
 
@@ -82,4 +82,37 @@ func listenReview(addr string) (net.Listener, error) {
 
 func reviewURL(ln net.Listener) string {
 	return "http://" + ln.Addr().String() + "/"
+}
+
+func newReviewProbeCmd(a **app) *cobra.Command {
+	return &cobra.Command{
+		Use:   "probe",
+		Short: "承認待ちの example 候補を試し実行し直し、`# dry-run:` を書き換える",
+		Long: `claims/_pending/ の binding のある kind: example の候補に examples だけを流し、結果を候補ファイルの
+` + "`# dry-run:`" + ` に書く（pass / fail: n 件中 k 件が期待と違う / error: 理由）。候補を直したあとに使う。
+ヘッダは表示と並び順にだけ使い、承認するときには必ず試し実行し直す。`,
+		Args: cobra.NoArgs,
+		RunE: func(cmd *cobra.Command, _ []string) error {
+			res, err := newReviewService(*a).Probe(cmd.Context())
+			if err != nil {
+				return err
+			}
+			writeProbe(cmd.OutOrStdout(), res)
+			return nil
+		},
+	}
+}
+
+func writeProbe(w io.Writer, res map[string]string) {
+	names := make([]string, 0, len(res))
+	for n := range res {
+		names = append(names, n)
+	}
+	sort.Strings(names)
+	counts := map[domain.DryRunState]int{}
+	for _, n := range names {
+		_, _ = fmt.Fprintf(w, "  %-24s %s\n", n, res[n])
+		counts[domain.DryRunStateOf(res[n])]++
+	}
+	_, _ = fmt.Fprintf(w, "\n%d 件を試し実行: pass %d / fail %d / error %d\n", len(names), counts[domain.DryRunPass], counts[domain.DryRunFail], counts[domain.DryRunError])
 }

@@ -5,6 +5,8 @@ import (
 	"fmt"
 	"io"
 	"os"
+	"sort"
+	"strings"
 
 	"github.com/nonchan7720/spec-gate/pkg/domain"
 	"github.com/nonchan7720/spec-gate/pkg/services"
@@ -121,5 +123,37 @@ func writeCandidates(w io.Writer, cands []services.Candidate) {
 		}
 		_, _ = fmt.Fprintf(w, "%s%d/%d  %-12s %s\n      → %s\n", flag, c.Agreements, c.Runs, c.Claim.ID, c.Claim.Title, c.Path)
 	}
-	_, _ = fmt.Fprintf(w, "\n%d candidates. 「?」は過半数に満たない（要確認）。承認は内容を見て claims/<領域>/ へ移してから approve。\n", len(cands))
+	_, _ = fmt.Fprintf(w, "\n%d candidates. 「?」は過半数に満たない（要確認）。承認は MCP Apps の承認 UI（spec-gate mcp）か spec-gate review で。\n", len(cands))
+	_, _ = fmt.Fprint(w, candidateBreakdown(cands))
+}
+
+// candidateBreakdown は候補の内訳（docs/spec/harness.md「manual の手がかり」）。
+func candidateBreakdown(cands []services.Candidate) string {
+	kinds := map[domain.ClaimKind]int{}
+	agree := map[string]int{}
+	dry := map[domain.DryRunState]int{}
+	all := make([]domain.ClaimKind, 0, len(cands))
+	for _, c := range cands {
+		kinds[c.Claim.Kind]++
+		all = append(all, c.Claim.Kind)
+		agree[fmt.Sprintf("%d/%d", c.Agreements, c.Runs)]++
+		if c.DryRun != "" {
+			dry[domain.DryRunStateOf(c.DryRun)]++
+		}
+	}
+	var b strings.Builder
+	fmt.Fprintf(&b, "  kind: example %d / structure %d / ui %d / manual %d（manual %.0f%%）\n",
+		kinds[domain.KindExample], kinds[domain.KindStructure], kinds[domain.KindUI], kinds[domain.KindManual], domain.ManualRate(all)*100)
+	keys := make([]string, 0, len(agree))
+	for k := range agree {
+		keys = append(keys, k)
+	}
+	sort.Sort(sort.Reverse(sort.StringSlice(keys)))
+	parts := make([]string, 0, len(keys))
+	for _, k := range keys {
+		parts = append(parts, fmt.Sprintf("%s %d", k, agree[k]))
+	}
+	fmt.Fprintf(&b, "  合意: %s\n", strings.Join(parts, " / "))
+	fmt.Fprintf(&b, "  試し実行: pass %d / fail %d / error %d\n", dry[domain.DryRunPass], dry[domain.DryRunFail], dry[domain.DryRunError])
+	return b.String()
 }

@@ -1,8 +1,9 @@
-# confidence: 2/3
+# confidence: 3/3
 # 承認するには内容を確認して claims/<領域>/ に移し、`spec-gate approve REMOTE-006` を実行する
 id: REMOTE-006
 kind: manual
-title: 'preview は候補の内容（タイトル・仕様の場所・種類・例の入出力の表・確かめるコマンドなど）を Markdown で書く【要確認: 「など」の範囲が不明で、含める項目の完全な一覧が定まらない】'
+title: review ask は読めない候補と同じ ID が複数ファイルにある候補を出さず stderr に案内する。候補が無ければ [] を出し stderr に案内する
 source:
     type: markdown
     ref: docs/spec/harness.md#リモート承認
+hint: _pending のファイル群を入力し stdout の配列と stderr の有無を返す binding があれば example にできる

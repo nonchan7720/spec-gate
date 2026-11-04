@@ -1,8 +1,0 @@
-# confidence: 3/3
-# 承認するには内容を確認して claims/<領域>/ に移し、`spec-gate approve CHANGED-006` を実行する
-id: CHANGED-006
-kind: manual
-title: 触るパスがモジュール内の Go パッケージのディレクトリ（または Go ファイル）なら、そのパッケージが直接・間接に import するモジュール内パッケージのディレクトリも触るパスに加え、上の 3 つの規則で比べる
-source:
-    type: markdown
-    ref: docs/spec/harness.md#変更検知の精度

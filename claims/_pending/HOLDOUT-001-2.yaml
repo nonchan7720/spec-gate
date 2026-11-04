@@ -6,3 +6,4 @@ title: '`.claude/settings.json` の `permissions.deny` に `Read(./holdout/**)` 
 source:
     type: markdown
     ref: docs/spec/harness.md#holdout の読み取り拒否
+hint: '`.claude/settings.json` を読んで permissions.deny 配列を返す binding があれば、output.exists(x, x == ''Read(./holdout/**)'') の property として確かめられる'

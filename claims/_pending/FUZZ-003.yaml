@@ -1,8 +1,9 @@
-# confidence: 3/3
+# confidence: 2/3
 # 承認するには内容を確認して claims/<領域>/ に移し、`spec-gate approve FUZZ-003` を実行する
 id: FUZZ-003
 kind: manual
-title: input.min と input.max は範囲の両端を含む
+title: 生成される入力は input.min 以上 input.max 以下（両端を含む）で、input.type が integer なら整数になる
 source:
     type: markdown
     ref: docs/spec/harness.md#ランダム入力による検証
+hint: 'fuzz: の設定（runs, input.type, input.min, input.max, seed）を入力にして生成した入力列を返す binding があれば、各要素が範囲内で integer なら isInteger() という properties で確かめられる'

@@ -2,7 +2,8 @@
 # 承認するには内容を確認して claims/<領域>/ に移し、`spec-gate approve FUZZ-001` を実行する
 id: FUZZ-001
 kind: manual
-title: 'claim に fuzz: を書くと、check はその回数だけ入力を生成して binding に流し、properties を評価する'
+title: 'claim に fuzz: を書くと、check は runs の回数だけ入力を生成して binding に流し、properties を評価する'
 source:
     type: markdown
     ref: docs/spec/harness.md#ランダム入力による検証
+hint: 'fuzz: 付きの claim を入力にして check を実行し、binding の呼び出し回数と properties の評価回数を出力する binding があれば example にできる'

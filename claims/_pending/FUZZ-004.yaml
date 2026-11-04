@@ -2,7 +2,8 @@
 # 承認するには内容を確認して claims/<領域>/ に移し、`spec-gate approve FUZZ-004` を実行する
 id: FUZZ-004
 kind: manual
-title: 入力の生成は乱数の種（seed）で決まり、同じ種なら同じ入力列になる
+title: 入力の生成は seed で決まり、同じ seed なら同じ入力列になる
 source:
     type: markdown
     ref: docs/spec/harness.md#ランダム入力による検証
+hint: 'fuzz: の設定と seed を入力にして生成した入力列を返す binding があれば、同じ seed で 2 回呼んだ結果が一致することを確かめられる'

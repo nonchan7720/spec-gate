@@ -2,7 +2,8 @@
 # 承認するには内容を確認して claims/<領域>/ に移し、`spec-gate approve REMOTE-004` を実行する
 id: REMOTE-004
 kind: manual
-title: review ask は質問 1 つが候補 1 つで、question は「候補 <ID> をどうしますか？」、header は候補 ID（12 文字を超えたら先頭 12 文字）、multiSelect は false
+title: '平文化: 見出しの # を外し ## は【】で囲む、例の表は「・<入力> → <出力>（<メモ>）」の 1 行 1 例、例は 6 件まで（残りは「・ほか n 件」）、1 行 140 文字まで、全体 1500 文字まで（超過時「…（長いので省略。全文は承認画面で確認する）」）、" と \ は全角（” ＼）にする'
 source:
     type: markdown
     ref: docs/spec/harness.md#リモート承認
+hint: Markdown の preview を入力し平文を返す binding と、具体的な入出力例が必要（仕様に例が無い）

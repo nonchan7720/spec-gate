@@ -2,7 +2,8 @@
 # 承認するには内容を確認して claims/<領域>/ に移し、`spec-gate approve HOLDOUT-003` を実行する
 id: HOLDOUT-003
 kind: manual
-title: holdout は holdout/<claim-id>.yaml に置き、examples:（in / out_sha256 の配列）だけを書く
+title: out_sha256 は期待出力の正規化 JSON（float64 で読み直し、キー辞書順、HTML エスケープなし、末尾改行なし）の SHA-256 を 16 進小文字 64 文字で表したもの
 source:
     type: markdown
     ref: docs/spec/harness.md#holdout examples
+hint: 値を入力に正規化 JSON とその SHA-256 を出力する binding と、仕様上の具体的な入出力例があれば example にできる

@@ -2,7 +2,7 @@
 # 承認するには内容を確認して claims/<領域>/ に移し、`spec-gate approve AMBIG-001` を実行する
 id: AMBIG-001
 kind: ui
-title: 承認 UI の各候補に「曖昧」ボタンが置かれている
+title: 承認 UI の各候補に「曖昧」ボタンが表示される
 source:
     type: markdown
     ref: docs/spec/harness.md#曖昧の記録

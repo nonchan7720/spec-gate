@@ -1,8 +1,9 @@
 # confidence: 3/3
+# dry-run: pass
 # 承認するには内容を確認して claims/<領域>/ に移し、`spec-gate approve ROLE-003` を実行する
 id: ROLE-003
 kind: example
-title: 'check --role designer は kind: ui の claim のうち unverified と fail を出す【要確認: fail の入出力例が仕様に無い。例は unverified のみ】'
+title: 'check --role designer は kind: ui の claim のうち status が unverified と fail のものを出す'
 source:
     type: markdown
     ref: docs/spec/harness.md#役割別レポート

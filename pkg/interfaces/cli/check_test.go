@@ -54,3 +54,18 @@ func TestHookResult_BlockingAlwaysExit2(t *testing.T) {
 		}
 	}
 }
+
+func TestCandidateBreakdown(t *testing.T) {
+	cands := []services.Candidate{
+		{Claim: domain.Claim{Kind: domain.KindExample}, Agreements: 3, Runs: 3, DryRun: "pass"},
+		{Claim: domain.Claim{Kind: domain.KindManual}, Agreements: 3, Runs: 3},
+		{Claim: domain.Claim{Kind: domain.KindManual}, Agreements: 1, Runs: 3},
+		{Claim: domain.Claim{Kind: domain.KindExample}, Agreements: 2, Runs: 3, DryRun: "error: x"},
+	}
+	got := candidateBreakdown(cands)
+	for _, want := range []string{"manual 2（manual 50%）", "合意: 3/3 2 / 2/3 1 / 1/3 1", "pass 1 / fail 0 / error 1"} {
+		if !strings.Contains(got, want) {
+			t.Errorf("内訳に %q:\n%s", want, got)
+		}
+	}
+}

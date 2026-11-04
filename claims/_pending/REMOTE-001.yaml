@@ -1,8 +1,9 @@
 # confidence: 3/3
+# dry-run: pass
 # 承認するには内容を確認して claims/<領域>/ に移し、`spec-gate approve REMOTE-001` を実行する
 id: REMOTE-001
 kind: example
-title: 'remote-decisions: hook の stdin と preview から反映する判定の配列を返す（承認・却下・曖昧・Other 自由入力・不一致・不正入力）'
+title: review record は tool_response の回答だけを読み、spec-gate が今作る質問と完全一致する質問の回答（承認/却下/曖昧/自由入力）を判定に変換する。tool_input の回答・preview 不一致・候補なし・AskUserQuestion 以外・回答なしは反映しない
 source:
     type: markdown
     ref: docs/spec/harness.md#リモート承認
@@ -24,11 +25,18 @@ examples:
                         - description: 仕様がまだ決まっていない。保留として記録する（理由は Other に書ける）
                           label: 曖昧
                           preview: P
-                      question: 候補 R-1 をどうしますか？
+                      question: |-
+                        候補 R-1 をどうしますか？
+
+                        P
             tool_name: AskUserQuestion
             tool_response:
                 answers:
-                    候補 R-1 をどうしますか？: 承認
+                    ? |-
+                        候補 R-1 をどうしますか？
+
+                        P
+                    : 承認
         previews:
             R-1: P
       out:
@@ -50,9 +58,15 @@ examples:
                         - description: 仕様がまだ決まっていない。保留として記録する（理由は Other に書ける）
                           label: 曖昧
                           preview: P
-                      question: 候補 R-1 をどうしますか？
+                      question: |-
+                        候補 R-1 をどうしますか？
+
+                        P
             tool_name: AskUserQuestion
-            tool_response: 'User has answered your questions: "候補 R-1 をどうしますか？"="却下". You can now continue with the user''s answers in mind.'
+            tool_response: |-
+                User has answered your questions: "候補 R-1 をどうしますか？
+
+                P"="却下". You can now continue with the user's answers in mind.
         previews:
             R-1: P
       out:
@@ -62,7 +76,11 @@ examples:
         hook:
             tool_input:
                 answers:
-                    候補 R-1 をどうしますか？: 曖昧
+                    ? |-
+                        候補 R-1 をどうしますか？
+
+                        P
+                    : 曖昧
                 questions:
                     - header: R-1
                       multiSelect: false
@@ -76,7 +94,10 @@ examples:
                         - description: 仕様がまだ決まっていない。保留として記録する（理由は Other に書ける）
                           label: 曖昧
                           preview: P
-                      question: 候補 R-1 をどうしますか？
+                      question: |-
+                        候補 R-1 をどうしますか？
+
+                        P
             tool_name: AskUserQuestion
         previews:
             R-1: P
@@ -97,9 +118,15 @@ examples:
                         - description: 仕様がまだ決まっていない。保留として記録する（理由は Other に書ける）
                           label: 曖昧
                           preview: P
-                      question: 候補 R-1 をどうしますか？
+                      question: |-
+                        候補 R-1 をどうしますか？
+
+                        P
             tool_name: AskUserQuestion
-            tool_response: 'User has answered your questions: "候補 R-1 をどうしますか？"="曖昧". You can now continue with the user''s answers in mind.'
+            tool_response: |-
+                User has answered your questions: "候補 R-1 をどうしますか？
+
+                P"="曖昧". You can now continue with the user's answers in mind.
         previews:
             R-1: P
       out:
@@ -122,11 +149,18 @@ examples:
                         - description: 仕様がまだ決まっていない。保留として記録する（理由は Other に書ける）
                           label: 曖昧
                           preview: P
-                      question: 候補 R-1 をどうしますか？
+                      question: |-
+                        候補 R-1 をどうしますか？
+
+                        P
             tool_name: AskUserQuestion
             tool_response:
                 answers:
-                    候補 R-1 をどうしますか？: 締め日の扱いが決まっていない
+                    ? |-
+                        候補 R-1 をどうしますか？
+
+                        P
+                    : 締め日の扱いが決まっていない
         previews:
             R-1: P
       out:
@@ -149,11 +183,18 @@ examples:
                         - description: 仕様がまだ決まっていない。保留として記録する（理由は Other に書ける）
                           label: 曖昧
                           preview: P
-                      question: 候補 R-1 をどうしますか？
+                      question: |-
+                        候補 R-1 をどうしますか？
+
+                        P
             tool_name: AskUserQuestion
             tool_response:
                 answers:
-                    候補 R-1 をどうしますか？: 承認
+                    ? |-
+                        候補 R-1 をどうしますか？
+
+                        P
+                    : 承認
         previews:
             R-1: Q
       out: []
@@ -173,11 +214,18 @@ examples:
                         - description: 仕様がまだ決まっていない。保留として記録する（理由は Other に書ける）
                           label: 曖昧
                           preview: P
-                      question: 候補 R-1 をどうしますか？
+                      question: |-
+                        候補 R-1 をどうしますか？
+
+                        P
             tool_name: AskUserQuestion
             tool_response:
                 answers:
-                    候補 R-1 をどうしますか？: 承認
+                    ? |-
+                        候補 R-1 をどうしますか？
+
+                        P
+                    : 承認
         previews: {}
       out: []
     - in:
@@ -196,11 +244,18 @@ examples:
                         - description: 仕様がまだ決まっていない。保留として記録する（理由は Other に書ける）
                           label: 曖昧
                           preview: P
-                      question: 候補 R-1 をどうしますか？
+                      question: |-
+                        候補 R-1 をどうしますか？
+
+                        P
             tool_name: Bash
             tool_response:
                 answers:
-                    候補 R-1 をどうしますか？: 承認
+                    ? |-
+                        候補 R-1 をどうしますか？
+
+                        P
+                    : 承認
         previews:
             R-1: P
       out: []
@@ -220,9 +275,17 @@ examples:
                         - description: 仕様がまだ決まっていない。保留として記録する（理由は Other に書ける）
                           label: 曖昧
                           preview: P
-                      question: 候補 R-1 をどうしますか？
+                      question: |-
+                        候補 R-1 をどうしますか？
+
+                        P
             tool_name: AskUserQuestion
             tool_response: {}
         previews:
             R-1: P
       out: []
+properties:
+    - output.all(d, d.verdict in ['approve', 'reject', 'ambiguous'])
+    - 'output.all(d, d.verdict == ''ambiguous'' ? has(d.reason) : !has(d.reason))'
+    - 'input.hook.tool_name != ''AskUserQuestion'' ? output.size() == 0 : true'
+    - output.all(d, d.id in input.previews)

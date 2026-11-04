@@ -57,7 +57,7 @@ func TestRemoteAsk(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if len(qs) != 4 || qs[0].Question != "候補 A をどうしますか？" || qs[3].Header != "D" {
+	if len(qs) != 4 || !strings.HasPrefix(qs[0].Question, "候補 A をどうしますか？\n\n") || qs[3].Header != "D" {
 		t.Fatalf("候補順に最大 4 つ: %+v", qs)
 	}
 	if qs[0].Options[0].Preview != domain.RenderRemotePreview(ps[0]) {

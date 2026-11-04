@@ -1,8 +1,9 @@
-# confidence: 2/3
+# confidence: 3/3
 # 承認するには内容を確認して claims/<領域>/ に移し、`spec-gate approve AMBIG-003` を実行する
 id: AMBIG-003
 kind: manual
-title: '理由を入力して確定すると、候補の claim ファイルを claims/_ambiguous/ に移す【要確認: 移動元（_pending/ 以外もあるか）と、承認 UI 上の候補が消えるかが書かれていない】'
+title: 曖昧として記録すると候補が claims/_ambiguous/ に移され、入力した理由が `# ambiguous:` ヘッダに記録される
 source:
     type: markdown
     ref: docs/spec/harness.md#曖昧の記録
+hint: '仕様に入出力例が無い。候補ファイルと理由を入力とし、claims/_ambiguous/ 配下の出力ファイルの有無と先頭の `# ambiguous: <理由>` 行を出力とする関数への binding と具体例があれば example にできる'

@@ -1,0 +1,9 @@
+# confidence: 2/3
+# 承認するには内容を確認して claims/<領域>/ に移し、`spec-gate approve LLM-008` を実行する
+id: LLM-008
+kind: manual
+title: spec-gate reverse --collect は比較の回答もそろっていればレポートを出す
+source:
+    type: markdown
+    ref: docs/spec/harness.md#LLM 処理のサブエージェント委譲
+hint: restate / compare の回答の有無を入力に、レポート出力の有無を返す binding が必要
