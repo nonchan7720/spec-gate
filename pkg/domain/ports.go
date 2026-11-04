@@ -157,6 +157,14 @@ type ReviewDecisionLog interface {
 	Append(ReviewDecision) error
 }
 
+// EvidenceStore は自動承認の証拠（.spec-gate/evidence/<ID>.json）を読み書きする。
+type EvidenceStore interface {
+	// Load は証拠ファイルの中身を返す。無ければ ok=false
+	Load(id string) (raw []byte, ok bool, err error)
+	// Save は証拠を書き、書いた中身の sha256（`sha256:<16 進>`）を返す
+	Save(e Evidence) (sha string, err error)
+}
+
 // Extractor は仕様テキストから claim 候補を抽出する（LLM）。
 type Extractor interface {
 	Extract(ctx context.Context, ref, excerpt string) ([]Claim, error)

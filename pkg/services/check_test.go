@@ -355,3 +355,61 @@ func TestCheck_Plans(t *testing.T) {
 		}
 	}
 }
+
+type fakeEvidence map[string][]byte
+
+func (f fakeEvidence) Load(id string) ([]byte, bool, error) {
+	b, ok := f[id]
+	return b, ok, nil
+}
+func (f fakeEvidence) Save(domain.Evidence) (string, error) { return "", nil }
+
+// docs/spec/auto-approval.md「証拠の照合」: 自動承認した claim は、証拠と結びついているあいだだけ承認済み。
+func TestCheckAutoEvidence(t *testing.T) {
+	snaps := map[string]domain.Snapshot{"s.md#a": {Hash: "h1"}}
+	okRaw := []byte(`{"id": "OK", "verdict": "ok"}`)
+	badRaw := []byte(`{"id": "BAD", "verdict": "reverse"}`)
+	auto := func(sha string) *domain.Approval {
+		return &domain.Approval{By: domain.AutoApproverName, At: "t", SourceHash: "h1", Evidence: sha}
+	}
+	claims := []domain.Claim{
+		mdClaim("HUMAN", "s.md#a", domain.KindExample, approved("h1")),
+		mdClaim("OK", "s.md#a", domain.KindExample, auto(domain.SHA256Ref(okRaw))),
+		mdClaim("MISSING", "s.md#a", domain.KindExample, auto("sha256:00")),
+		mdClaim("CHANGED", "s.md#a", domain.KindExample, auto("sha256:00")),
+		mdClaim("BAD", "s.md#a", domain.KindExample, auto(domain.SHA256Ref(badRaw))),
+	}
+	all := map[string]domain.Status{}
+	for _, c := range claims {
+		all[c.ID] = domain.StatusPass
+	}
+	s, _ := newCheck(claims, snaps, all)
+	s.Evidence = fakeEvidence{"OK": okRaw, "CHANGED": okRaw, "BAD": badRaw}
+	rep, err := s.Run(context.Background(), CheckRequest{})
+	if err != nil {
+		t.Fatal(err)
+	}
+	want := map[string]struct {
+		status domain.Status
+		detail string
+	}{
+		"HUMAN":   {domain.StatusPass, ""},
+		"OK":      {domain.StatusPass, ""},
+		"MISSING": {domain.StatusUnapproved, domain.EvidenceMissing},
+		"CHANGED": {domain.StatusUnapproved, domain.EvidenceChanged},
+		"BAD":     {domain.StatusUnapproved, domain.EvidenceNotOK},
+	}
+	for id, w := range want {
+		got := statusOf(t, rep, id)
+		if got.Status != w.status || (w.detail != "" && got.Detail != w.detail) {
+			t.Errorf("%s = %s (%q), want %s (%q)", id, got.Status, got.Detail, w.status, w.detail)
+		}
+	}
+
+	// 証拠の置き場所が無い（Evidence が nil）なら、自動承認の claim は証拠が無いものとして扱う
+	s.Evidence = nil
+	rep, _ = s.Run(context.Background(), CheckRequest{})
+	if got := statusOf(t, rep, "OK"); got.Status != domain.StatusUnapproved {
+		t.Errorf("Evidence が無ければ自動承認は承認済みとみなさない: %s", got.Status)
+	}
+}

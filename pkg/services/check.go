@@ -27,6 +27,8 @@ type CheckService struct {
 	Holdout domain.HoldoutRepository
 	// DiagramEdges は structure の from-diagram 用に、mermaid ref からエッジ集合を返す。
 	DiagramEdges func(ref string) (map[string]bool, error)
+	// Evidence は自動承認（approved.by: auto）の証拠。nil なら自動承認の claim はすべて証拠が無いものとして扱う
+	Evidence domain.EvidenceStore
 }
 
 type CheckRequest struct {
@@ -101,6 +103,11 @@ func (s *CheckService) checkOne(ctx context.Context, c domain.Claim, req CheckRe
 	if c.Approved == nil {
 		res.Status = domain.StatusUnapproved
 		res.Detail = fmt.Sprintf("`spec-gate approve %s` で承認する", c.ID)
+		return res
+	}
+	if ok, detail := s.evidenceApproved(*c.Approved, c.ID); !ok {
+		res.Status = domain.StatusUnapproved
+		res.Detail = detail
 		return res
 	}
 
@@ -293,4 +300,23 @@ func splitRef(ref string) (string, string) {
 		return before, after
 	}
 	return ref, ""
+}
+
+// evidenceApproved は、自動承認した claim が証拠と結びついているかを確かめる（docs/spec/auto-approval.md「証拠の照合」）。
+// 人間の承認は証拠を見ない。
+func (s *CheckService) evidenceApproved(a domain.Approval, id string) (bool, string) {
+	if a.By != domain.AutoApproverName {
+		return true, ""
+	}
+	var state *domain.AutoEvidenceState
+	if s.Evidence != nil {
+		raw, ok, err := s.Evidence.Load(id)
+		if err != nil {
+			return false, "自動承認の証拠を読めない: " + err.Error()
+		}
+		if ok {
+			state = domain.EvidenceStateOf(raw, a.Evidence)
+		}
+	}
+	return domain.AutoEvidenceCheck(a.By, state)
 }

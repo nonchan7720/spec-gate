@@ -49,6 +49,8 @@ type Approval struct {
 	By         string `yaml:"by"`
 	At         string `yaml:"at"`
 	SourceHash string `yaml:"source_hash"`
+	// Evidence は自動承認（by: auto）の証拠ファイルの sha256（`sha256:<16 進>`）。人間の承認では空（docs/spec/auto-approval.md「証拠の照合」）
+	Evidence string `yaml:"evidence,omitempty"`
 }
 
 // Claim は「仕様のうち機械的に検証できる形にした 1 つの主張」。
