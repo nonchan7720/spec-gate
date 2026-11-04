@@ -93,7 +93,7 @@ func newApp(root string) *app {
 		extract.Extractor = extractor.ClaudeCLI{Command: cmd}
 	}
 
-	mutation := &services.MutationService{Plans: plans, Claims: claims, Files: sourcefile.New(root), Runner: runner, Paths: workspace.Paths{Root: root}}
+	mutation := &services.MutationService{Plans: plans, Claims: claims, Files: sourcefile.New(root), Runner: runner, Paths: workspace.Paths{Root: root}, Deps: workspace.NewGoDeps(root)}
 
 	return &app{
 		root:     root,

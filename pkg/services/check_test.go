@@ -9,6 +9,31 @@ import (
 	"github.com/nonchan7720/spec-gate/pkg/domain"
 )
 
+func TestCheck_ChangedMatchesOwnSpecAndClaimFileExactly(t *testing.T) {
+	c := mdClaim("A", "./docs/spec/a.md#x", domain.KindExample, approved("h"))
+	c.Binding = ""
+	c.File = "./claims/spec/A.yaml"
+
+	cases := []struct {
+		name    string
+		changed string
+		want    bool
+	}{
+		{"自分の source の md", "docs/spec/a.md", true},
+		{"自分の claim yaml", "claims/spec/A.yaml", true},
+		{"./ 付きでも自分の source の md", "./docs/spec/a.md", true},
+		{"兄弟の md は対象外", "docs/spec/b.md", false},
+		{"兄弟の claim yaml は対象外", "claims/spec/B.yaml", false},
+	}
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			if got := touched(c, []string{tc.changed}, nil, nil); got != tc.want {
+				t.Fatalf("touched(%q) = %v, want %v", tc.changed, got, tc.want)
+			}
+		})
+	}
+}
+
 func newCheck(claims []domain.Claim, snaps map[string]domain.Snapshot, results map[string]domain.Status) (*CheckService, *fakeChecker) {
 	chk := &fakeChecker{kind: domain.KindExample, results: results}
 	return &CheckService{
