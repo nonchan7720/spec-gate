@@ -264,18 +264,28 @@ func touched(c domain.Claim, changed []string, exists func(string) bool, deps fu
 			paths = append(paths, deps(p)...)
 		}
 	}
-	paths = append(paths, srcFile, c.File)
-	// holdout はエージェントが触れないが、人間が足したときに claim を判定し直す。
+	// 仕様ファイル・claim ファイル・holdout は完全一致で比べる。
 	// IsTouched は同じディレクトリ・同じ拡張子を同じパッケージとみなすので、
-	// 他の claim の holdout まで拾わないよう、holdout は完全一致で比べる
-	holdout := map[string]bool{"holdout/" + c.ID + ".yaml": true, "holdout/" + c.ID + ".yml": true}
+	// そのまま渡すと兄弟の仕様ファイルや他の claim ファイル・holdout まで拾ってしまう。
+	// holdout はエージェントが触れないが、人間が足したときに claim を判定し直す。
+	exact := map[string]bool{"holdout/" + c.ID + ".yaml": true, "holdout/" + c.ID + ".yml": true}
+	for _, p := range []string{srcFile, c.File} {
+		if p = normPath(p); p != "" {
+			exact[p] = true
+		}
+	}
 	for _, ch := range changed {
-		ch = strings.TrimPrefix(filepath.ToSlash(ch), "./")
-		if holdout[ch] || domain.IsTouched(paths, ch) {
+		ch = normPath(ch)
+		if exact[ch] || domain.IsTouched(paths, ch) {
 			return true
 		}
 	}
 	return false
+}
+
+// normPath は区切りを / にそろえ、先頭の ./ を外す。
+func normPath(p string) string {
+	return strings.TrimPrefix(filepath.ToSlash(p), "./")
 }
 
 func splitRef(ref string) (string, string) {
