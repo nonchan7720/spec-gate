@@ -21,6 +21,11 @@
           {
             "type": "command",
             "timeout": 10,
+            "command": "bash \"$CLAUDE_PROJECT_DIR/scripts/session-start.sh\""
+          },
+          {
+            "type": "command",
+            "timeout": 10,
             "command": "command -v mise >/dev/null && mise exec -- depgraph hook session-start; exit 0"
           }
         ]

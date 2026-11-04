@@ -133,6 +133,6 @@ HANDOFF.md は人間の引き継ぎ文書なので触らず、エージェント
 - [x] Neo4j: `dockerd` を起動してから `docker compose up -d`（cloud コンテナでは docker デーモンが止まっている）。depgraph scan と ARCH-001 が通る
 - [x] hook-gate（feedback-gate プラグイン）: `.claude/settings.json` の `extraKnownMarketplaces` / `enabledPlugins` で有効化（次のセッションから）
 - [x] 承認 UI の MCP: `.mcp.json` を `scripts/mcp.sh`（bin/spec-gate を使い回す）に変更。`go run` だと起動タイムアウトしていた
-- [ ] 環境のセットアップスクリプト（人間が cloud 環境の設定で行う）: `mise install && mise run setup`、`(dockerd >/tmp/dockerd.log 2>&1 &); until docker info >/dev/null 2>&1; do sleep 1; done; docker compose up -d`
+- [x] cloud セッションの準備は SessionStart hook の `scripts/session-start.sh` が行う（`CLAUDE_CODE_REMOTE=true` のときだけ。mise install、dockerd、`docker compose up -d`、bin/spec-gate のビルドをバックグラウンドで）。cloud 環境のセットアップスクリプトは他のリポジトリと共有なので使わない
 - [ ] depgraph の warn 4 件（duplicate-code 3、duplicate-symbol 1）を直す
 - gh stack: このセッションの環境では GraphQL が使えないので `gh stack` のコマンドは動かない。stack の REST（`/repos/{o}/{r}/stacks`、`/pulls/{n}/merge-async`）は動く
