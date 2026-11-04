@@ -34,6 +34,18 @@
         ]
       }
     ],
+    "PostToolUse": [
+      {
+        "matcher": "AskUserQuestion",
+        "hooks": [
+          {
+            "type": "command",
+            "timeout": 60,
+            "command": "\"$CLAUDE_PROJECT_DIR/bin/spec-gate\" -C \"$CLAUDE_PROJECT_DIR\" review record"
+          }
+        ]
+      }
+    ],
     "UserPromptSubmit": [
       {
         "hooks": [
