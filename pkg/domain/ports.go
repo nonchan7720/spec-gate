@@ -77,6 +77,16 @@ type CommandRunner interface {
 	Run(ctx context.Context, command string) (output string, err error)
 }
 
+// SourceFiles は mutation score 用に、claim が触るソースファイルを読み書きする。
+type SourceFiles interface {
+	// Expand は claim が触るパス（ファイル・ディレクトリ）を、変異を入れる対象のソースファイルに展開する。
+	// テストファイルや実在しないパスは除き、名前順で返す。
+	Expand(paths []string) ([]string, error)
+	Read(path string) (string, error)
+	// Write はファイルの中身を置き換える（パーミッションは保つ）。
+	Write(path, content string) error
+}
+
 // ChangeDetector は作業ツリーで変更されたファイル。
 type ChangeDetector interface {
 	ChangedFiles() ([]string, error)
