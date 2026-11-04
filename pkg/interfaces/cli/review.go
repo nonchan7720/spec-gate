@@ -25,7 +25,10 @@ func newReviewCmd(a **app) *cobra.Command {
 		Long: `claims/_pending/ の候補を、YAML を見せずに一覧する Web 画面を 127.0.0.1 で起動する。
 選んで「承認」すると claims/<領域>/（example / manual → spec、structure → arch、ui → ui）へ移し、
 approve と同じ手順（lint・仕様のハッシュ記録）で承認する。拒否されたら _pending に戻して理由を表示する。
-「却下」は候補ファイルを削除する。Ctrl+C で終了。`,
+「却下」は候補ファイルを削除する。
+「曖昧」は claim の誤りではなく仕様が決まっていないことの記録。理由を入力させ、候補を claims/_ambiguous/ に
+移して先頭に「# ambiguous: <理由>」を書く（check の対象外。coverage は参照先の単位を「要確認」として出す）。
+Ctrl+C で終了。`,
 		Args: cobra.NoArgs,
 		RunE: func(cmd *cobra.Command, _ []string) error {
 			if by == "" {

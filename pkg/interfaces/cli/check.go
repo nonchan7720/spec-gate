@@ -5,6 +5,7 @@ import (
 	"os"
 	"strings"
 
+	"github.com/nonchan7720/spec-gate/pkg/domain"
 	"github.com/nonchan7720/spec-gate/pkg/services"
 	"github.com/spf13/cobra"
 )
@@ -17,6 +18,7 @@ func newCheckCmd(a **app) *cobra.Command {
 		noPlans bool
 		hook    bool
 		asJSON  bool
+		role    string
 	)
 	cmd := &cobra.Command{
 		Use:   "check",
@@ -27,8 +29,20 @@ func newCheckCmd(a **app) *cobra.Command {
   --only     claim ID をカンマ区切りで指定（プランは見ない）
   --ui       Playwright を実行して strings を検証する（アプリ/Storybook を起動しておくこと）
   --hook     Claude Code の Stop hook 用。失敗時は stderr にレポートを出し exit 2 でエージェントを止める
-  --json     CI 用に判定結果（各 claim の id・kind・status・title・detail・spec と件数）を JSON で出す。exit code は同じ`,
+  --json     CI 用に判定結果（各 claim の id・kind・status・title・detail・spec と件数）を JSON で出す。exit code は同じ
+  --role     見る人が対応すべきものだけを出す。exit code は同じ
+               engineer: fail（仕様の位置 file:line つき）
+               designer: kind: ui の unverified と fail
+               pm:       stale と unapproved`,
 		RunE: func(cmd *cobra.Command, _ []string) error {
+			out := checkOutput{JSON: asJSON}
+			if role != "" {
+				r, err := domain.ParseRole(role)
+				if err != nil {
+					return err
+				}
+				out.Role = r
+			}
 			req := services.CheckRequest{Changed: changed, UI: ui, NoPlans: noPlans}
 			if only != "" {
 				req.Only = strings.Split(only, ",")
@@ -44,7 +58,7 @@ func newCheckCmd(a **app) *cobra.Command {
 				exitHook(hookResult(rep))
 				return nil
 			}
-			code, err := renderCheck(os.Stdout, rep, checkOutput{JSON: asJSON})
+			code, err := renderCheck(os.Stdout, rep, out)
 			if err != nil {
 				return err
 			}
@@ -60,6 +74,7 @@ func newCheckCmd(a **app) *cobra.Command {
 	cmd.Flags().BoolVar(&noPlans, "no-plans", false, "プランを判定しない")
 	cmd.Flags().BoolVar(&hook, "hook", false, "Claude Code Stop hook モード")
 	cmd.Flags().BoolVar(&asJSON, "json", false, "判定結果を JSON で出す（CI 用）")
+	cmd.Flags().StringVar(&role, "role", "", "役割別レポート（engineer|designer|pm）")
 	return cmd
 }
 

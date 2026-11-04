@@ -10,9 +10,11 @@ import (
 // CoverageService は「仕様のどの部分が claim に紐づいていないか」を列挙する。
 // 誤った claim より抜け落ちた claim の方が見つけにくいので、source 側から逆引きする。
 type CoverageService struct {
-	Claims   domain.ClaimRepository
-	Sources  domain.SourceRegistry
-	Adapters map[domain.SourceType]domain.SourceAdapter
+	Claims domain.ClaimRepository
+	// Ambiguous は曖昧として記録された候補（claims/_ambiguous/）。nil なら見ない
+	Ambiguous domain.AmbiguousRepository
+	Sources   domain.SourceRegistry
+	Adapters  map[domain.SourceType]domain.SourceAdapter
 }
 
 type CoverageEntry struct {
@@ -20,7 +22,16 @@ type CoverageEntry struct {
 	Covered      []string // claim に紐づく単位
 	Uncovered    []string // 紐づかない規範的な単位
 	NonNormative []string // 規範でないと宣言された単位
-	Error        string
+	// NeedsReview は曖昧として記録された claim が参照する単位（要確認）。仕様が決まっていないので
+	// claim があってもカバー扱いにせず、claim が無くても「抜け」ではなく未決として出す
+	NeedsReview []NeedsReview
+	Error       string
+}
+
+// NeedsReview は要確認の単位 1 つと、曖昧として記録された理由（"<claim id>: <理由>"）。
+type NeedsReview struct {
+	Unit    string
+	Reasons []string
 }
 
 type CoverageReport struct {
@@ -52,6 +63,11 @@ func (s *CoverageService) Report(ctx context.Context) (CoverageReport, error) {
 		refs[c.Source.Ref] = true
 	}
 
+	ambiguous, err := s.ambiguousRefs()
+	if err != nil {
+		return CoverageReport{}, err
+	}
+
 	for _, src := range sources {
 		e := CoverageEntry{Source: src.RefOf()}
 		ad, ok := s.Adapters[src.Type]
@@ -75,6 +91,9 @@ func (s *CoverageService) Report(ctx context.Context) (CoverageReport, error) {
 			switch {
 			case nonNorm[anchor]:
 				e.NonNormative = append(e.NonNormative, u)
+			case len(ambiguous[u]) > 0 || len(ambiguous[src.RefOf()]) > 0: // ファイル全体を指す曖昧 claim なら全単位
+				reasons := append(append([]string{}, ambiguous[u]...), ambiguous[src.RefOf()]...)
+				e.NeedsReview = append(e.NeedsReview, NeedsReview{Unit: u, Reasons: reasons})
 			case refs[u] || refs[src.RefOf()]: // ファイル全体を指す claim があれば全単位カバー扱い
 				e.Covered = append(e.Covered, u)
 			case src.Type == domain.SourceMermaid && coveredByStructure(claims, src.RefOf(), anchor):
@@ -86,6 +105,25 @@ func (s *CoverageService) Report(ctx context.Context) (CoverageReport, error) {
 		rep.Entries = append(rep.Entries, e)
 	}
 	return rep, nil
+}
+
+// ambiguousRefs は曖昧として記録された claim の source.ref → 理由の一覧。読めない記録は参照先が分からないので飛ばす。
+func (s *CoverageService) ambiguousRefs() (map[string][]string, error) {
+	refs := map[string][]string{}
+	if s.Ambiguous == nil {
+		return refs, nil
+	}
+	list, err := s.Ambiguous.Ambiguous()
+	if err != nil {
+		return nil, err
+	}
+	for _, a := range list {
+		if a.Error != "" || a.Claim.Source.Ref == "" {
+			continue
+		}
+		refs[a.Claim.Source.Ref] = append(refs[a.Claim.Source.Ref], a.Claim.ID+": "+a.Reason)
+	}
+	return refs, nil
 }
 
 // mermaid のエッジは、その図を source にする structure claim の layers に両端が含まれていればカバー扱い。

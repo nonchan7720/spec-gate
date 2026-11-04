@@ -10,6 +10,7 @@ import (
 	"mime"
 	"net"
 	"net/http"
+	"strings"
 
 	"github.com/nonchan7720/spec-gate/pkg/services"
 )
@@ -22,6 +23,8 @@ type Service interface {
 	List(ctx context.Context) ([]services.ReviewItem, error)
 	Approve(ctx context.Context, name, by string) (services.ApproveResult, error)
 	Reject(name string) error
+	// MarkAmbiguous は候補を「仕様が決まっていない」として claims/_ambiguous/ に理由つきで記録する
+	MarkAmbiguous(name, reason string) error
 }
 
 type handler struct {
@@ -44,6 +47,7 @@ func New(svc Service, by string) http.Handler {
 	mux.HandleFunc("GET /api/pending", h.pending)
 	mux.HandleFunc("POST /api/approve", h.approve)
 	mux.HandleFunc("POST /api/reject", h.reject)
+	mux.HandleFunc("POST /api/ambiguous", h.ambiguous)
 	return guard(mux)
 }
 
@@ -126,14 +130,45 @@ func (h *handler) reject(w http.ResponseWriter, r *http.Request) {
 	})
 }
 
+// ambiguous は {"names": [...], "reason": "..."} を読み、候補を曖昧として理由つきで記録する。理由は必須。
+func (h *handler) ambiguous(w http.ResponseWriter, r *http.Request) {
+	h.eachWith(w, r, func(req actionRequest) string {
+		if strings.TrimSpace(req.Reason) == "" {
+			return "曖昧とする理由を入力してください"
+		}
+		return ""
+	}, func(req actionRequest, name string) actionResult {
+		if err := h.svc.MarkAmbiguous(name, req.Reason); err != nil {
+			return actionResult{Name: name, Error: err.Error()}
+		}
+		return actionResult{Name: name, OK: true}
+	})
+}
+
+// actionRequest は変更系 API の本文。
+type actionRequest struct {
+	Names []string `json:"names"`
+	// Reason は曖昧の記録だけが使う
+	Reason string `json:"reason"`
+}
+
 // each は {"names": [...]} を読み、1 件ずつ処理して結果を並べて返す。1 件の失敗で残りを止めない。
 func (h *handler) each(w http.ResponseWriter, r *http.Request, fn func(name string) actionResult) {
-	var req struct {
-		Names []string `json:"names"`
-	}
+	h.eachWith(w, r, nil, func(_ actionRequest, name string) actionResult { return fn(name) })
+}
+
+// eachWith は each に、本文全体の検査（validate が空でない文字列を返したら 400）を足したもの。
+func (h *handler) eachWith(w http.ResponseWriter, r *http.Request, validate func(actionRequest) string, fn func(req actionRequest, name string) actionResult) {
+	var req actionRequest
 	if err := json.NewDecoder(http.MaxBytesReader(w, r.Body, 1<<20)).Decode(&req); err != nil {
 		writeError(w, http.StatusBadRequest, "リクエストを読めない: "+err.Error())
 		return
+	}
+	if validate != nil {
+		if msg := validate(req); msg != "" {
+			writeError(w, http.StatusBadRequest, msg)
+			return
+		}
 	}
 	if len(req.Names) == 0 {
 		writeError(w, http.StatusBadRequest, "候補が選ばれていない")
@@ -141,7 +176,7 @@ func (h *handler) each(w http.ResponseWriter, r *http.Request, fn func(name stri
 	}
 	results := make([]actionResult, 0, len(req.Names))
 	for _, name := range req.Names {
-		results = append(results, fn(name))
+		results = append(results, fn(req, name))
 	}
 	writeJSON(w, http.StatusOK, map[string]any{"results": results})
 }

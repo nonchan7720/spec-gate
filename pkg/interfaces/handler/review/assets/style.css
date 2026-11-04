@@ -86,3 +86,11 @@ th { color: var(--muted); font-weight: 600; font-size: 12px; }
 td.arrow { color: var(--muted); width: 1em; padding: 5px 0; }
 ul.plain { margin: 0; padding-left: 1.2em; }
 .small { color: var(--muted); font-size: 12px; }
+
+/* 曖昧の記録（仕様が決まっていない） */
+.btn.subtle { padding: 4px 12px; font-size: 13px; color: var(--muted); flex: none; }
+.ambiguous { display: grid; gap: 6px; margin-top: 10px; padding: 10px 12px; border: 1px dashed var(--line); border-radius: 6px; background: var(--spec-bg); }
+.ambiguous[hidden] { display: none; }
+.ambiguous label { font-size: 13px; font-weight: 600; }
+.ambiguous textarea { font: inherit; width: 100%; box-sizing: border-box; border: 1px solid var(--line); border-radius: 6px; padding: 6px 8px; background: var(--card); color: var(--text); resize: vertical; }
+.ambiguous-actions { display: flex; gap: 8px; justify-content: flex-end; }
