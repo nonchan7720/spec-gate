@@ -1,0 +1,8 @@
+# confidence: 3/3
+# 承認するには内容を確認して claims/<領域>/ に移し、`spec-gate approve HOLDOUT-013` を実行する
+id: HOLDOUT-013
+kind: manual
+title: 'holdout を書くのは人間だけ。spec-gate holdout add <claim-id> --in <json> --out <json> は out の正規化 JSON の SHA-256 を計算し holdout/<claim-id>.yaml の examples: 末尾に in と out_sha256 を足す（ファイルが無ければ作る）。out の平文は保存も表示もしない。エージェントには実行させない'
+source:
+    type: markdown
+    ref: docs/spec/harness.md#holdout examples

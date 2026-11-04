@@ -1,0 +1,8 @@
+# confidence: 1/3
+# 承認するには内容を確認して claims/<領域>/ に移し、`spec-gate approve MUTATION-006` を実行する
+id: MUTATION-006
+kind: manual
+title: 算術の変異は + → -、- → +、* → /、/ → * とする
+source:
+    type: markdown
+    ref: docs/spec/harness.md#mutation score

@@ -1,0 +1,9 @@
+# confidence: 1/3
+# 承認するには内容を確認して claims/<領域>/ に移し、`spec-gate approve RELINK-003-3` を実行する
+id: RELINK-003-3
+kind: example
+title: 距離が同じ候補が複数あるときは、仕様の中で先に現れる見出しを提案する
+source:
+    type: markdown
+    ref: docs/spec/harness.md#見出し変更時の再リンク提案
+binding: go run ./tools/bind relink

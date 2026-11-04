@@ -1,0 +1,8 @@
+# confidence: 3/3
+# 承認するには内容を確認して claims/<領域>/ に移し、`spec-gate approve FUZZ-003` を実行する
+id: FUZZ-003
+kind: manual
+title: input.min と input.max は範囲の両端を含む
+source:
+    type: markdown
+    ref: docs/spec/harness.md#ランダム入力による検証

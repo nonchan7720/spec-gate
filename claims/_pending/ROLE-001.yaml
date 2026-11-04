@@ -1,0 +1,21 @@
+# confidence: 3/3
+# 承認するには内容を確認して claims/<領域>/ に移し、`spec-gate approve ROLE-001` を実行する
+id: ROLE-001
+kind: example
+title: check --role engineer は fail だけを出す
+source:
+    type: markdown
+    ref: docs/spec/harness.md#役割別レポート
+binding: go run ./tools/bind role-filter
+examples:
+    - in:
+        results:
+            - id: A
+              kind: example
+              status: fail
+            - id: B
+              kind: example
+              status: pass
+        role: engineer
+      out:
+        - A

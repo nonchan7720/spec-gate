@@ -1,0 +1,8 @@
+# confidence: 3/3
+# 承認するには内容を確認して claims/<領域>/ に移し、`spec-gate approve HOLDOUT-007` を実行する
+id: HOLDOUT-007
+kind: manual
+title: holdout で in が無い、out_sha256 が無い、out_sha256 が 16 進小文字 64 文字でない、のいずれもエラーになる
+source:
+    type: markdown
+    ref: docs/spec/harness.md#holdout examples

@@ -1,0 +1,8 @@
+# confidence: 3/3
+# 承認するには内容を確認して claims/<領域>/ に移し、`spec-gate approve REMOTE-002` を実行する
+id: REMOTE-002
+kind: manual
+title: review ask [--limit N] は claims/_pending/ の候補から AskUserQuestion の questions にそのまま渡せる JSON 配列を stdout に出す
+source:
+    type: markdown
+    ref: docs/spec/harness.md#リモート承認

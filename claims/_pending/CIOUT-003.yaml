@@ -1,0 +1,8 @@
+# confidence: 3/3
+# 承認するには内容を確認して claims/<領域>/ に移し、`spec-gate approve CIOUT-003` を実行する
+id: CIOUT-003
+kind: manual
+title: spec-gate metrics は claim の kind 別件数と割合、unverified 率を出力する
+source:
+    type: markdown
+    ref: docs/spec/harness.md#CI 用の出力と指標

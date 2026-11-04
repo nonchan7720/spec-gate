@@ -1,0 +1,8 @@
+# confidence: 3/3
+# 承認するには内容を確認して claims/<領域>/ に移し、`spec-gate approve HARNESS-001` を実行する
+id: HARNESS-001
+kind: manual
+title: extract と reverse の LLM 処理はサブエージェントに任せ、spec-gate 自身は LLM を呼ばずプロンプトの書き出し（emit）と回答の取り込み（collect）だけを行う
+source:
+    type: markdown
+    ref: docs/spec/harness.md#LLM 処理のサブエージェント委譲

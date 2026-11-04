@@ -1,0 +1,8 @@
+# confidence: 3/3
+# 承認するには内容を確認して claims/<領域>/ に移し、`spec-gate approve REMOTE-018` を実行する
+id: REMOTE-018
+kind: manual
+title: hook の設定（.claude/settings.json）は利用者が自分で書き、エージェントは書き換えない
+source:
+    type: markdown
+    ref: docs/spec/harness.md#リモート承認

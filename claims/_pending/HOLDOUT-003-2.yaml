@@ -1,0 +1,8 @@
+# confidence: 3/3
+# 承認するには内容を確認して claims/<領域>/ に移し、`spec-gate approve HOLDOUT-003` を実行する
+id: HOLDOUT-003
+kind: manual
+title: holdout/ への書き込み（Edit / Write、シェルからの書き込み）を claims/ への書き込みと同じく拒否する
+source:
+    type: markdown
+    ref: docs/spec/harness.md#holdout の読み取り拒否

@@ -1,0 +1,10 @@
+# confidence: 2/3
+# 承認するには内容を確認して claims/<領域>/ に移し、`spec-gate approve REMOTE-012` を実行する
+id: REMOTE-012
+kind: manual
+title: 各質問は、question 文から取った候補 ID について spec-gate が今作る質問（question・header・multiSelect・選択肢のラベル・description・preview）と表示された質問が完全に一致するときだけ反映する。一致しない・候補が無い・回答が空の質問は反映しない
+source:
+    type: markdown
+    ref: docs/spec/harness.md#リモート承認
+properties:
+    - 表示された質問が spec-gate の作る質問と完全一致しない場合、その質問は反映されない

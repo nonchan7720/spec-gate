@@ -1,0 +1,8 @@
+# confidence: 3/3
+# 承認するには内容を確認して claims/<領域>/ に移し、`spec-gate approve HOLDOUT-011` を実行する
+id: HOLDOUT-011
+kind: manual
+title: holdout が 1 件でも不一致なら、その claim は fail
+source:
+    type: markdown
+    ref: docs/spec/harness.md#holdout examples

@@ -1,0 +1,8 @@
+# confidence: 2/3
+# 承認するには内容を確認して claims/<領域>/ に移し、`spec-gate approve AMBIG-003` を実行する
+id: AMBIG-003
+kind: manual
+title: '理由を入力して確定すると、候補の claim ファイルを claims/_ambiguous/ に移す【要確認: 移動元（_pending/ 以外もあるか）と、承認 UI 上の候補が消えるかが書かれていない】'
+source:
+    type: markdown
+    ref: docs/spec/harness.md#曖昧の記録

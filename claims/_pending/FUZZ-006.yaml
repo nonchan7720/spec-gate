@@ -1,0 +1,8 @@
+# confidence: 3/3
+# 承認するには内容を確認して claims/<領域>/ に移し、`spec-gate approve FUZZ-006` を実行する
+id: FUZZ-006
+kind: manual
+title: properties を満たさない入力が見つかったら fail にし、その入力（反例）を出す
+source:
+    type: markdown
+    ref: docs/spec/harness.md#ランダム入力による検証

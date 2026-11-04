@@ -1,0 +1,8 @@
+# confidence: 3/3
+# 承認するには内容を確認して claims/<領域>/ に移し、`spec-gate approve AMBIG-002` を実行する
+id: AMBIG-002
+kind: ui
+title: '「曖昧」ボタンを押すと理由を入力させる【要確認: 入力 UI の形式（ダイアログ・インライン等）や理由が空のときの扱いが書かれていない】'
+source:
+    type: markdown
+    ref: docs/spec/harness.md#曖昧の記録

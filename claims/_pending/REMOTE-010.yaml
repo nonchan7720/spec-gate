@@ -1,0 +1,8 @@
+# confidence: 3/3
+# 承認するには内容を確認して claims/<領域>/ に移し、`spec-gate approve REMOTE-010` を実行する
+id: REMOTE-010
+kind: manual
+title: '回答は tool_response だけから読み、tool_response.answers（{質問文: 回答} の map、配列の回答は `, ` でつなぐ）→ 文字列の tool_response（"質問文"="回答" の並び）の順に試し、どれでも読めなければ何もしない（stderr に理由）'
+source:
+    type: markdown
+    ref: docs/spec/harness.md#リモート承認

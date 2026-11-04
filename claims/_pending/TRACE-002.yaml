@@ -1,0 +1,8 @@
+# confidence: 3/3
+# 承認するには内容を確認して claims/<領域>/ に移し、`spec-gate approve TRACE-002` を実行する
+id: TRACE-002
+kind: manual
+title: 変更行数は git diff --numstat HEAD の追加行と削除行の合計とする。git リポジトリでなければ 0 とする
+source:
+    type: markdown
+    ref: docs/spec/harness.md#通り方のログ

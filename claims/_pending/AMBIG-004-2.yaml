@@ -1,0 +1,8 @@
+# confidence: 1/3
+# 承認するには内容を確認して claims/<領域>/ に移し、`spec-gate approve AMBIG-004-2` を実行する
+id: AMBIG-004-2
+kind: manual
+title: '入力された理由は移動した候補の `# ambiguous:` ヘッダに記録される【要確認: 複数行の理由の書き方が書かれていない】'
+source:
+    type: markdown
+    ref: docs/spec/harness.md#曖昧の記録

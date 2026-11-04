@@ -1,0 +1,8 @@
+# confidence: 2/3
+# 承認するには内容を確認して claims/<領域>/ に移し、`spec-gate approve AMBIG-005` を実行する
+id: AMBIG-005
+kind: manual
+title: claims/_ambiguous/ 配下の claim は _pending/ と同じく check の対象外である
+source:
+    type: markdown
+    ref: docs/spec/harness.md#曖昧の記録

@@ -1,0 +1,25 @@
+# confidence: 3/3
+# 承認するには内容を確認して claims/<領域>/ に移し、`spec-gate approve ROLE-004` を実行する
+id: ROLE-004
+kind: example
+title: check --role pm は stale と unapproved を出す
+source:
+    type: markdown
+    ref: docs/spec/harness.md#役割別レポート
+binding: go run ./tools/bind role-filter
+examples:
+    - in:
+        results:
+            - id: S
+              kind: example
+              status: stale
+            - id: "N"
+              kind: manual
+              status: unapproved
+            - id: F
+              kind: example
+              status: fail
+        role: pm
+      out:
+        - S
+        - "N"
