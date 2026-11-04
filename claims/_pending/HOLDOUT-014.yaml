@@ -1,4 +1,5 @@
 # confidence: 3/3
+# dry-run: pass
 # 承認するには内容を確認して claims/<領域>/ に移し、`spec-gate approve HOLDOUT-014` を実行する
 id: HOLDOUT-014
 kind: example

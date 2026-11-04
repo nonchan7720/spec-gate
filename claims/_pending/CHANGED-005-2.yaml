@@ -1,4 +1,5 @@
 # confidence: 1/3
+# dry-run: error: binding が失敗 (exit status 1): touched: json: cannot unmarshal string into Go value of type struct { Touches []string "jso
 # 承認するには内容を確認して claims/<領域>/ に移し、`spec-gate approve CHANGED-005-2` を実行する
 id: CHANGED-005-2
 kind: example

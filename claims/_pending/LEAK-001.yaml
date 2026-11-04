@@ -1,4 +1,5 @@
 # confidence: 3/3
+# dry-run: pass
 # 承認するには内容を確認して claims/<領域>/ に移し、`spec-gate approve LEAK-001` を実行する
 id: LEAK-001
 kind: example

@@ -13,6 +13,9 @@ type ApproveService struct {
 	Claims   domain.ClaimRepository
 	Adapters map[domain.SourceType]domain.SourceAdapter
 	Clock    domain.Clock
+	// Probe があれば、binding のある example claim を承認の前に試し実行し、error なら承認しない
+	// （docs/spec/harness.md「抽出結果の試し実行」。_pending のヘッダは書き換えられるので使わない）
+	Probe domain.BindingProbe
 }
 
 type ApproveResult struct {
@@ -44,6 +47,12 @@ func (s *ApproveService) Approve(ctx context.Context, id, by string) (ApproveRes
 		}
 		if len(mine) > 0 {
 			return ApproveResult{}, fmt.Errorf("lint に失敗。承認できない:\n  %s", strings.Join(mine, "\n  "))
+		}
+	}
+
+	if s.Probe != nil && target.NeedsDryRun() {
+		if d := s.Probe.Probe(ctx, *target); d.State() == domain.DryRunError {
+			return ApproveResult{}, fmt.Errorf("試し実行で binding が動かないので承認できない（claim の入力の形か binding を直す）: %s", d.Summary())
 		}
 	}
 

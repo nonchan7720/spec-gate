@@ -1,4 +1,5 @@
 # confidence: 2/3
+# dry-run: error: binding が失敗 (exit status 1): unverified-rate: 入力は status の配列: json: cannot unmarshal string into Go value of type []doma
 # 承認するには内容を確認して claims/<領域>/ に移し、`spec-gate approve CI-004` を実行する
 id: CI-004
 kind: example

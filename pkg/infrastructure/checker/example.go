@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"regexp"
 	"slices"
 	"strings"
 
@@ -82,6 +83,53 @@ func (e *ExampleChecker) Check(ctx context.Context, c domain.Claim, opt domain.C
 		res.Detail = strings.Join(failures, "\n")
 	}
 	return res
+}
+
+// Probe は examples だけを binding に流す試し実行（fuzz・holdout・properties は見ない）。
+// binding が失敗するか出力が JSON でなければ Error、期待と違う例は Mismatch に数える。
+func (e *ExampleChecker) Probe(ctx context.Context, c domain.Claim) domain.DryRun {
+	d := domain.DryRun{Total: len(c.Examples)}
+	if !c.NeedsDryRun() {
+		return domain.DryRun{}
+	}
+	for _, ex := range c.Examples {
+		in, _ := json.Marshal(map[string]any{"in": ex.In})
+		out, err := e.runner.run(ctx, c.Binding, in)
+		if err != nil {
+			d.Error = fmt.Sprintf("binding が失敗 (%v): %s", err, lastLine(out))
+			return d
+		}
+		var got struct {
+			Out any `json:"out"`
+		}
+		if err := json.Unmarshal([]byte(lastJSONLine(out)), &got); err != nil {
+			d.Error = "出力が JSON ではない: " + firstLine(out)
+			return d
+		}
+		if !domain.Equal(ex.Out, got.Out) {
+			d.Mismatch++
+		}
+	}
+	return d
+}
+
+// lastLine は失敗した binding の出力から理由になる最後の行を返す。`go run` が最後に付ける
+// 「exit status N」は終了コードと同じで理由にならないので飛ばす。
+func lastLine(s string) string {
+	for _, line := range slices.Backward(strings.Split(strings.TrimSpace(s), "\n")) {
+		l := strings.TrimSpace(line)
+		if l != "" && !exitStatusLine.MatchString(l) {
+			return l
+		}
+	}
+	return ""
+}
+
+var exitStatusLine = regexp.MustCompile(`^exit status \d+$`)
+
+func firstLine(s string) string {
+	l, _, _ := strings.Cut(strings.TrimSpace(s), "\n")
+	return l
 }
 
 // fuzz は seed から生成した入力で properties と relations を評価し、最初の反例を返す（無ければ ""）。

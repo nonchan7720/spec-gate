@@ -1,7 +1,7 @@
 # spec-gate ハーネス拡張仕様
 
 本書は spec-gate 自身に追加する機能（holdout・リテラル漏れ検知・ランダム検証・mutation score・
-CI 出力・役割別レポート・再リンク提案・通り方のログ・リモート承認）の仕様を定める。
+CI 出力・役割別レポート・再リンク提案・通り方のログ・リモート承認・まとめ承認）の仕様を定める。
 各節の「binding」は、その節の入出力例を検証するコマンドである（stdin に `{"in": ...}`、stdout に `{"out": ...}`）。
 
 ## 背景
@@ -255,6 +255,64 @@ binding: `go run ./tools/bind consensus-hits`（入力は run ごとの title �
 | `[["変更行数は git diff --numstat HEAD の追加行と削除行の合計とし、git リポジトリでなければ 0 とする", "trace に記録する変更行数は git diff --numstat HEAD の追加行と削除行の合計とし、git リポジトリでなければ 0 とする"], ["変更行数は git diff --numstat HEAD の追加行と削除行の合計とする。git リポジトリでなければ 0"]]` | `[2, 1]` |
 | `[["管理者だけが削除できる【要確認: 権限表が無い】"], ["管理者だけが、削除できる。"]]` | `[2]` |
 
+## manual と例のある claim の同定
+
+ある run が入出力の例つき（kind: example）で書けた主張を、別の run が kind: manual で書くことがある。
+kind が違うと「合議の同定」では別の束になり、同じ主張が example の候補と manual の候補に割れる（manual が水増しされ、承認する件数も増える）。
+そこで「合議の同定」で束を作ったあと、manual の束を同じ主張の example の束に寄せる。
+
+- 対象は kind: manual の束と、同じ ref の kind: example の束の組。他の kind（structure・ui）は寄せない
+- 類似度は、manual の束の title と example の束の title（束に入ったすべての claim の title）の組のうち最大の値。正規化と類似度の測り方は「合議の同定」と同じで、閾値も同じ 0.6
+- 2 つの束に同じ run の claim が入っているときは寄せない（1 つの run は 1 つの束に 1 件まで、を崩さない）
+- manual の束は、できた順に、類似度が最も高い example の束に寄せる（同点は先にできた束）。寄せた manual の束は消え、example の束の合意数に run の数を足す
+- 束の代表は example の claim のまま（例を捨てない）
+
+binding: `go run ./tools/bind consensus-kinds`（入力は run ごとの claim の配列（`{"kind", "title"}`、kind が example なら `"in"` と `"out"` も）。すべて同じ ref。出力は束ごとの `{"kind", "hits"}` の配列（束ができた順））
+
+| 入力 | 出力 |
+|---|---|
+| `[[{"kind": "example", "title": "変更されたファイルが触るファイルそのものなら対象", "in": "a.ts", "out": true}], [{"kind": "manual", "title": "変更されたファイルが、触るファイルそのものなら、その claim は対象"}]]` | `[{"kind": "example", "hits": 2}]` |
+| `[[{"kind": "manual", "title": "変更されたファイルが、触るファイルそのものなら、その claim は対象"}], [{"kind": "example", "title": "変更されたファイルが触るファイルそのものなら対象", "in": "a.ts", "out": true}]]` | `[{"kind": "example", "hits": 2}]` |
+| `[[{"kind": "example", "title": "変更されたファイルが触るファイルそのものなら対象", "in": "a.ts", "out": true}, {"kind": "manual", "title": "変更されたファイルが、触るファイルそのものなら、その claim は対象"}]]` | `[{"kind": "example", "hits": 1}, {"kind": "manual", "hits": 1}]` |
+| `[[{"kind": "example", "title": "円未満は切り捨てる", "in": 1.5, "out": 1}], [{"kind": "manual", "title": "締め処理は月末日に行う"}]]` | `[{"kind": "example", "hits": 1}, {"kind": "manual", "hits": 1}]` |
+
+## 抽出結果の試し実行
+
+LLM は、構造のある入力（オブジェクト・配列）を JSON の文字列にして `in: '{"a": 1}'` と書くことがある。
+そのまま承認すると binding に文字列が渡り、実装が正しくても fail になる。抽出した候補は、置く前に形をそろえ、binding で試しに動かす。
+
+- 回答を読むとき、例の `in` と `out` が文字列で、前後の空白を除いた中身が `{` で始まり `}` で終わるか `[` で始まり `]` で終わり、JSON として読めるなら、読んだ値に置き換える。数値や真偽値に読める文字列（`"123"`）、JSON として読めない文字列、入れ子の中の文字列は変えない
+- 抽出のプロンプトは、構造のある入力を JSON の文字列にせず YAML の構造で書くよう指示する
+- `extract`（`--collect` とコマンドモード）は、候補を `claims/_pending/` に置いたあと、binding のある kind: example の候補を試し実行し、結果を候補ファイルの先頭に `# dry-run: <結果>` の 1 行で書く。試し実行は examples だけを流す（fuzz・holdout は流さない）
+  - `pass`: すべての例で期待どおりの出力
+  - `fail: <全件> 件中 <n> 件が期待と違う`: binding は動いたが期待と違う例がある。実装が未完成か、claim が誤り。承認はできる
+  - `error: <理由>`: binding を起動できない・終了コードが 0 でない・出力が JSON でない。claim の形（入力の形・binding の名前）が壊れている。理由は 1 行目だけを 120 文字まで
+  - `none`: 例が無い（試すものが無い）
+- `spec-gate review probe` は `claims/_pending/` のすべての候補を試し実行し直し、`# dry-run:` の行を書き換える（候補を直したあとに使う）
+- binding の出力は stdout だけを読む。stderr（npm の警告など）は、binding が失敗したときの理由の表示にだけ使う
+- 承認（`approve`・承認画面・リモート承認・まとめ承認）は、binding のある kind: example の claim を、承認の前に試し実行する。`error` なら承認しない（理由を出す）。`fail` と `pass` は承認できる。`_pending/` の候補はエージェントが書き換えられるので、ヘッダの `# dry-run:` は表示と並び順にだけ使い、承認の判断には使わない
+
+binding: `go run ./tools/bind example-value`（入力は回答に書かれた例の値、出力は置き換えた値）
+
+| 入力 | 出力 |
+|---|---|
+| `"{\"touches\": [\"a.ts\"], \"changed\": \"a.ts\"}"` | `{"touches": ["a.ts"], "changed": "a.ts"}` |
+| `" [1, 2] "` | `[1, 2]` |
+| `"123"` | `"123"` |
+| `"{壊れている"` | `"{壊れている"` |
+| `"abc"` | `"abc"` |
+| `{"a": "[1]"}` | `{"a": "[1]"}` |
+| `1.5` | `1.5` |
+
+binding: `go run ./tools/bind dry-run-summary`（入力は `{"total": 例の数, "mismatch": 期待と違った数, "error": binding の失敗の理由（無ければ ""）}`、出力は `# dry-run:` に書く文字列）
+
+| 入力 | 出力 |
+|---|---|
+| `{"total": 3, "mismatch": 0, "error": ""}` | `"pass"` |
+| `{"total": 3, "mismatch": 1, "error": ""}` | `"fail: 3 件中 1 件が期待と違う"` |
+| `{"total": 3, "mismatch": 0, "error": "binding が失敗 (exit status 1)\n詳細"}` | `"error: binding が失敗 (exit status 1)"` |
+| `{"total": 0, "mismatch": 0, "error": ""}` | `"none"` |
+
 ## リモート承認
 
 利用者がスマホなどから Claude Code のリモートセッションだけで操作しているときは、承認画面（`review`）を開けない。
@@ -262,10 +320,12 @@ binding: `go run ./tools/bind consensus-hits`（入力は run ごとの title �
 spec-gate が受け取って反映する。回答はハーネスが作り、hook はハーネスが起動するので、エージェントは回答を偽造できない。
 外部サービス・サーバ・ネットワークは使わない。
 
-**実機未検証**: AskUserQuestion の hook に渡る回答の形は実機で確かめていない。最初の実際の承認で確認する。
+**実機で確かめたこと（2026-11-04、Android の Claude アプリ）**: 選択肢の preview はダイアログに表示されない。候補の内容は question 文に入れないと見えない。
+AskUserQuestion の hook に渡る回答の形は、まだ実機で確かめていない。
 
 - `spec-gate review ask [--limit N]` は `claims/_pending/` の候補から、AskUserQuestion の `questions` にそのまま渡せる JSON 配列を stdout に出す。N は 1〜4（既定 4）で、範囲外はエラー
-  - 質問 1 つが候補 1 つ。question は「候補 <ID> をどうしますか？」、header は候補 ID（12 文字を超えたら先頭 12 文字）、multiSelect は false
+  - 質問 1 つが候補 1 つ。question は「候補 <ID> をどうしますか？」の後に空行を挟んで、preview を平文にした内容を続けたもの。header は候補 ID（12 文字を超えたら先頭 12 文字）、multiSelect は false
+  - 平文にした内容: 見出しの `#` を外し（`##` は【】で囲む）、例の表は 1 行 1 例の「・<入力> → <出力>（<メモ>）」にする。例は 6 件まで（残りは「・ほか n 件」）、1 行は 140 文字まで、全体は 1500 文字まで（超えたら「…（長いので省略。全文は承認画面で確認する）」）。回答が文字列で返っても読めるよう、`"` と `\` は全角（`”` `＼`）にする
   - 選択肢は「承認」「却下」「曖昧」の 3 つ。各選択肢の description に操作の意味を平易に書き、preview に候補の内容（タイトル・仕様の場所・種類・例の入出力の表・確かめるコマンドなど）を Markdown で書く。3 つとも同じ preview
   - 読めない候補と、同じ ID が複数のファイルにある候補は出さない（stderr に案内）。候補が無ければ `[]` を出し、stderr に案内する
 - `spec-gate review record` は PostToolUse hook（matcher `AskUserQuestion`）から呼ぶ。stdin の hook の JSON（`tool_name`・`tool_input.questions`・`tool_response`）を読む
@@ -283,15 +343,71 @@ binding: `go run ./tools/bind remote-decisions`（入力は `{"hook": hook の s
 
 | 入力 | 出力 |
 |---|---|
-| `{"hook": {"tool_name": "AskUserQuestion", "tool_input": {"questions": [{"question": "候補 R-1 をどうしますか？", "header": "R-1", "multiSelect": false, "options": [{"label": "承認", "description": "内容は正しい。このまま仕様として確定する", "preview": "P"}, {"label": "却下", "description": "内容が間違っている。この候補を捨てる", "preview": "P"}, {"label": "曖昧", "description": "仕様がまだ決まっていない。保留として記録する（理由は Other に書ける）", "preview": "P"}]}]}, "tool_response": {"answers": {"候補 R-1 をどうしますか？": "承認"}}}, "previews": {"R-1": "P"}}` | `[{"id": "R-1", "verdict": "approve"}]` |
-| `{"hook": {"tool_name": "AskUserQuestion", "tool_input": {"questions": [{"question": "候補 R-1 をどうしますか？", "header": "R-1", "multiSelect": false, "options": [{"label": "承認", "description": "内容は正しい。このまま仕様として確定する", "preview": "P"}, {"label": "却下", "description": "内容が間違っている。この候補を捨てる", "preview": "P"}, {"label": "曖昧", "description": "仕様がまだ決まっていない。保留として記録する（理由は Other に書ける）", "preview": "P"}]}]}, "tool_response": "User has answered your questions: \"候補 R-1 をどうしますか？\"=\"却下\". You can now continue with the user's answers in mind."}, "previews": {"R-1": "P"}}` | `[{"id": "R-1", "verdict": "reject"}]` |
-| `{"hook": {"tool_name": "AskUserQuestion", "tool_input": {"questions": [{"question": "候補 R-1 をどうしますか？", "header": "R-1", "multiSelect": false, "options": [{"label": "承認", "description": "内容は正しい。このまま仕様として確定する", "preview": "P"}, {"label": "却下", "description": "内容が間違っている。この候補を捨てる", "preview": "P"}, {"label": "曖昧", "description": "仕様がまだ決まっていない。保留として記録する（理由は Other に書ける）", "preview": "P"}]}], "answers": {"候補 R-1 をどうしますか？": "曖昧"}}}, "previews": {"R-1": "P"}}` | `[]` |
-| `{"hook": {"tool_name": "AskUserQuestion", "tool_input": {"questions": [{"question": "候補 R-1 をどうしますか？", "header": "R-1", "multiSelect": false, "options": [{"label": "承認", "description": "内容は正しい。このまま仕様として確定する", "preview": "P"}, {"label": "却下", "description": "内容が間違っている。この候補を捨てる", "preview": "P"}, {"label": "曖昧", "description": "仕様がまだ決まっていない。保留として記録する（理由は Other に書ける）", "preview": "P"}]}]}, "tool_response": "User has answered your questions: \"候補 R-1 をどうしますか？\"=\"曖昧\". You can now continue with the user's answers in mind."}, "previews": {"R-1": "P"}}` | `[{"id": "R-1", "verdict": "ambiguous", "reason": "リモート承認で曖昧と判断（理由未記入）"}]` |
-| `{"hook": {"tool_name": "AskUserQuestion", "tool_input": {"questions": [{"question": "候補 R-1 をどうしますか？", "header": "R-1", "multiSelect": false, "options": [{"label": "承認", "description": "内容は正しい。このまま仕様として確定する", "preview": "P"}, {"label": "却下", "description": "内容が間違っている。この候補を捨てる", "preview": "P"}, {"label": "曖昧", "description": "仕様がまだ決まっていない。保留として記録する（理由は Other に書ける）", "preview": "P"}]}]}, "tool_response": {"answers": {"候補 R-1 をどうしますか？": "締め日の扱いが決まっていない"}}}, "previews": {"R-1": "P"}}` | `[{"id": "R-1", "verdict": "ambiguous", "reason": "締め日の扱いが決まっていない"}]` |
-| `{"hook": {"tool_name": "AskUserQuestion", "tool_input": {"questions": [{"question": "候補 R-1 をどうしますか？", "header": "R-1", "multiSelect": false, "options": [{"label": "承認", "description": "内容は正しい。このまま仕様として確定する", "preview": "P"}, {"label": "却下", "description": "内容が間違っている。この候補を捨てる", "preview": "P"}, {"label": "曖昧", "description": "仕様がまだ決まっていない。保留として記録する（理由は Other に書ける）", "preview": "P"}]}]}, "tool_response": {"answers": {"候補 R-1 をどうしますか？": "承認"}}}, "previews": {"R-1": "Q"}}` | `[]` |
-| `{"hook": {"tool_name": "AskUserQuestion", "tool_input": {"questions": [{"question": "候補 R-1 をどうしますか？", "header": "R-1", "multiSelect": false, "options": [{"label": "承認", "description": "内容は正しい。このまま仕様として確定する", "preview": "P"}, {"label": "却下", "description": "内容が間違っている。この候補を捨てる", "preview": "P"}, {"label": "曖昧", "description": "仕様がまだ決まっていない。保留として記録する（理由は Other に書ける）", "preview": "P"}]}]}, "tool_response": {"answers": {"候補 R-1 をどうしますか？": "承認"}}}, "previews": {}}` | `[]` |
-| `{"hook": {"tool_name": "Bash", "tool_input": {"questions": [{"question": "候補 R-1 をどうしますか？", "header": "R-1", "multiSelect": false, "options": [{"label": "承認", "description": "内容は正しい。このまま仕様として確定する", "preview": "P"}, {"label": "却下", "description": "内容が間違っている。この候補を捨てる", "preview": "P"}, {"label": "曖昧", "description": "仕様がまだ決まっていない。保留として記録する（理由は Other に書ける）", "preview": "P"}]}]}, "tool_response": {"answers": {"候補 R-1 をどうしますか？": "承認"}}}, "previews": {"R-1": "P"}}` | `[]` |
-| `{"hook": {"tool_name": "AskUserQuestion", "tool_input": {"questions": [{"question": "候補 R-1 をどうしますか？", "header": "R-1", "multiSelect": false, "options": [{"label": "承認", "description": "内容は正しい。このまま仕様として確定する", "preview": "P"}, {"label": "却下", "description": "内容が間違っている。この候補を捨てる", "preview": "P"}, {"label": "曖昧", "description": "仕様がまだ決まっていない。保留として記録する（理由は Other に書ける）", "preview": "P"}]}]}, "tool_response": {}}, "previews": {"R-1": "P"}}` | `[]` |
+| `{"hook": {"tool_name": "AskUserQuestion", "tool_input": {"questions": [{"question": "候補 R-1 をどうしますか？\n\nP", "header": "R-1", "multiSelect": false, "options": [{"label": "承認", "description": "内容は正しい。このまま仕様として確定する", "preview": "P"}, {"label": "却下", "description": "内容が間違っている。この候補を捨てる", "preview": "P"}, {"label": "曖昧", "description": "仕様がまだ決まっていない。保留として記録する（理由は Other に書ける）", "preview": "P"}]}]}, "tool_response": {"answers": {"候補 R-1 をどうしますか？\n\nP": "承認"}}}, "previews": {"R-1": "P"}}` | `[{"id": "R-1", "verdict": "approve"}]` |
+| `{"hook": {"tool_name": "AskUserQuestion", "tool_input": {"questions": [{"question": "候補 R-1 をどうしますか？\n\nP", "header": "R-1", "multiSelect": false, "options": [{"label": "承認", "description": "内容は正しい。このまま仕様として確定する", "preview": "P"}, {"label": "却下", "description": "内容が間違っている。この候補を捨てる", "preview": "P"}, {"label": "曖昧", "description": "仕様がまだ決まっていない。保留として記録する（理由は Other に書ける）", "preview": "P"}]}]}, "tool_response": "User has answered your questions: \"候補 R-1 をどうしますか？\n\nP\"=\"却下\". You can now continue with the user's answers in mind."}, "previews": {"R-1": "P"}}` | `[{"id": "R-1", "verdict": "reject"}]` |
+| `{"hook": {"tool_name": "AskUserQuestion", "tool_input": {"questions": [{"question": "候補 R-1 をどうしますか？\n\nP", "header": "R-1", "multiSelect": false, "options": [{"label": "承認", "description": "内容は正しい。このまま仕様として確定する", "preview": "P"}, {"label": "却下", "description": "内容が間違っている。この候補を捨てる", "preview": "P"}, {"label": "曖昧", "description": "仕様がまだ決まっていない。保留として記録する（理由は Other に書ける）", "preview": "P"}]}], "answers": {"候補 R-1 をどうしますか？\n\nP": "曖昧"}}}, "previews": {"R-1": "P"}}` | `[]` |
+| `{"hook": {"tool_name": "AskUserQuestion", "tool_input": {"questions": [{"question": "候補 R-1 をどうしますか？\n\nP", "header": "R-1", "multiSelect": false, "options": [{"label": "承認", "description": "内容は正しい。このまま仕様として確定する", "preview": "P"}, {"label": "却下", "description": "内容が間違っている。この候補を捨てる", "preview": "P"}, {"label": "曖昧", "description": "仕様がまだ決まっていない。保留として記録する（理由は Other に書ける）", "preview": "P"}]}]}, "tool_response": "User has answered your questions: \"候補 R-1 をどうしますか？\n\nP\"=\"曖昧\". You can now continue with the user's answers in mind."}, "previews": {"R-1": "P"}}` | `[{"id": "R-1", "verdict": "ambiguous", "reason": "リモート承認で曖昧と判断（理由未記入）"}]` |
+| `{"hook": {"tool_name": "AskUserQuestion", "tool_input": {"questions": [{"question": "候補 R-1 をどうしますか？\n\nP", "header": "R-1", "multiSelect": false, "options": [{"label": "承認", "description": "内容は正しい。このまま仕様として確定する", "preview": "P"}, {"label": "却下", "description": "内容が間違っている。この候補を捨てる", "preview": "P"}, {"label": "曖昧", "description": "仕様がまだ決まっていない。保留として記録する（理由は Other に書ける）", "preview": "P"}]}]}, "tool_response": {"answers": {"候補 R-1 をどうしますか？\n\nP": "締め日の扱いが決まっていない"}}}, "previews": {"R-1": "P"}}` | `[{"id": "R-1", "verdict": "ambiguous", "reason": "締め日の扱いが決まっていない"}]` |
+| `{"hook": {"tool_name": "AskUserQuestion", "tool_input": {"questions": [{"question": "候補 R-1 をどうしますか？\n\nP", "header": "R-1", "multiSelect": false, "options": [{"label": "承認", "description": "内容は正しい。このまま仕様として確定する", "preview": "P"}, {"label": "却下", "description": "内容が間違っている。この候補を捨てる", "preview": "P"}, {"label": "曖昧", "description": "仕様がまだ決まっていない。保留として記録する（理由は Other に書ける）", "preview": "P"}]}]}, "tool_response": {"answers": {"候補 R-1 をどうしますか？\n\nP": "承認"}}}, "previews": {"R-1": "Q"}}` | `[]` |
+| `{"hook": {"tool_name": "AskUserQuestion", "tool_input": {"questions": [{"question": "候補 R-1 をどうしますか？\n\nP", "header": "R-1", "multiSelect": false, "options": [{"label": "承認", "description": "内容は正しい。このまま仕様として確定する", "preview": "P"}, {"label": "却下", "description": "内容が間違っている。この候補を捨てる", "preview": "P"}, {"label": "曖昧", "description": "仕様がまだ決まっていない。保留として記録する（理由は Other に書ける）", "preview": "P"}]}]}, "tool_response": {"answers": {"候補 R-1 をどうしますか？\n\nP": "承認"}}}, "previews": {}}` | `[]` |
+| `{"hook": {"tool_name": "Bash", "tool_input": {"questions": [{"question": "候補 R-1 をどうしますか？\n\nP", "header": "R-1", "multiSelect": false, "options": [{"label": "承認", "description": "内容は正しい。このまま仕様として確定する", "preview": "P"}, {"label": "却下", "description": "内容が間違っている。この候補を捨てる", "preview": "P"}, {"label": "曖昧", "description": "仕様がまだ決まっていない。保留として記録する（理由は Other に書ける）", "preview": "P"}]}]}, "tool_response": {"answers": {"候補 R-1 をどうしますか？\n\nP": "承認"}}}, "previews": {"R-1": "P"}}` | `[]` |
+| `{"hook": {"tool_name": "AskUserQuestion", "tool_input": {"questions": [{"question": "候補 R-1 をどうしますか？\n\nP", "header": "R-1", "multiSelect": false, "options": [{"label": "承認", "description": "内容は正しい。このまま仕様として確定する", "preview": "P"}, {"label": "却下", "description": "内容が間違っている。この候補を捨てる", "preview": "P"}, {"label": "曖昧", "description": "仕様がまだ決まっていない。保留として記録する（理由は Other に書ける）", "preview": "P"}]}]}, "tool_response": {}}, "previews": {"R-1": "P"}}` | `[]` |
+
+## まとめ承認
+
+自己適用（`docs/spec/harness.md` の 16 節）では候補が 149 件出た。1 件ずつの承認では、確かめる価値の高い候補に人間の時間が回らない。
+承認しやすい候補から順に出し、確かめるまでもない候補はまとめて承認できるようにする。承認は人間の操作のまま（エージェントには実行させない）。
+
+- 承認画面・`review ask` は、候補を承認しやすい順に並べる。順は、試し実行（`# dry-run:`）が pass → none → fail → error、同じなら合意数の多い順（`n/N` の n/N が大きい順）、同じなら kind が example → structure → ui → manual、同じならファイル名の順。`# dry-run:` の無い候補は none と同じ
+- まとめ承認の対象（既定）は、合意数が全員一致（`N/N`）で、kind が example なら試し実行が pass のもの。読めない候補・ID が重複する候補は対象にしない
+- `spec-gate approve --pending` は対象の候補を一覧するだけで、承認しない。`--yes` を付けたときだけ、1 件ずつ承認画面の承認と同じ処理で承認する。1 件が拒否されても残りは続け、拒否が 1 件でもあれば exit 1
+  - `--min-agree <n>` は合意数の下限を n にする（既定は全員一致）。`--kind <kind>` は kind で絞る（繰り返し可）
+  - 試し実行の条件は承認時の試し実行で判定する（ヘッダは使わない）
+- 承認画面は候補ごとにチェックボックスを持ち、「まとめ承認の対象を選ぶ」と「選んだ候補を承認」のボタンを出す。承認は `/api/approve-bulk` に候補名の配列を送り、1 件ずつの結果を返す
+- `spec-gate review ask --bulk` は、まとめ承認の対象を最大 8 件、1 つの質問にまとめる
+  - question は「候補 <n> 件（<ID>, <ID>, …）をまとめて承認しますか？」、header は「まとめ承認」、multiSelect は false
+  - 選択肢は「まとめて承認」「1 件ずつ見る」の 2 つ。preview は、対象の候補の preview を `---` の行で区切って並べたもの（2 つとも同じ）
+  - 対象が無ければ `[]` を出し、stderr に案内する
+- `review record` は、まとめ承認の質問も、spec-gate がその ID の並びから今作る質問と完全に一致するときだけ反映する。回答が「まとめて承認」なら並んだ候補を 1 件ずつ承認する。それ以外の回答は何もしない
+- 候補の preview には、試し実行の結果（`# dry-run:`）と、manual の手がかり（`hint`）があれば出す
+
+binding: `go run ./tools/bind review-order`（入力は候補の配列 `{"name", "kind", "confidence", "dry_run"}`、出力は並べたあとの name の配列）
+
+| 入力 | 出力 |
+|---|---|
+| `[{"name": "a.yaml", "kind": "manual", "confidence": "3/3", "dry_run": ""}, {"name": "b.yaml", "kind": "example", "confidence": "1/3", "dry_run": "pass"}, {"name": "c.yaml", "kind": "example", "confidence": "3/3", "dry_run": "pass"}]` | `["c.yaml", "b.yaml", "a.yaml"]` |
+| `[{"name": "a.yaml", "kind": "example", "confidence": "3/3", "dry_run": "error: x"}, {"name": "b.yaml", "kind": "example", "confidence": "3/3", "dry_run": "fail: 2 件中 1 件が期待と違う"}, {"name": "c.yaml", "kind": "ui", "confidence": "3/3", "dry_run": ""}]` | `["c.yaml", "b.yaml", "a.yaml"]` |
+| `[{"name": "b.yaml", "kind": "manual", "confidence": "2/3", "dry_run": ""}, {"name": "a.yaml", "kind": "manual", "confidence": "2/3", "dry_run": ""}]` | `["a.yaml", "b.yaml"]` |
+
+binding: `go run ./tools/bind bulk-eligible`（入力は候補 `{"kind", "confidence", "dry_run"}` と `"min_agree"`（0 なら全員一致）、出力はまとめ承認の対象か）
+
+| 入力 | 出力 |
+|---|---|
+| `{"kind": "example", "confidence": "3/3", "dry_run": "pass", "min_agree": 0}` | `true` |
+| `{"kind": "example", "confidence": "3/3", "dry_run": "fail: 3 件中 1 件が期待と違う", "min_agree": 0}` | `false` |
+| `{"kind": "manual", "confidence": "3/3", "dry_run": "", "min_agree": 0}` | `true` |
+| `{"kind": "manual", "confidence": "2/3", "dry_run": "", "min_agree": 0}` | `false` |
+| `{"kind": "manual", "confidence": "2/3", "dry_run": "", "min_agree": 2}` | `true` |
+| `{"kind": "example", "confidence": "", "dry_run": "pass", "min_agree": 0}` | `false` |
+
+## manual の手がかり
+
+自己適用では候補の 76%（149 件中 113 件）が kind: manual だった。manual は check で常に unverified になり、守りに効かない。
+manual を減らすために、抽出のときに「どうすれば機械で確かめられるか」を書かせ、件数を見えるようにする。
+
+- 抽出のプロンプトは、kind: manual にした claim に `hint:` を 1 行書かせる。内容は、機械で確かめるのに足りないもの（どんな入力と出力の binding があれば example にできるか）か、機械で確かめられない理由
+- `hint` は承認画面とリモート承認の preview に「機械で確かめるには」として出す。check の判定には使わない
+- 合議で束ねた代表に `hint` が無く、束の他の claim にあれば、run の順で最初の `hint` を代表に付ける
+- `extract`（`--collect` とコマンドモード）は、最後に候補の内訳を出す: 候補の数、kind ごとの件数と manual の割合、合意数ごとの件数、試し実行の結果ごとの件数
+- `check --format json` の metrics に `manual_rate`（manual の claim の数 / claim の総数。0 件なら 0）を出す
+
+binding: `go run ./tools/bind manual-rate`（入力は claim の kind の配列、出力は manual の割合）
+
+| 入力 | 出力 |
+|---|---|
+| `["example", "manual", "manual", "ui"]` | `0.5` |
+| `["example"]` | `0` |
+| `[]` | `0` |
 
 ## 変更履歴
 
@@ -301,4 +417,6 @@ binding: `go run ./tools/bind remote-decisions`（入力は `{"hook": hook の s
 - 2026-11-04 変更検知の精度に、触る Go パッケージが import するモジュール内のパッケージも触るパスに加える規則を追加
 - 2026-11-04 holdout の期待値を平文ではなく SHA-256（`out_sha256`）で持つように変更。`spec-gate holdout add` を追加し、properties は check 時に実際の出力で評価、lint は形だけを確かめる。漏れ検知が holdout から調べるのは in だけ
 - 2026-11-04 リモート承認を追加（実機未検証）
+- 2026-11-04 リモート承認の question に候補の内容を入れる（スマホのダイアログでは preview が表示されなかった）
 - 2026-11-04 合議の同定を追加（例の無い claim の言い換えを、title の文字 bigram の Dice 係数 0.6 以上で同じ主張とみなす）
+- 2026-11-04 manual と例のある claim の同定・抽出結果の試し実行・まとめ承認・manual の手がかりを追加（自己適用で manual が 76%、候補が 149 件、example 候補 28 件中 9 件が入力を JSON 文字列で書いていたため）

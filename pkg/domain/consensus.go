@@ -33,11 +33,20 @@ func MergeRuns(perRun [][]Claim) []Agreement {
 		hits    int
 		members []Claim
 		titles  []string // 例の無い束の、正規化した title（run の順）
+		runs    map[int]bool
+		all     []string // 束に入ったすべての claim の正規化した title（kind 跨ぎの照合用）
+	}
+	add := func(b *bucket, run int, c Claim) {
+		if b.runs == nil {
+			b.runs = map[int]bool{}
+		}
+		b.runs[run] = true
+		b.all = append(b.all, NormalizeClaimTitle(c.Title))
 	}
 	var buckets []*bucket
 	byKey := map[string]*bucket{}
 
-	for _, claims := range perRun {
+	for run, claims := range perRun {
 		taken := map[*bucket]bool{}
 		seen := map[string]bool{}
 		var loose []Claim // 例の無い claim（言い換えで照合する）
@@ -54,6 +63,7 @@ func MergeRuns(perRun [][]Claim) []Agreement {
 			if b, ok := byKey[key]; ok {
 				b.hits++
 				b.members = append(b.members, c)
+				add(b, run, c)
 				taken[b] = true
 				if len(c.Examples) > len(b.claim.Examples) { // より情報量の多い方を残す
 					b.claim = c
@@ -61,6 +71,7 @@ func MergeRuns(perRun [][]Claim) []Agreement {
 				continue
 			}
 			b := &bucket{claim: c, hits: 1, members: []Claim{c}}
+			add(b, run, c)
 			byKey[key] = b
 			buckets = append(buckets, b)
 			taken[b] = true
@@ -106,22 +117,79 @@ func MergeRuns(perRun [][]Claim) []Agreement {
 			b.hits++
 			b.members = append(b.members, loose[m.ci])
 			b.titles = append(b.titles, norms[m.ci])
+			add(b, run, loose[m.ci])
 		}
 		for ci, c := range loose {
 			if placed[ci] {
 				continue
 			}
 			b := &bucket{claim: c, hits: 1, members: []Claim{c}, titles: []string{norms[ci]}}
+			add(b, run, c)
 			buckets = append(buckets, b)
 			taken[b] = true
 		}
 	}
 
+	// manual の束を、同じ主張の example の束に寄せる（docs/spec/harness.md「manual と例のある claim の同定」）
+	merged := map[*bucket]bool{}
+	for _, m := range buckets {
+		if m.claim.Kind != KindManual {
+			continue
+		}
+		var best *bucket
+		bestSim := 0.0
+		for _, e := range buckets {
+			if e.claim.Kind != KindExample || merged[e] || e.claim.Source.Ref != m.claim.Source.Ref || overlaps(e.runs, m.runs) {
+				continue
+			}
+			sim := 0.0
+			for _, a := range m.all {
+				for _, b := range e.all {
+					sim = max(sim, TitleSimilarity(a, b))
+				}
+			}
+			if sim >= ParaphraseThreshold && sim > bestSim {
+				best, bestSim = e, sim
+			}
+		}
+		if best == nil {
+			continue
+		}
+		best.hits += m.hits
+		best.members = append(best.members, m.members...)
+		best.all = append(best.all, m.all...)
+		for r := range m.runs {
+			best.runs[r] = true
+		}
+		merged[m] = true
+	}
+
 	out := make([]Agreement, 0, len(buckets))
 	for _, b := range buckets {
-		out = append(out, Agreement{Claim: b.claim, Hits: b.hits, Members: b.members})
+		if merged[b] {
+			continue
+		}
+		c := b.claim
+		if c.Hint == "" {
+			for _, mem := range b.members {
+				if mem.Hint != "" {
+					c.Hint = mem.Hint
+					break
+				}
+			}
+		}
+		out = append(out, Agreement{Claim: c, Hits: b.hits, Members: b.members})
 	}
 	return out
+}
+
+func overlaps(a, b map[int]bool) bool {
+	for k := range a {
+		if b[k] {
+			return true
+		}
+	}
+	return false
 }
 
 // ClaimFingerprint は 1 つの run の中での重複と、例のある claim の同定に使うキー。

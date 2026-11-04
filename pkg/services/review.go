@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"slices"
 	"strings"
 	"sync"
 
@@ -45,7 +46,7 @@ func AreaFor(k domain.ClaimKind) string {
 	}
 }
 
-// List は承認待ち候補を、仕様の現在の抜粋つきで返す。
+// List は承認待ち候補を、承認しやすい順（domain.SortForReview）に、仕様の現在の抜粋つきで返す。
 func (s *ReviewService) List(ctx context.Context) ([]ReviewItem, error) {
 	s.mu.Lock()
 	pending, err := s.Pending.Pending()
@@ -53,6 +54,7 @@ func (s *ReviewService) List(ctx context.Context) ([]ReviewItem, error) {
 	if err != nil {
 		return nil, err
 	}
+	domain.SortForReview(pending)
 	items := make([]ReviewItem, 0, len(pending))
 	for _, p := range pending {
 		it := ReviewItem{PendingClaim: p}
@@ -104,6 +106,101 @@ func (s *ReviewService) Approve(ctx context.Context, name, by string) (ApproveRe
 		return ApproveResult{}, err
 	}
 	return res, nil
+}
+
+// BulkOutcome はまとめ承認の 1 件分の結果。Error が空なら承認できた。
+type BulkOutcome struct {
+	Name  string
+	ID    string
+	Error string
+}
+
+// BulkTargets はまとめ承認の対象（domain.BulkEligible）を承認しやすい順に返す。kinds が空でなければ kind で絞る。
+// ID が重複する候補は対象にしない。dry-run はヘッダの値なので、承認時に BulkApprove が試し実行し直す。
+func (s *ReviewService) BulkTargets(minAgree int, kinds []domain.ClaimKind) ([]domain.PendingClaim, error) {
+	s.mu.Lock()
+	pending, err := s.Pending.Pending()
+	s.mu.Unlock()
+	if err != nil {
+		return nil, err
+	}
+	ids := map[string]int{}
+	for _, p := range pending {
+		ids[p.Claim.ID]++
+	}
+	var out []domain.PendingClaim
+	for _, p := range pending {
+		if ids[p.Claim.ID] > 1 || !domain.BulkEligible(p, minAgree) {
+			continue
+		}
+		if len(kinds) > 0 && !slices.Contains(kinds, p.Claim.Kind) {
+			continue
+		}
+		out = append(out, p)
+	}
+	domain.SortForReview(out)
+	return out, nil
+}
+
+// BulkApprove は候補を 1 件ずつ Approve と同じ処理で承認する。1 件が拒否されても残りは続ける。
+// requirePass なら、binding のある example 候補は承認の前に試し実行し、pass でなければ承認しない（ヘッダは信用しない）。
+func (s *ReviewService) BulkApprove(ctx context.Context, names []string, by string, requirePass bool) []BulkOutcome {
+	out := make([]BulkOutcome, 0, len(names))
+	for _, name := range names {
+		o := BulkOutcome{Name: name}
+		if requirePass {
+			s.mu.Lock()
+			target, err := s.find(name)
+			s.mu.Unlock()
+			if err != nil {
+				o.Error = err.Error()
+				out = append(out, o)
+				continue
+			}
+			o.ID = target.Claim.ID
+			if s.Approver.Probe != nil && target.Claim.NeedsDryRun() {
+				if d := s.Approver.Probe.Probe(ctx, target.Claim); d.State() != domain.DryRunPass {
+					o.Error = "試し実行が pass でないのでまとめ承認しない（1 件ずつ確かめて承認する）: " + d.Summary()
+					out = append(out, o)
+					continue
+				}
+			}
+		}
+		res, err := s.Approve(ctx, name, by)
+		if err != nil {
+			o.Error = err.Error()
+		} else {
+			o.ID = res.Claim.ID
+		}
+		out = append(out, o)
+	}
+	return out
+}
+
+// Probe は承認待ち候補をすべて試し実行し直し、`# dry-run:` を書き換える（review probe）。
+// 返り値は候補名 → 書いた結果。試し実行の対象でない候補は含めない。
+func (s *ReviewService) Probe(ctx context.Context) (map[string]string, error) {
+	if s.Approver == nil || s.Approver.Probe == nil {
+		return nil, errors.New("試し実行の仕組みが組み込まれていない")
+	}
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	pending, err := s.Pending.Pending()
+	if err != nil {
+		return nil, err
+	}
+	out := map[string]string{}
+	for _, p := range pending {
+		if p.Error != "" || !p.Claim.NeedsDryRun() {
+			continue
+		}
+		sum := s.Approver.Probe.Probe(ctx, p.Claim).Summary()
+		if err := s.Pending.WriteDryRun(p.Name, sum); err != nil {
+			return out, err
+		}
+		out[p.Name] = sum
+	}
+	return out, nil
 }
 
 // Reject は候補 name を削除する。

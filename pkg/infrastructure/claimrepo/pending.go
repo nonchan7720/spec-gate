@@ -14,6 +14,9 @@ import (
 // confidenceLine は SavePending が書くヘッダ `# confidence: 2/3`。
 var confidenceLine = regexp.MustCompile(`(?m)^#\s*confidence:\s*(\S+)\s*$`)
 
+// dryRunLine は試し実行の結果のヘッダ `# dry-run: pass`（docs/spec/harness.md「抽出結果の試し実行」）。
+var dryRunLine = regexp.MustCompile(`(?m)^#\s*dry-run:[ \t]*(.*?)[ \t]*$`)
+
 func (r *Repo) pendingDir() string { return filepath.Join(r.dir(), pendingDir) }
 
 // Pending は claims/_pending/*.yaml を名前順に返す。
@@ -39,6 +42,9 @@ func (r *Repo) Pending() ([]domain.PendingClaim, error) {
 		}
 		if m := confidenceLine.FindSubmatch(b); m != nil {
 			pc.Confidence = string(m[1])
+		}
+		if m := dryRunLine.FindSubmatch(b); m != nil {
+			pc.DryRun = string(m[1])
 		}
 		c, err := decodeClaim(b)
 		if err == nil {
@@ -116,4 +122,30 @@ func safeSegment(s string) bool {
 
 func isYAML(name string) bool {
 	return strings.HasSuffix(name, ".yaml") || strings.HasSuffix(name, ".yml")
+}
+
+// WriteDryRun は候補 name の `# dry-run:` ヘッダを summary にする。無ければ `# confidence:` の次（それも無ければ先頭）に足す。
+func (r *Repo) WriteDryRun(name, summary string) error {
+	if !safeSegment(name) || !isYAML(name) {
+		return fmt.Errorf("候補名が不正: %q", name)
+	}
+	summary = strings.ReplaceAll(strings.TrimSpace(summary), "\n", " ")
+	p := filepath.Join(r.pendingDir(), name)
+	b, err := os.ReadFile(p)
+	if err != nil {
+		return err
+	}
+	line := "# dry-run: " + summary
+	var out string
+	switch {
+	case dryRunLine.Match(b):
+		loc := dryRunLine.FindIndex(b)
+		out = string(b[:loc[0]]) + line + string(b[loc[1]:])
+	case confidenceLine.Match(b):
+		loc := confidenceLine.FindIndex(b)
+		out = string(b[:loc[1]]) + "\n" + line + string(b[loc[1]:])
+	default:
+		out = line + "\n" + string(b)
+	}
+	return os.WriteFile(p, []byte(out), 0o644)
 }

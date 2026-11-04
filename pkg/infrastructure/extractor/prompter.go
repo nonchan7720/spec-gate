@@ -35,7 +35,8 @@ func (p Prompter) Prompt(ref, excerpt string) string {
 	return strings.NewReplacer("{{REF}}", ref, "{{SOURCE}}", excerpt).Replace(tmpl)
 }
 
-// Parse は回答の ```yaml ブロック（無ければ回答全体）を claim の配列として読み、source.ref を ref にそろえる。
+// Parse は回答の ```yaml ブロック（無ければ回答全体）を claim の配列として読み、source.ref を ref にそろえ、
+// 例の値を domain.NormalizeExamples でそろえる。
 func (Prompter) Parse(answer, ref string) ([]domain.Claim, error) {
 	body := answer
 	if m := yamlBlock.FindStringSubmatch(answer); m != nil {
@@ -50,6 +51,8 @@ func (Prompter) Parse(answer, ref string) ([]domain.Claim, error) {
 	}
 	for i := range claims {
 		claims[i].Source = domain.Source{Type: claims[i].Source.Type, Ref: ref}
+		// 構造のある値を JSON の文字列で書いた例を、構造に戻す（docs/spec/harness.md「抽出結果の試し実行」）
+		domain.NormalizeExamples(&claims[i])
 	}
 	return claims, nil
 }

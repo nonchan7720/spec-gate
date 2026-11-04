@@ -15,9 +15,14 @@ import (
 	"github.com/spf13/cobra"
 )
 
+// newReviewService は承認画面・まとめ承認・リモート承認が共有する ReviewService を組み立てる。
+func newReviewService(a *app) *services.ReviewService {
+	return &services.ReviewService{Pending: claimrepo.New(a.root), Adapters: a.adapters, Approver: a.approve}
+}
+
 // newRemoteReview はリモート承認のサービスを組み立てる。反映は承認画面と同じ ReviewService を使う。
 func newRemoteReview(a *app) *services.RemoteReviewService {
-	review := &services.ReviewService{Pending: claimrepo.New(a.root), Adapters: a.adapters, Approver: a.approve}
+	review := newReviewService(a)
 	return &services.RemoteReviewService{Review: review, Log: tracelog.NewDecisions(a.root), Clock: utcClock{}}
 }
 

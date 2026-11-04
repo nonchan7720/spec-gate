@@ -1,4 +1,5 @@
 # confidence: 3/3
+# dry-run: error: binding が失敗 (exit status 1): trace-summary: 入力は判定履歴の配列: json: cannot unmarshal string into Go value of type []domain.Tra
 # 承認するには内容を確認して claims/<領域>/ に移し、`spec-gate approve TRACE-003` を実行する
 id: TRACE-003
 kind: example

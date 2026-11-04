@@ -2,6 +2,7 @@ package domain
 
 import (
 	"encoding/json"
+	"fmt"
 	"reflect"
 	"strings"
 	"testing"
@@ -63,8 +64,8 @@ func TestRenderRemotePreview_OtherKinds(t *testing.T) {
 
 func TestNewRemoteQuestion(t *testing.T) {
 	q := NewRemoteQuestion("VERY-LONG-ID-0001", "P")
-	if q.Question != "候補 VERY-LONG-ID-0001 をどうしますか？" || q.Header != "VERY-LONG-ID" || q.MultiSelect {
-		t.Fatalf("question に候補 ID、header は 12 文字まで: %+v", q)
+	if q.Question != "候補 VERY-LONG-ID-0001 をどうしますか？\n\nP" || q.Header != "VERY-LONG-ID" || q.MultiSelect {
+		t.Fatalf("question に候補 ID と内容（スマホでは preview が出ない）、header は 12 文字まで: %+v", q)
 	}
 	var labels []string
 	for _, o := range q.Options {
@@ -177,5 +178,29 @@ func TestDecideRemote(t *testing.T) {
 	}
 	if got, _ := DecideRemote(remoteHook(t, []AskQuestion{qa}, map[string]any{"answers": map[string]any{qa.Question: "  "}}, nil), current); len(got) != 0 {
 		t.Fatalf("空の回答は反映しない: %+v", got)
+	}
+}
+
+func TestRemoteQuestionBody(t *testing.T) {
+	preview := "# R-1 円未満は切り捨て\n\n- 仕様の場所: a.md#x\n- 試し実行: pass\n\n## 例\n\n| 入力 | 期待する出力 | メモ |\n|---|---|---|\n| 1.5 | 1 |  |\n| \"a\\|b\" | 2 | 境界 |\n\n## いつも成り立つこと\n\n- isInteger(output)\n"
+	want := "R-1 円未満は切り捨て\n\n- 仕様の場所: a.md#x\n- 試し実行: pass\n\n【例】\n\n・1.5 → 1\n・”a|b” → 2（境界）\n\n【いつも成り立つこと】\n\n- isInteger(output)"
+	if got := RemoteQuestionBody(preview); got != want {
+		t.Fatalf("見出しの # を外し、表を行にし、\" を全角にする:\n%s\n---\n%s", got, want)
+	}
+	var b strings.Builder
+	b.WriteString("## 例\n\n| 入力 | 期待する出力 | メモ |\n|---|---|---|\n")
+	for i := range 9 {
+		fmt.Fprintf(&b, "| %d | %d |  |\n", i, i)
+	}
+	got := RemoteQuestionBody(b.String())
+	if !strings.Contains(got, "・5 → 5") || strings.Contains(got, "・6 → 6") || !strings.Contains(got, "・ほか 3 件") {
+		t.Fatalf("例は 6 件までで残りは件数だけ: %s", got)
+	}
+	long := RemoteQuestionBody("# " + strings.Repeat("あ", 200))
+	if r := []rune(long); len(r) != remoteBodyLineMax+1 {
+		t.Fatalf("長い行は省略する: %d", len(r))
+	}
+	if id := RemoteCandidateID("候補 R-1 をどうしますか？\n\n本文"); id != "R-1" {
+		t.Fatalf("本文つきの question からも ID を取れる: %q", id)
 	}
 }

@@ -97,3 +97,14 @@ func TestCoverage_AmbiguousUnitsNeedReview(t *testing.T) {
 		t.Errorf("ファイル全体を指す曖昧 claim なら全単位が要確認: %+v", o)
 	}
 }
+
+// WriteDryRun は試し実行の結果を候補に記録する。
+func (f *fakeStore) WriteDryRun(name, summary string) error {
+	p, ok := f.pending[name]
+	if !ok {
+		return errors.New("候補がない")
+	}
+	p.DryRun = summary
+	f.pending[name] = p
+	return nil
+}

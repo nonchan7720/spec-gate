@@ -45,6 +45,8 @@ type app struct {
 	adapters map[domain.SourceType]domain.SourceAdapter
 	// work は LLM 処理をサブエージェントに委譲するときの作業ディレクトリ（.spec-gate-llm/）
 	work domain.LLMWorkspace
+	// probe は example claim の試し実行（examples だけを binding に流す）
+	probe domain.BindingProbe
 }
 
 type utcClock struct{}
@@ -64,8 +66,9 @@ func newApp(root string) *app {
 		domain.SourceFigma:    adapter.NewFigma(),
 		domain.SourceImage:    adapter.NewImage(root),
 	}
+	example := checker.NewExample(runner)
 	checkers := map[domain.ClaimKind]domain.Checker{
-		domain.KindExample:   checker.NewExample(runner),
+		domain.KindExample:   example,
 		domain.KindStructure: checker.NewDepgraph(root, runner, os.Getenv("SPEC_GATE_DEPGRAPH_CMD")),
 		domain.KindUI:        checker.NewUI(root, runner),
 	}
@@ -83,6 +86,7 @@ func newApp(root string) *app {
 	work := llmwork.New(root)
 	extract := &services.ExtractService{
 		Claims: claims, Adapters: adapters, Prompter: extractor.Prompter{}, Work: work,
+		Probe: example, Pending: claims,
 	}
 	// LLM を直接呼ぶのは環境変数でコマンドを指定したときだけ（意図せず LLM を呼ばない）
 	if cmd := os.Getenv("SPEC_GATE_EXTRACT_CMD"); cmd != "" {
@@ -104,9 +108,10 @@ func newApp(root string) *app {
 		},
 		lint:       &services.LintService{Claims: claims, Holdout: holdout},
 		holdoutAdd: &services.HoldoutService{Claims: claims, Writer: holdout},
-		approve:    &services.ApproveService{Claims: claims, Adapters: adapters, Clock: utcClock{}},
+		approve:    &services.ApproveService{Claims: claims, Adapters: adapters, Clock: utcClock{}, Probe: example},
 		coverage:   &services.CoverageService{Claims: claims, Ambiguous: claims, Sources: sourceregistry.New(root), Adapters: adapters},
 		extract:    extract,
+		probe:      example,
 		work:       work,
 		plan:       &services.PlanService{Plans: plans, Clock: utcClock{}, Mutation: mutation},
 		status:     &services.StatusService{Claims: claims, Plans: plans},
