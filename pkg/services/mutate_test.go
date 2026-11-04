@@ -22,8 +22,10 @@ func (f *fakeFiles) Expand(paths []string) ([]string, error) {
 	f.expanded = append(f.expanded, paths)
 	var out []string
 	for _, p := range paths {
-		if _, ok := f.files[p]; ok && !slices.Contains(out, p) {
-			out = append(out, p)
+		for name := range f.files {
+			if (name == p || strings.HasPrefix(name, p+"/")) && !slices.Contains(out, name) {
+				out = append(out, name)
+			}
 		}
 	}
 	sort.Strings(out)
@@ -190,6 +192,47 @@ func TestMutate_MaxBoundsTheRun(t *testing.T) {
 	}
 	if r.Candidates != 3 || r.Total != 1 {
 		t.Fatalf("--max 1 なら 1 件だけ走らせる: %+v", r)
+	}
+}
+
+// binding がディスパッチャ（go run ./tools/bind）だけを指すとき、そのディスパッチャが import する
+// モジュール内のパッケージ（本当の実装）も変異の対象にする。そうでないと mutation score が
+// 実装を守るテストの強さを測れない。
+func TestMutate_FollowsBindingDependencies(t *testing.T) {
+	plan := planWith("plans/a.md", "go test ./calc")
+	plan.Claims = []string{"CALC-001", "CALC-002"}
+	plans := &fakePlans{plans: map[string]domain.Plan{"plans/a.md": plan}, locks: map[string]*domain.PlanLock{}}
+	claims := &fakeClaims{claims: []domain.Claim{
+		{ID: "CALC-001", Kind: domain.KindExample, Binding: "go run ./tools/bind add"},
+		{ID: "CALC-002", Kind: domain.KindExample, Binding: "go run ./tools/bind positive"},
+	}}
+	files := &fakeFiles{files: map[string]string{"tools/bind/main.go": "package main\n", "calc/calc.go": calcSrc}}
+	s := &MutationService{Plans: plans, Claims: claims, Files: files, Runner: killWhen(files, "a - b", "x < 0"),
+		Paths: fakePaths{"tools/bind": true}, Deps: fakeDeps{"tools/bind": {"calc"}}}
+	r, err := s.Run(context.Background(), "plans/a.md", 0)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if r.Candidates != 3 || r.Total != 3 || r.Killed != 2 {
+		t.Fatalf("ディスパッチャが import する calc の変異も数える: %+v", r)
+	}
+	if len(files.expanded) != 1 || !slices.Equal(files.expanded[0], []string{"tools/bind", "calc"}) {
+		t.Fatalf("binding のパスと、その依存先を重複なしで展開する: %v", files.expanded)
+	}
+}
+
+func TestMutate_WithoutDepsOnlyMutatesTheBinding(t *testing.T) {
+	plan := planWith("plans/a.md", "go test ./calc")
+	plan.Claims = []string{"CALC-001"}
+	plans := &fakePlans{plans: map[string]domain.Plan{"plans/a.md": plan}, locks: map[string]*domain.PlanLock{}}
+	claims := &fakeClaims{claims: []domain.Claim{{ID: "CALC-001", Kind: domain.KindExample, Binding: "go run ./tools/bind add"}}}
+	files := &fakeFiles{files: map[string]string{"tools/bind/main.go": "package main\n", "calc/calc.go": calcSrc}}
+	s := &MutationService{Plans: plans, Claims: claims, Files: files, Runner: killWhen(files), Paths: fakePaths{"tools/bind": true}}
+	if _, err := s.Run(context.Background(), "plans/a.md", 0); err != nil {
+		t.Fatal(err)
+	}
+	if len(files.expanded) != 1 || !slices.Equal(files.expanded[0], []string{"tools/bind"}) {
+		t.Fatalf("Deps が nil なら従来どおり binding のパスだけ: %v", files.expanded)
 	}
 }
 
