@@ -19,6 +19,8 @@ type CheckService struct {
 	Checkers map[domain.ClaimKind]domain.Checker
 	Runner   domain.CommandRunner
 	Changes  domain.ChangeDetector
+	// Paths は binding の語がリポジトリに実在するかを答える（--changed 用）。nil なら実在を確かめずに語をすべて拾う。
+	Paths domain.PathChecker
 	// DiagramEdges は structure の from-diagram 用に、mermaid ref からエッジ集合を返す。
 	DiagramEdges func(ref string) (map[string]bool, error)
 }
@@ -216,28 +218,27 @@ func (s *CheckService) filter(ctx context.Context, claims []domain.Claim, req Ch
 	if changed == nil { // git でない
 		return claims, 0, nil
 	}
+	var exists func(string) bool
+	if s.Paths != nil {
+		exists = s.Paths.Exists
+	}
 	var out []domain.Claim
 	for _, c := range claims {
-		if touched(c, changed) {
+		if touched(c, changed, exists) {
 			out = append(out, c)
 		}
 	}
 	return out, len(claims) - len(out), nil
 }
 
-func touched(c domain.Claim, changed []string) bool {
+// touched は claim が触るパス（binding の実在する語・story・layers・仕様ファイル・claim ファイル）の
+// どれかに、変更ファイルのどれかが関係するか。判定そのものは domain.IsTouched。
+func touched(c domain.Claim, changed []string, exists func(string) bool) bool {
 	srcFile, _ := splitRef(c.Source.Ref)
-	paths := append(c.Touches(), srcFile, c.File)
+	paths := append(c.Touches(exists), srcFile, c.File)
 	for _, ch := range changed {
-		ch = filepath.ToSlash(ch)
-		for _, p := range paths {
-			p = strings.TrimPrefix(filepath.ToSlash(p), "./")
-			if p == "" || strings.Contains(p, "://") {
-				continue
-			}
-			if ch == p || strings.HasPrefix(ch, strings.TrimSuffix(p, "/")+"/") || strings.HasSuffix(p, ch) {
-				return true
-			}
+		if domain.IsTouched(paths, filepath.ToSlash(ch)) {
+			return true
 		}
 	}
 	return false
