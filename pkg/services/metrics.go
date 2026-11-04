@@ -21,6 +21,26 @@ type Metrics struct {
 	UnverifiedRate float64      `json:"unverified_rate"`
 	// ManualRate は manual の claim の割合（docs/spec/harness.md「manual の手がかり」）
 	ManualRate float64 `json:"manual_rate"`
+	// AutoApproved は自動承認（approved.by が auto）の claim の数、Revoked は判定の記録にある差し戻しの数
+	// （docs/spec/auto-approval.md「見張りと差し戻し」）
+	AutoApproved int `json:"auto_approved"`
+	Revoked      int `json:"revoked"`
+}
+
+// WithApprovals は claim と判定の記録から、自動承認と差し戻しの数を足す。
+func (m Metrics) WithApprovals(claims []domain.Claim, ds []domain.ReviewDecision) Metrics {
+	m.AutoApproved, m.Revoked = 0, 0
+	for _, c := range claims {
+		if c.Approved != nil && c.Approved.By == domain.AutoApproverName {
+			m.AutoApproved++
+		}
+	}
+	for _, d := range ds {
+		if d.Verdict == domain.VerdictRevoke {
+			m.Revoked++
+		}
+	}
+	return m
 }
 
 // ComputeMetrics は claim の判定結果から指標を出す。

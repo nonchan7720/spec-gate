@@ -66,3 +66,21 @@ func TestComputeMetrics_Empty(t *testing.T) {
 		}
 	}
 }
+
+func TestMetrics_WithApprovals(t *testing.T) {
+	claims := []domain.Claim{
+		mdClaim("A", "s.md#a", domain.KindExample, &domain.Approval{By: domain.AutoApproverName}),
+		mdClaim("H", "s.md#a", domain.KindExample, approved("h")),
+		mdClaim("P", "s.md#a", domain.KindExample, nil),
+	}
+	ds := []domain.ReviewDecision{
+		{ID: "A", Verdict: domain.VerdictApprove, By: domain.AutoApproverName},
+		{ID: "X", Verdict: domain.VerdictRevoke},
+		{ID: "Y", Verdict: domain.VerdictRevoke},
+		{ID: "Z", Verdict: domain.VerdictReject},
+	}
+	m := Metrics{}.WithApprovals(claims, ds)
+	if m.AutoApproved != 1 || m.Revoked != 2 {
+		t.Fatalf("自動承認の claim の数と差し戻しの数: %+v", m)
+	}
+}
