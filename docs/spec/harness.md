@@ -88,6 +88,7 @@ binding: `go run ./tools/bind relation`（入力は `{"relation": 式, "values":
 プランの verify が甘くないかを、凍結前にコードをわざと壊して確かめる。
 
 - `spec-gate plan mutate <plans/x.md>` は、プランの claims が触るファイル（binding のパス・layers・story）に変異を 1 か所ずつ入れて verify を実行し、落ちた変異の割合（mutation score）を出す
+- 触るパスがこのモジュール内の Go パッケージのディレクトリ（または Go ファイル）なら、そのパッケージが直接・間接に import するモジュール内のパッケージにも変異を入れる（変更検知と同じ基準）。`go run ./tools/bind <name>` の claim は、ディスパッチャの `tools/bind` だけでなく、それが呼び出す先の実装も変異の対象になる。重複は除き、変異の対象のファイルは名前順に並べて上限（`--max`）の中で均等に選ぶ。依存を調べられないときは加えるパスがないだけで、元の触るパスは外さない
 - 変異を入れたファイルは、成功・失敗・中断に関わらず必ず元に戻す
 - プランの front matter に `mutation: 0.8` のように閾値を書くと、`plan freeze` は score が閾値未満なら凍結を拒否する
 - 変異の種類は次の一覧で全部とする（1 回に 1 か所だけ変える。文字列リテラルとコメントの中は変えない）
@@ -302,3 +303,4 @@ binding: `go run ./tools/bind remote-decisions`（入力は `{"hook": hook の s
 - 2026-11-04 holdout の期待値を平文ではなく SHA-256（`out_sha256`）で持つように変更。`spec-gate holdout add` を追加し、properties は check 時に実際の出力で評価、lint は形だけを確かめる。漏れ検知が holdout から調べるのは in だけ
 - 2026-11-04 リモート承認を追加（実機未検証）
 - 2026-11-04 合議の同定を追加（例の無い claim の言い換えを、title の文字 bigram の Dice 係数 0.6 以上で同じ主張とみなす）
+- 2026-11-04 mutation score の変異の対象に、触る Go パッケージが import するモジュール内のパッケージ（binding の依存先の実装）を追加
