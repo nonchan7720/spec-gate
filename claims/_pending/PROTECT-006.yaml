@@ -1,0 +1,9 @@
+# confidence: 2/3
+# 承認するには内容を確認して claims/<領域>/ に移し、`spec-gate approve PROTECT-006` を実行する
+id: PROTECT-006
+kind: manual
+title: guard は PreToolUse hook（matcher Bash|Edit|Write）から呼ばれ、stdin の hook 入力の tool_name・tool_input・agent_type を読む
+source:
+    type: markdown
+    ref: docs/spec/auto-approval.md#保護の範囲
+hint: hook の設定は人間が書く .claude/settings.json に依存し、guard 側だけでは確かめられない。settings.json の hook 設定を読んで matcher とコマンドを返す binding があれば機械で確かめられる

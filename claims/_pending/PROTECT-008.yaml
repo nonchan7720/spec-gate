@@ -1,0 +1,9 @@
+# confidence: 1/3
+# 承認するには内容を確認して claims/<領域>/ に移し、`spec-gate approve PROTECT-008` を実行する
+id: PROTECT-008
+kind: manual
+title: guard は拒否時に理由を stderr に出して exit 2、許可時は何も出力せず exit 0 で終わる
+source:
+    type: markdown
+    ref: docs/spec/auto-approval.md#保護の範囲
+hint: binding は allow/deny しか返さない。stdin に hook 入力（tool_name・tool_input・agent_type）を渡して spec-gate guard を実行し、exit code と stdout/stderr を返す binding があれば example にできる

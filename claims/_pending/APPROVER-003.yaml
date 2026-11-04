@@ -1,0 +1,9 @@
+# confidence: 3/3
+# 承認するには内容を確認して claims/<領域>/ に移し、`spec-gate approve APPROVER-003` を実行する
+id: APPROVER-003
+kind: manual
+title: auto-approve / audit / revoke の許否判定は「保護の範囲」と同じ関数で行い、PreToolUse hook の spec-gate guard から呼ぶ
+source:
+    type: markdown
+    ref: docs/spec/auto-approval.md#承認役のエージェント
+hint: 「同じ関数」の名前・場所が仕様に無いため、呼び出し関係（guard から保護の範囲の判定関数への呼び出し）を確かめる structure の対象を特定する情報が要る。hook 設定に spec-gate guard が PreToolUse として登録されていることは設定ファイルを読む binding で確かめられる

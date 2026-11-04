@@ -1,0 +1,9 @@
+# confidence: 2/3
+# 承認するには内容を確認して claims/<領域>/ に移し、`spec-gate approve PROTECT-004` を実行する
+id: PROTECT-004
+kind: manual
+title: guard は .claude/settings.local.json と .spec-gate/evidence/ 配下への Edit / Write も拒否する
+source:
+    type: markdown
+    ref: docs/spec/auto-approval.md#保護の範囲
+hint: '仕様にこれらのパスの入出力例が無い。例えば {tool: Edit, path: .claude/settings.local.json} -> deny、{tool: Write, path: .spec-gate/evidence/x} -> deny の例が仕様に追加されれば example にできる'

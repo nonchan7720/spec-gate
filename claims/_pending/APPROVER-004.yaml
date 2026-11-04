@@ -1,0 +1,9 @@
+# confidence: 3/3
+# 承認するには内容を確認して claims/<領域>/ に移し、`spec-gate approve APPROVER-004` を実行する
+id: APPROVER-004
+kind: manual
+title: 実装しているエージェントが承認役を起動するときのメッセージは「spec-gate auto-approve <ref> --area <領域> を実行して結果を返す」だけにし、承認役は親の会話を見ない
+source:
+    type: markdown
+    ref: docs/spec/auto-approval.md#承認役のエージェント
+hint: 起動時のメッセージ内容と親の会話を見ないことはエージェントの実行時の振る舞いであり、起動メッセージを記録・検査する仕組みが無いと機械で確かめられない

@@ -1,0 +1,59 @@
+# confidence: 1/3
+# dry-run: fail: 9 件中 9 件が期待と違う
+# 承認するには内容を確認して claims/<領域>/ に移し、`spec-gate approve APPROVER-013` を実行する
+id: APPROVER-013
+kind: example
+title: spec-gate guard は auto-approve を agent_type が spec-gate-approver のときだけ許し、承認役には auto-approve と audit 以外（連結コマンド・Edit を含む）を拒否し、audit は誰にでも許し、revoke は拒否する
+source:
+    type: markdown
+    ref: docs/spec/auto-approval.md#承認役のエージェント
+binding: go run ./tools/bind guard
+examples:
+    - in:
+        agent_type: spec-gate-approver
+        command: spec-gate auto-approve docs/spec/a.md#x --area auto
+        tool: Bash
+      out: allow
+    - in:
+        command: spec-gate auto-approve docs/spec/a.md#x --area auto
+        tool: Bash
+      out: deny
+    - in:
+        agent_type: general-purpose
+        command: go run . auto-approve docs/spec/a.md#x --area auto
+        tool: Bash
+      out: deny
+    - in:
+        agent_type: spec-gate-approver
+        command: spec-gate audit --since 24h
+        tool: Bash
+      out: allow
+    - in:
+        command: spec-gate audit --since 24h
+        tool: Bash
+      out: allow
+    - in:
+        agent_type: spec-gate-approver
+        command: spec-gate audit; rm -rf claims
+        tool: Bash
+      out: deny
+    - in:
+        agent_type: spec-gate-approver
+        command: ls
+        tool: Bash
+      out: deny
+    - in:
+        agent_type: spec-gate-approver
+        path: pkg/domain/claim.go
+        tool: Edit
+      out: deny
+    - in:
+        command: spec-gate revoke AUTO-001 --reason x
+        tool: Bash
+      out: deny
+properties:
+    - output == "allow" || output == "deny"
+    - '(input.tool == "Bash" && input.command.startsWith("spec-gate auto-approve") && !has(input.agent_type)) ? output == "deny" : true'
+    - '(input.tool == "Bash" && input.command.startsWith("spec-gate auto-approve") && has(input.agent_type) && input.agent_type != "spec-gate-approver") ? output == "deny" : true'
+    - '(input.tool == "Bash" && input.command.startsWith("spec-gate revoke")) ? output == "deny" : true'
+    - '(has(input.agent_type) && input.agent_type == "spec-gate-approver" && input.tool != "Bash") ? output == "deny" : true'

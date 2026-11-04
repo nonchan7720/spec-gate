@@ -1,0 +1,20 @@
+# confidence: 2/3
+# dry-run: fail: 2 件中 2 件が期待と違う
+# 承認するには内容を確認して claims/<領域>/ に移し、`spec-gate approve APPROVER-007` を実行する
+id: APPROVER-007
+kind: example
+title: spec-gate audit は誰が実行しても許す（読み取りだけ）
+source:
+    type: markdown
+    ref: docs/spec/auto-approval.md#承認役のエージェント
+binding: go run ./tools/bind guard
+examples:
+    - in:
+        agent_type: spec-gate-approver
+        command: spec-gate audit --since 24h
+        tool: Bash
+      out: allow
+    - in:
+        command: spec-gate audit --since 24h
+        tool: Bash
+      out: allow

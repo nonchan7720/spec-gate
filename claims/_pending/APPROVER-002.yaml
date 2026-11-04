@@ -1,0 +1,9 @@
+# confidence: 3/3
+# 承認するには内容を確認して claims/<領域>/ に移し、`spec-gate approve APPROVER-002` を実行する
+id: APPROVER-002
+kind: manual
+title: 承認役の定義ファイルの frontmatter の hooks（PreToolUse）に spec-gate guard が書かれている
+source:
+    type: markdown
+    ref: docs/spec/auto-approval.md#承認役のエージェント
+hint: 定義ファイルの frontmatter を読み、hooks.PreToolUse のコマンド一覧を返す binding があれば example にできる

@@ -1,0 +1,53 @@
+# confidence: 3/3
+# dry-run: fail: 10 件中 10 件が期待と違う
+# 承認するには内容を確認して claims/<領域>/ に移し、`spec-gate approve PROTECT-001` を実行する
+id: PROTECT-001
+kind: example
+title: spec-gate guard は保護パス（.spec-gate/**、.claude/feedback/**、.claude/gate.yaml、.claude/agents/spec-gate-approver.md、.claude/settings.json）への Edit / Write とシェル経由の書き換えを deny し、それ以外を allow する
+source:
+    type: markdown
+    ref: docs/spec/auto-approval.md#保護の範囲
+binding: go run ./tools/bind guard
+examples:
+    - in:
+        command: go test ./...
+        tool: Bash
+      out: allow
+    - in:
+        path: .claude/gate.yaml
+        tool: Edit
+      out: deny
+    - in:
+        path: .claude/feedback/protect_spec_claims.md
+        tool: Write
+      out: deny
+    - in:
+        path: .claude/agents/spec-gate-approver.md
+        tool: Edit
+      out: deny
+    - in:
+        path: .claude/agents/spec-gate-llm-worker.md
+        tool: Edit
+      out: allow
+    - in:
+        path: .claude/settings.json
+        tool: Edit
+      out: deny
+    - in:
+        path: .spec-gate/policy.yaml
+        tool: Write
+      out: deny
+    - in:
+        path: pkg/domain/claim.go
+        tool: Edit
+      out: allow
+    - in:
+        command: echo x > .claude/gate.yaml
+        tool: Bash
+      out: deny
+    - in:
+        command: cat .claude/gate.yaml
+        tool: Bash
+      out: allow
+properties:
+    - output == 'allow' || output == 'deny'

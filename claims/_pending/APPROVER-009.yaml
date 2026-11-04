@@ -1,0 +1,9 @@
+# confidence: 2/3
+# 承認するには内容を確認して claims/<領域>/ に移し、`spec-gate approve APPROVER-009` を実行する
+id: APPROVER-009
+kind: manual
+title: 'hook の入力にサブエージェントの agent_type が入ることを実機で確かめる（入らなければ auto-approve は誰からも実行できず拒否側に倒れる）【要確認: 実機で未確認と明記されている】'
+source:
+    type: markdown
+    ref: docs/spec/auto-approval.md#承認役のエージェント
+hint: 実際の Claude Code でサブエージェントから hook を発火させ入力 JSON を記録する実機テストが必要で、単体の binding では確かめられない

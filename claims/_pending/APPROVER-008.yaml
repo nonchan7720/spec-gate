@@ -1,0 +1,17 @@
+# confidence: 2/3
+# dry-run: fail: 1 件中 1 件が期待と違う
+# 承認するには内容を確認して claims/<領域>/ に移し、`spec-gate approve APPROVER-008` を実行する
+id: APPROVER-008
+kind: example
+title: spec-gate revoke は人間だけが実行でき、エージェントからの実行は拒否する
+source:
+    type: markdown
+    ref: docs/spec/auto-approval.md#承認役のエージェント
+binding: go run ./tools/bind guard
+examples:
+    - in:
+        command: spec-gate revoke AUTO-001 --reason x
+        tool: Bash
+      out: deny
+properties:
+    - '!(input.tool == ''Bash'' && input.command.contains('' revoke'')) || output == ''deny'''

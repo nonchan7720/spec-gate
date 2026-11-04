@@ -1,0 +1,9 @@
+# confidence: 1/3
+# 承認するには内容を確認して claims/<領域>/ に移し、`spec-gate approve PROTECT-007` を実行する
+id: PROTECT-007
+kind: manual
+title: 保護対象には .spec-gate/**（policy.yaml と evidence/ を含む）、.claude/feedback/**、.claude/gate.yaml、.claude/agents/spec-gate-approver.md、.claude/settings.json、.claude/settings.local.json がすべて含まれる
+source:
+    type: markdown
+    ref: docs/spec/auto-approval.md#保護の範囲
+hint: 仕様の例に無い .claude/settings.local.json や .spec-gate/evidence/ 配下のパスについて、guard binding に {tool, path} を渡して "deny" になる例が仕様に追加されれば example にできる

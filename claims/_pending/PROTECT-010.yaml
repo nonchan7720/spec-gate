@@ -1,0 +1,9 @@
+# confidence: 1/3
+# 承認するには内容を確認して claims/<領域>/ に移し、`spec-gate approve PROTECT-010` を実行する
+id: PROTECT-010
+kind: manual
+title: 'guard の判定で入力の agent_type がどう扱われるか（判定を変えるか）【要確認: agent_type を読むとあるが判定への影響が書かれていない】'
+source:
+    type: markdown
+    ref: docs/spec/auto-approval.md#保護の範囲
+hint: agent_type を付けた入力と付けない入力で出力がどう変わるかの例が仕様に無い。agent_type ごとの allow/deny の例があれば example にできる

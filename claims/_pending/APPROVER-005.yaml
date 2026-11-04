@@ -1,0 +1,9 @@
+# confidence: 3/3
+# 承認するには内容を確認して claims/<領域>/ に移し、`spec-gate approve APPROVER-005` を実行する
+id: APPROVER-005
+kind: manual
+title: '承認するかどうかは方針と証拠が決め、承認役も決められない【要確認: 承認役が判断に関与できないことを何で担保するか（auto-approve の結果が方針と証拠だけで決まることの検査方法）が仕様に書かれていない】'
+source:
+    type: markdown
+    ref: docs/spec/auto-approval.md#承認役のエージェント
+hint: auto-approve の入力（方針・証拠）と承認結果の対応を返す binding があれば、同じ方針と証拠なら実行者に依らず同じ結果になることを example にできる

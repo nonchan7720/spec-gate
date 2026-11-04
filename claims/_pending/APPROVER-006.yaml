@@ -1,0 +1,27 @@
+# confidence: 2/3
+# dry-run: fail: 3 件中 3 件が期待と違う
+# 承認するには内容を確認して claims/<領域>/ に移し、`spec-gate approve APPROVER-006` を実行する
+id: APPROVER-006
+kind: example
+title: spec-gate auto-approve は hook 入力の agent_type が spec-gate-approver のときだけ許し、それ以外や agent_type が無いときは拒否する
+source:
+    type: markdown
+    ref: docs/spec/auto-approval.md#承認役のエージェント
+binding: go run ./tools/bind guard
+examples:
+    - in:
+        agent_type: spec-gate-approver
+        command: spec-gate auto-approve docs/spec/a.md#x --area auto
+        tool: Bash
+      out: allow
+    - in:
+        command: spec-gate auto-approve docs/spec/a.md#x --area auto
+        tool: Bash
+      out: deny
+    - in:
+        agent_type: general-purpose
+        command: go run . auto-approve docs/spec/a.md#x --area auto
+        tool: Bash
+      out: deny
+properties:
+    - output == 'deny' || !(input.tool == 'Bash' && input.command.contains('auto-approve')) || (has(input.agent_type) && input.agent_type == 'spec-gate-approver')
