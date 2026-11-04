@@ -1,12 +1,13 @@
-# confidence: 3/3
-# dry-run: pass
-# 承認するには内容を確認して claims/<領域>/ に移し、`spec-gate approve CHANGED-001` を実行する
 id: CHANGED-001
 kind: example
 title: 変更ファイルが claim の触るファイルそのもの・触るディレクトリの配下・触るファイルと同じディレクトリかつ同じ拡張子のいずれかなら対象（true）、それ以外は対象外（false）
 source:
     type: markdown
     ref: docs/spec/harness.md#変更検知の精度
+approved:
+    by: root
+    at: "2026-11-04T16:47:47Z"
+    source_hash: sha256:3865b3ed2300c7d1fa6915159dce8e8e38bfae9ed60858a49e73e37c7db5c9f4
 binding: go run ./tools/bind touched
 examples:
     - in:

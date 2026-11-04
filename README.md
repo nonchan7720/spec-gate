@@ -572,9 +572,10 @@ live Claude Code session. Check the result after your first real approval.
    }
    ```
 
-2. Ask the agent: "Run `spec-gate review ask` and show its output with AskUserQuestion." `review ask [--limit N]`
+2. Ask the agent: "Run `spec-gate review ask` and show its output with AskUserQuestion." `review ask [--limit N] [--ref <prefix>] [--id <ID>]`
    prints up to 4 candidates from `claims/_pending/` as the `questions` JSON for the dialog (an empty array, with a
-   note on stderr, when there are none).
+   note on stderr, when there are none). `--ref` keeps candidates whose `source.ref` starts with the prefix, and `--id`
+   keeps the given IDs.
 3. Pick a button for each candidate. To record the reason the spec is undecided, type it into "Other": free text is
    recorded as ambiguous with that text as the reason (see [Recording ambiguity](#recording-ambiguity)).
 

@@ -541,8 +541,8 @@ Claude Code をリモートセッション（スマホなど）だけで操作�
    }
    ```
 
-2. エージェントに「`spec-gate review ask` の結果で AskUserQuestion を出して」と頼む。`review ask [--limit N]` は
-   `claims/_pending/` の候補を最大 4 件、ダイアログに渡す `questions` の JSON にして出す（候補が無ければ空配列と stderr の案内）。
+2. エージェントに「`spec-gate review ask` の結果で AskUserQuestion を出して」と頼む。`review ask [--limit N] [--ref <前方一致>] [--id <ID>]` は
+   `claims/_pending/` の候補を最大 4 件（`--ref` / `--id` で絞れる）、ダイアログに渡す `questions` の JSON にして出す（候補が無ければ空配列と stderr の案内）。
 3. 候補ごとにボタンを選ぶ。仕様が決まっていない理由を残したいときは「Other」に書く。自由入力は、その文を理由にした「曖昧」として記録される
    （[曖昧の記録](#曖昧の記録)）。
 

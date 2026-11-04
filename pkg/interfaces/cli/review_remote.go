@@ -28,6 +28,7 @@ func newRemoteReview(a *app) *services.RemoteReviewService {
 
 func newReviewAskCmd(a **app) *cobra.Command {
 	var limit int
+	var f services.AskFilter
 	cmd := &cobra.Command{
 		Use:   "ask",
 		Short: "承認待ちの候補を、質問ダイアログ（AskUserQuestion）にそのまま渡せる questions の JSON にする",
@@ -37,15 +38,17 @@ func newReviewAskCmd(a **app) *cobra.Command {
 候補が無ければ [] を出し、stderr に案内する。`,
 		Args: cobra.NoArgs,
 		RunE: func(_ *cobra.Command, _ []string) error {
-			return runReviewAsk(newRemoteReview(*a), limit, os.Stdout, os.Stderr)
+			return runReviewAsk(newRemoteReview(*a), limit, f, os.Stdout, os.Stderr)
 		},
 	}
 	cmd.Flags().IntVar(&limit, "limit", services.RemoteAskMax, fmt.Sprintf("出す候補の数（1〜%d）", services.RemoteAskMax))
+	cmd.Flags().StringVar(&f.RefPrefix, "ref", "", "source.ref がこれで始まる候補だけ（例: docs/spec/auto-approval.md）")
+	cmd.Flags().StringSliceVar(&f.IDs, "id", nil, "この ID の候補だけ（カンマ区切り・繰り返し可）")
 	return cmd
 }
 
-func runReviewAsk(svc *services.RemoteReviewService, limit int, stdout, stderr io.Writer) error {
-	qs, notes, err := svc.Ask(limit)
+func runReviewAsk(svc *services.RemoteReviewService, limit int, f services.AskFilter, stdout, stderr io.Writer) error {
+	qs, notes, err := svc.AskWhere(limit, f)
 	if err != nil {
 		return err
 	}
