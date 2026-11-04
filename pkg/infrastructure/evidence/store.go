@@ -14,7 +14,7 @@ import (
 )
 
 // RelDir は証拠を置くディレクトリ（プロジェクトルートから）。コミットする（docs/spec/auto-approval.md「証拠の照合」）。
-const RelDir = ".spec-gate/evidence"
+const RelDir = domain.EvidenceRelDir
 
 // Store は証拠ファイルを読み書きする。
 type Store struct{ dir string }

@@ -6,6 +6,12 @@ import (
 	"encoding/json"
 )
 
+// EvidenceRelDir は証拠を置くディレクトリ（プロジェクトルートから）。コミットする。
+const EvidenceRelDir = ".spec-gate/evidence"
+
+// EvidenceRelPath は claim id の証拠ファイルの相対パス。
+func EvidenceRelPath(id string) string { return EvidenceRelDir + "/" + id + ".json" }
+
 // Evidence は自動承認の証拠（docs/spec/auto-approval.md「自動承認」）。判定のたびに .spec-gate/evidence/<ID>.json に書く。
 type Evidence struct {
 	ID           string        `json:"id"`

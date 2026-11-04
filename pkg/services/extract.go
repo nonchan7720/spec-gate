@@ -60,6 +60,37 @@ func (s *ExtractService) Extract(ctx context.Context, srcType domain.SourceType,
 // consensus は run ごとに独立に抽出した claim の配列を合議し、claims/_pending/ に置く。
 // 同じ主張の同定（言い換えを含む）は domain.MergeRuns に従う。
 func (s *ExtractService) consensus(srcType domain.SourceType, perRun [][]domain.Claim) ([]Candidate, error) {
+	merged := mergeConsensus(srcType, perRun)
+	out := make([]Candidate, 0, len(merged))
+	for _, cand := range merged {
+		p, err := s.Claims.SavePending(cand.Claim, cand.Confidence())
+		if err != nil {
+			return nil, err
+		}
+		cand.Path = p
+		if s.Probe != nil && s.Pending != nil && cand.Claim.NeedsDryRun() {
+			cand.DryRun = s.Probe.Probe(context.Background(), cand.Claim).Summary()
+			if err := s.Pending.WriteDryRun(filepath.Base(p), cand.DryRun); err != nil {
+				return nil, err
+			}
+		}
+		out = append(out, cand)
+	}
+	sort.SliceStable(out, func(i, j int) bool {
+		if out[i].Agreements != out[j].Agreements {
+			return out[i].Agreements > out[j].Agreements
+		}
+		return out[i].Claim.ID < out[j].Claim.ID
+	})
+	return out, nil
+}
+
+// Confidence は合意数 `n/N`。
+func (c Candidate) Confidence() string { return fmt.Sprintf("%d/%d", c.Agreements, c.Runs) }
+
+// mergeConsensus は run ごとの claim を合議して候補にする（置かない）。ID は一意にし、承認と source type をそろえる。
+// extract と auto-approve が共有する。
+func mergeConsensus(srcType domain.SourceType, perRun [][]domain.Claim) []Candidate {
 	runs := len(perRun)
 	type bucket struct {
 		claim domain.Claim
@@ -92,29 +123,11 @@ func (s *ExtractService) consensus(srcType domain.SourceType, perRun [][]domain.
 		b.claim.ID = id
 	}
 
-	var out []Candidate
+	out := make([]Candidate, 0, len(order))
 	for _, b := range order {
-		conf := fmt.Sprintf("%d/%d", b.hits, runs)
 		b.claim.Approved = nil
 		b.claim.Source.Type = srcType
-		p, err := s.Claims.SavePending(b.claim, conf)
-		if err != nil {
-			return nil, err
-		}
-		cand := Candidate{Claim: b.claim, Agreements: b.hits, Runs: runs, Path: p}
-		if s.Probe != nil && s.Pending != nil && b.claim.NeedsDryRun() {
-			cand.DryRun = s.Probe.Probe(context.Background(), b.claim).Summary()
-			if err := s.Pending.WriteDryRun(filepath.Base(p), cand.DryRun); err != nil {
-				return nil, err
-			}
-		}
-		out = append(out, cand)
+		out = append(out, Candidate{Claim: b.claim, Agreements: b.hits, Runs: runs})
 	}
-	sort.SliceStable(out, func(i, j int) bool {
-		if out[i].Agreements != out[j].Agreements {
-			return out[i].Agreements > out[j].Agreements
-		}
-		return out[i].Claim.ID < out[j].Claim.ID
-	})
-	return out, nil
+	return out
 }

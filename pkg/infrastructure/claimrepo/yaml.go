@@ -11,6 +11,7 @@ import (
 	"path/filepath"
 	"regexp"
 	"sort"
+	"strings"
 
 	"github.com/nonchan7720/spec-gate/pkg/domain"
 	"gopkg.in/yaml.v3"
@@ -92,6 +93,11 @@ func (r *Repo) Save(c domain.Claim) error {
 var unsafeChars = regexp.MustCompile(`[^A-Za-z0-9_-]+`)
 
 func (r *Repo) SavePending(c domain.Claim, confidence string) (string, error) {
+	return r.savePending(c, confidence, "")
+}
+
+// savePending は候補を _pending に置く。extra は confidence と案内の行の間に入れるヘッダ（改行で終わる）。
+func (r *Repo) savePending(c domain.Claim, confidence, extra string) (string, error) {
 	dir := filepath.Join(r.dir(), pendingDir)
 	if err := os.MkdirAll(dir, 0o755); err != nil {
 		return "", err
@@ -107,7 +113,7 @@ func (r *Repo) SavePending(c domain.Claim, confidence string) (string, error) {
 	if err != nil {
 		return "", err
 	}
-	head := fmt.Sprintf("# confidence: %s\n# 承認するには内容を確認して claims/<領域>/ に移し、`spec-gate approve %s` を実行する\n", confidence, c.ID)
+	head := fmt.Sprintf("# confidence: %s\n%s# 承認するには内容を確認して claims/<領域>/ に移し、`spec-gate approve %s` を実行する\n", confidence, extra, c.ID)
 	f, p, err := createUnique(dir, name)
 	if err != nil {
 		return "", err
@@ -143,4 +149,49 @@ func rel(root, p string) string {
 		return r
 	}
 	return p
+}
+
+var _ domain.AutoPlacer = (*Repo)(nil)
+
+// PlaceApproved は承認済みの claim を claims/<area>/<ID>.yaml に置く。同名があれば上書きせずエラー。
+func (r *Repo) PlaceApproved(c domain.Claim, area string) (string, error) {
+	if !safeSegment(area) || area == pendingDir || area == ambiguousDir {
+		return "", fmt.Errorf("領域名が不正: %q", area)
+	}
+	name := unsafeChars.ReplaceAllString(c.ID, "-") + ".yaml"
+	if !safeSegment(name) || c.Approved == nil {
+		return "", fmt.Errorf("承認済みの claim でない、または ID が不正: %q", c.ID)
+	}
+	dir := filepath.Join(r.dir(), area)
+	if err := os.MkdirAll(dir, 0o755); err != nil {
+		return "", err
+	}
+	b, err := yaml.Marshal(c)
+	if err != nil {
+		return "", err
+	}
+	p := filepath.Join(dir, name)
+	f, err := os.OpenFile(p, os.O_WRONLY|os.O_CREATE|os.O_EXCL, 0o644)
+	if err != nil {
+		return "", fmt.Errorf("%s に置けない: %w", rel(r.root, p), err)
+	}
+	_, werr := f.Write(b)
+	if cerr := f.Close(); werr == nil {
+		werr = cerr
+	}
+	if werr != nil {
+		_ = os.Remove(p)
+		return "", werr
+	}
+	return rel(r.root, p), nil
+}
+
+// SavePendingAuto は自動承認しなかった候補を _pending に置き、合意数・試し実行・判定をヘッダに書く。
+func (r *Repo) SavePendingAuto(c domain.Claim, confidence, dryRun, verdict string) (string, error) {
+	extra := ""
+	if dryRun != "" {
+		extra += "# dry-run: " + strings.ReplaceAll(dryRun, "\n", " ") + "\n"
+	}
+	extra += "# auto: " + verdict + "\n"
+	return r.savePending(c, confidence, extra)
 }

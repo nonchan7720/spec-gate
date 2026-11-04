@@ -173,6 +173,7 @@ func Execute() {
 		newReverseCmd(&a),
 		newLeakCmd(&a),
 		newGuardCmd(&a),
+		newAutoApproveCmd(&a),
 		newAuditCmd(&a),
 		newRevokeCmd(&a),
 		newHoldoutCmd(&a),

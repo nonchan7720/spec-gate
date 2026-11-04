@@ -157,6 +157,25 @@ type ReviewDecisionLog interface {
 	Append(ReviewDecision) error
 }
 
+// AutoPolicySource は自動承認の方針（.spec-gate/policy.yaml）を読む。
+type AutoPolicySource interface {
+	// Load はファイルの中身とそれを読んだ値を返す。ファイルが無ければ (nil, nil, nil)。YAML として読めなければ error
+	Load() (f *AutoPolicyFile, raw []byte, err error)
+}
+
+// LLMRunner は方針で決めたコマンドに prompt を stdin で渡し、stdout の応答を返す（auto-approve 用。環境変数は使わない）。
+type LLMRunner interface {
+	Run(ctx context.Context, command, prompt string) (string, error)
+}
+
+// AutoPlacer は自動承認の結果の claim を置く。
+type AutoPlacer interface {
+	// PlaceApproved は承認済みの claim を claims/<area>/<ID>.yaml に置く（同名があれば上書きせずエラー）
+	PlaceApproved(c Claim, area string) (path string, err error)
+	// SavePendingAuto は自動承認しなかった候補を claims/_pending/ に置き、先頭に合意数・試し実行・判定（`# auto: <判定>`）を書く
+	SavePendingAuto(c Claim, confidence, dryRun, verdict string) (path string, err error)
+}
+
 // RevokeRepository は承認の取り消し（spec-gate revoke）で claim を _pending に戻す。
 type RevokeRepository interface {
 	// Revoke は承認済みの claim の承認を取り消して claims/_pending/<ID>.yaml に戻し、戻したファイルの相対パスを返す
