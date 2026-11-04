@@ -19,7 +19,7 @@ go run . coverage                    # 仕様のうち claim の無い節（✗�
 
 | 仕様 | プラン |
 |---|---|
-| `docs/spec/auto-approval.md`（承認の自動化。草案） | `plans/2026-11-auto-approval.md` |
+| `docs/spec/auto-approval.md`（承認の自動化。方針決定済み） | `plans/2026-11-auto-approval.md` |
 
 ## 手順
 
@@ -28,7 +28,7 @@ go run . coverage                    # 仕様のうち claim の無い節（✗�
 1. **仕様を決める（人間）**。仕様に「未決事項」や【要確認】が残っていれば、抽出しない。
    論点と選択肢を整理して人間に聞く（AskUserQuestion）。答えを仕様に書き込むのはよいが、決めるのは人間
 2. **抽出する（エージェント）**。節ごとに `spec-gate-extract` スキルで行う。ref は `docs/spec/<file>.md#<見出し>`。
-   non_normative の節（背景・原則・未決事項・変更履歴）は抽出しない
+   non_normative の節（`sources.yaml` の `non_normative`。背景・原則・決定の記録・変更履歴など）は抽出しない
 3. **承認してもらう（人間）**。`mcp__spec-gate__review` で承認 UI を開き、承認を頼む（MCP が無ければ `spec-gate review` か `review ask`）。
    あなたは `approve` を実行しない（hook-gate が拒否する）。候補が誤っていると思えば、`claims/_pending/` の候補を直して理由を伝える
 4. **プランに claim をつなぐ（エージェント → 人間）**。承認された ID をプランの `claims:` に入れる。verify 行は書き換えない。

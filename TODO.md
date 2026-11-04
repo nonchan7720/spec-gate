@@ -153,6 +153,6 @@ README「人間の関わり方 — HITL と HOTL」の「この先」を spec-ga
 - [x] 仕様の草案 `docs/spec/auto-approval.md`（sources.yaml に登録。coverage で未カバーの節が見える）
 - [x] プランの草案 `plans/2026-11-auto-approval.md`（verify 8 項目。claims は承認後に入れる）
 - [x] 開発の手順のスキル `.claude/skills/spec-gate-develop/`
-- [ ] 人間: 仕様の「未決事項」6 件を決める
+- [x] 人間: 仕様の未決事項 6 件を決めた（承認役は独立したエージェント、ほかはおすすめどおり）
 - [ ] エージェント: 節ごとに抽出 → 人間: 承認 → プランの claims を埋める → 人間: plan freeze・active
 - [ ] エージェント: 実装（`check --changed` とプランの verify が通るまで）

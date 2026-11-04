@@ -25,7 +25,7 @@ sources:
     non_normative:
       - 背景
       - 原則
-      - 未決事項
+      - 決定の記録
       - 変更履歴
 
   # Figma はファイルキーとノードIDで指す。snapshot には FIGMA_TOKEN が必要。
