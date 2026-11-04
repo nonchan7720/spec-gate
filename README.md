@@ -116,6 +116,10 @@ the harness.
   `post_edit` rule runs `spec-gate plan check` and stops the agent on the spot when a frozen verify line changed
   (`.claude/feedback/protect_plan_verify.md`). A plan can also demand that its verify lines catch broken code
   before it may be frozen ([mutation score](#plan-mutate-and-the-mutation-threshold))
+- **Auto-approval cannot be bypassed either.** A PreToolUse hook in `.claude/settings.json` runs `spec-gate guard`,
+  which denies `spec-gate auto-approve` from anyone but the approver subagent (`spec-gate-approver`), `spec-gate revoke`,
+  and writing the hook-gate rules (`.claude/feedback/**`, `.claude/gate.yaml`), the approver definition, the hook
+  settings or `.spec-gate/` (shell writes included) (`docs/spec/auto-approval.md`)
 - **A changed spec becomes stale automatically**, so the spec cannot be rewritten to make things fit
 - **A claim without a means of verification is unverified, not fail.** Nothing "passes without being checked";
   instead it is surfaced as something a human should look at

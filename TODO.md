@@ -154,5 +154,10 @@ README「人間の関わり方 — HITL と HOTL」の「この先」を spec-ga
 - [x] プランの草案 `plans/2026-11-auto-approval.md`（verify 8 項目。claims は承認後に入れる）
 - [x] 開発の手順のスキル `.claude/skills/spec-gate-develop/`
 - [x] 人間: 仕様の未決事項 6 件を決めた（承認役は独立したエージェント、ほかはおすすめどおり）
-- [ ] エージェント: 節ごとに抽出 → 人間: 承認 → プランの claims を埋める → 人間: plan freeze・active
-- [ ] エージェント: 実装（`check --changed` とプランの verify が通るまで）
+- [x] エージェント: 節ごとに抽出（79 候補）。人間: 中心の 7 件を承認（質問ダイアログ）。プランの claims に 7 件を入れた
+- [ ] 人間: plan freeze・active（スマホからはコマンドを打てないので PC で）
+- [ ] 人間: 残りの候補（約 70 件、多くは manual）の承認か却下
+- [x] 判定の binding 6 つ（auto-policy・auto-run-commands・auto-eligible・auto-evidence・auto-breaker・guard）を実装。承認済み 7 件は pass
+- [x] `spec-gate guard`（PreToolUse hook）と承認役 `.claude/agents/spec-gate-approver.md`。settings.json に hook を追加し、今のセッションで revoke が拒否されることを確認
+- [ ] 次のセッションで: 承認役を起動し、hook の入力に agent_type が入ること（承認役の audit が許される／メインからの auto-approve が拒否される）を確かめる
+- [ ] 残りの実装: `spec-gate auto-approve`（抽出・逆変換・試し実行・証拠の書き込み）、`audit` / `revoke`、check での証拠の照合、承認記録の経路の追加、metrics

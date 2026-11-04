@@ -111,6 +111,10 @@ Markdown の claim が参照する見出しが仕様から消えたとき（`sou
   `spec-gate plan check` を走らせ、凍結済みの verify が変わっていればその場で止める
   （`.claude/feedback/protect_plan_verify.md`）。プランによっては、壊したコードを verify が検出できることを
   凍結の条件にできる（[mutation score](#plan-mutate-と-mutation-の閾値)）
+- **自動承認まわりも書き換えさせない**。`.claude/settings.json` の PreToolUse hook が `spec-gate guard` を呼び、
+  `spec-gate auto-approve` を承認役のサブエージェント（`spec-gate-approver`）以外から実行すること、`spec-gate revoke` の実行、
+  hook-gate の規則（`.claude/feedback/**`・`.claude/gate.yaml`）・承認役の定義・hook の設定・`.spec-gate/` の書き換え（シェル経由も）を拒否する
+  （`docs/spec/auto-approval.md`）
 - **仕様が変わったら自動で stale**。仕様側を書き換えて辻褄を合わせることもできない
 - **検証手段のない claim は fail ではなく unverified**。「検証していないのに通った」を作らない代わりに、
   人間が見るべきものとして可視化する
