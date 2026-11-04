@@ -18,6 +18,12 @@ type ReviewService struct {
 	Pending  domain.PendingRepository
 	Adapters map[domain.SourceType]domain.SourceAdapter
 	Approver *ApproveService
+	// Log があれば、承認・却下・曖昧を判定の記録に追記する（承認画面と approve --pending。docs/spec/auto-approval.md「見張りと差し戻し」）。
+	// リモート承認と MCP Apps は自分で記録するので、そこから使うときは nil にする（二重に記録しない）
+	Log   domain.ReviewDecisionLog
+	Clock domain.Clock
+	// By は却下・曖昧を記録するときの判定者（承認は呼び出し側が渡す）
+	By string
 
 	// mu はファイル移動と承認を直列化する（画面から同時に押されても途中状態を他の操作に見せない）。
 	mu sync.Mutex
@@ -105,7 +111,23 @@ func (s *ReviewService) Approve(ctx context.Context, name, by string) (ApproveRe
 		}
 		return ApproveResult{}, err
 	}
+	s.record(res.Claim.ID, domain.VerdictApprove, "", by)
 	return res, nil
+}
+
+// record は判定を記録する。記録の失敗で判定そのものは取り消さない（ファイルの移動は済んでいる）。
+func (s *ReviewService) record(id string, v domain.RemoteVerdict, reason, by string) {
+	if s.Log == nil || s.Clock == nil {
+		return
+	}
+	_ = s.Log.Append(domain.ReviewDecision{Time: s.Clock.Now(), ID: id, Verdict: v, Reason: reason, By: by})
+}
+
+func idOrName(p domain.PendingClaim) string {
+	if p.Claim.ID != "" {
+		return p.Claim.ID
+	}
+	return p.Name
 }
 
 // BulkOutcome はまとめ承認の 1 件分の結果。Error が空なら承認できた。
@@ -207,10 +229,15 @@ func (s *ReviewService) Probe(ctx context.Context) (map[string]string, error) {
 func (s *ReviewService) Reject(name string) error {
 	s.mu.Lock()
 	defer s.mu.Unlock()
-	if _, err := s.find(name); err != nil {
+	target, err := s.find(name)
+	if err != nil {
 		return err
 	}
-	return s.Pending.DiscardPending(name)
+	if err := s.Pending.DiscardPending(name); err != nil {
+		return err
+	}
+	s.record(idOrName(target), domain.VerdictReject, "", s.By)
+	return nil
 }
 
 // MarkAmbiguous は候補 name を「仕様が決まっていない」として claims/_ambiguous/ に記録する。
@@ -222,11 +249,15 @@ func (s *ReviewService) MarkAmbiguous(name, reason string) error {
 	}
 	s.mu.Lock()
 	defer s.mu.Unlock()
-	if _, err := s.find(name); err != nil {
+	target, err := s.find(name)
+	if err != nil {
 		return err
 	}
-	_, err := s.Pending.MarkAmbiguous(name, reason)
-	return err
+	if _, err := s.Pending.MarkAmbiguous(name, reason); err != nil {
+		return err
+	}
+	s.record(idOrName(target), domain.VerdictAmbiguous, strings.Join(strings.Fields(reason), " "), s.By)
+	return nil
 }
 
 func (s *ReviewService) find(name string) (domain.PendingClaim, error) {

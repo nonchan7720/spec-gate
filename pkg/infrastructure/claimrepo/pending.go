@@ -8,6 +8,7 @@ import (
 	"strings"
 
 	"github.com/nonchan7720/spec-gate/pkg/domain"
+	"gopkg.in/yaml.v3"
 )
 
 // confidenceLine は SavePending が書くヘッダ `# confidence: 2/3`。
@@ -168,4 +169,48 @@ func (r *Repo) WriteDryRun(name, summary string) error {
 		out = line + "\n" + string(b)
 	}
 	return os.WriteFile(p, []byte(out), 0o644)
+}
+
+// Revoke は承認済みの claim c の承認を取り消し、claims/_pending/<ID>.yaml に戻す（approved を消し、先頭に
+// `# revoked: <理由>` を書く）。_pending に同名のファイルがあれば上書きせずエラー。戻したファイルの相対パスを返す。
+func (r *Repo) Revoke(c domain.Claim, reason string) (string, error) {
+	reason = strings.Join(strings.Fields(reason), " ")
+	if reason == "" {
+		return "", fmt.Errorf("取り消す理由が空")
+	}
+	if c.File == "" || c.Approved == nil {
+		return "", fmt.Errorf("%s は承認済みの claim ではない", c.ID)
+	}
+	name := unsafeChars.ReplaceAllString(c.ID, "-") + ".yaml"
+	if !safeSegment(name) {
+		return "", fmt.Errorf("claim ID が不正: %q", c.ID)
+	}
+	src := c.File
+	c.Approved, c.File = nil, ""
+	b, err := yaml.Marshal(c)
+	if err != nil {
+		return "", err
+	}
+	if err := os.MkdirAll(r.pendingDir(), 0o755); err != nil {
+		return "", err
+	}
+	dst := filepath.Join(r.pendingDir(), name)
+	// O_EXCL: 確認と書き込みの間に同名ファイルができても上書きしない
+	f, err := os.OpenFile(dst, os.O_WRONLY|os.O_CREATE|os.O_EXCL, 0o644)
+	if err != nil {
+		return "", fmt.Errorf("%s に戻せない: %w", rel(r.root, dst), err)
+	}
+	_, werr := f.Write(append([]byte("# revoked: "+reason+"\n"), b...))
+	if cerr := f.Close(); werr == nil {
+		werr = cerr
+	}
+	if werr == nil {
+		werr = os.Remove(src)
+	}
+	if werr != nil {
+		// 二重に残すより、承認済みのまま残す
+		_ = os.Remove(dst)
+		return "", werr
+	}
+	return rel(r.root, dst), nil
 }

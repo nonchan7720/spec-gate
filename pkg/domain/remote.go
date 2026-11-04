@@ -53,6 +53,8 @@ const (
 	VerdictApprove   RemoteVerdict = "approve"
 	VerdictReject    RemoteVerdict = "reject"
 	VerdictAmbiguous RemoteVerdict = "ambiguous"
+	// VerdictRevoke は承認の取り消し（spec-gate revoke。docs/spec/auto-approval.md「見張りと差し戻し」）
+	VerdictRevoke RemoteVerdict = "revoke"
 )
 
 // RemoteDecision は候補 1 つへの判定。Reason は曖昧のときだけ入る。
@@ -69,8 +71,10 @@ type ReviewDecision struct {
 	Verdict RemoteVerdict `json:"verdict"`
 	Reason  string        `json:"reason,omitempty"`
 	By      string        `json:"by"`
-	// ContentSHA256 は人間に見せた候補の内容（preview）の sha256（16 進）
+	// ContentSHA256 は人間に見せた候補の内容（preview）の sha256（16 進）。見せた内容が無い経路（CLI の approve など）では空
 	ContentSHA256 string `json:"content_sha256"`
+	// Evidence は自動承認の証拠ファイルのパス（承認者が auto のときだけ）
+	Evidence string `json:"evidence,omitempty"`
 }
 
 // RemoteHookInput は PostToolUse hook の stdin のうち使う部分。

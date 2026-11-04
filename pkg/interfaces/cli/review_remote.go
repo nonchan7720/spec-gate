@@ -20,6 +20,13 @@ func newReviewService(a *app) *services.ReviewService {
 	return &services.ReviewService{Pending: claimrepo.New(a.root), Adapters: a.adapters, Approver: a.approve}
 }
 
+// newLoggedReviewService は判定を記録する ReviewService（承認画面と approve --pending 用）。by は却下・曖昧の判定者。
+func newLoggedReviewService(a *app, by string) *services.ReviewService {
+	svc := newReviewService(a)
+	svc.Log, svc.Clock, svc.By = tracelog.NewDecisions(a.root), utcClock{}, by
+	return svc
+}
+
 // newRemoteReview はリモート承認のサービスを組み立てる。反映は承認画面と同じ ReviewService を使う。
 func newRemoteReview(a *app) *services.RemoteReviewService {
 	review := newReviewService(a)

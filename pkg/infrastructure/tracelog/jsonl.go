@@ -54,24 +54,29 @@ func appendJSONL[T any](path string, values []T) error {
 
 // All は記録を古い順に返す。読めない行（書き込み中の中断など）は飛ばす。ファイルが無ければ空。
 func (l *JSONL) All() ([]domain.TraceEntry, error) {
-	b, err := os.ReadFile(l.path)
+	return readJSONL(l.path, func(e domain.TraceEntry) bool { return e.ID != "" })
+}
+
+// readJSONL は path の 1 行 1 件の JSON を古い順に読む。読めない行と keep が false の行は飛ばす。ファイルが無ければ空。
+func readJSONL[T any](path string, keep func(T) bool) ([]T, error) {
+	b, err := os.ReadFile(path)
 	if os.IsNotExist(err) {
 		return nil, nil
 	}
 	if err != nil {
 		return nil, err
 	}
-	var out []domain.TraceEntry
+	var out []T
 	for line := range bytes.Lines(b) {
 		line = bytes.TrimSpace(line)
 		if len(line) == 0 {
 			continue
 		}
-		var e domain.TraceEntry
-		if err := json.Unmarshal(line, &e); err != nil || e.ID == "" {
+		var v T
+		if err := json.Unmarshal(line, &v); err != nil || !keep(v) {
 			continue
 		}
-		out = append(out, e)
+		out = append(out, v)
 	}
 	return out, nil
 }

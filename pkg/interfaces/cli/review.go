@@ -39,7 +39,7 @@ Ctrl+C で終了。`,
 			if err != nil {
 				return err
 			}
-			svc := newReviewService(*a)
+			svc := newLoggedReviewService(*a, by)
 			srv := &http.Server{Handler: review.New(svc, by), ReadHeaderTimeout: 10 * time.Second}
 
 			ctx, stop := signal.NotifyContext(cmd.Context(), os.Interrupt, syscall.SIGTERM)

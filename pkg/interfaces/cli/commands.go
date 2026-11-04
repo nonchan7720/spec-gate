@@ -10,6 +10,7 @@ import (
 	"strings"
 
 	"github.com/nonchan7720/spec-gate/pkg/domain"
+	"github.com/nonchan7720/spec-gate/pkg/infrastructure/tracelog"
 	"github.com/nonchan7720/spec-gate/pkg/services"
 	"github.com/spf13/cobra"
 )
@@ -96,7 +97,7 @@ approve --pending は claims/_pending/ のまとめ承認の対象（既定: 合
 				for _, k := range kinds {
 					ks = append(ks, domain.ClaimKind(k))
 				}
-				failed, err := runBulkApprove(cmd.Context(), newReviewService(*a), cmd.OutOrStdout(), minAgree, ks, yes, by)
+				failed, err := runBulkApprove(cmd.Context(), newLoggedReviewService(*a, by), cmd.OutOrStdout(), minAgree, ks, yes, by)
 				if err != nil {
 					return err
 				}
@@ -112,6 +113,9 @@ approve --pending は claims/_pending/ のまとめ承認の対象（既定: 合
 				res, err := (*a).approve.Approve(cmd.Context(), id, by)
 				if err != nil {
 					return fmt.Errorf("%s: %w", id, err)
+				}
+				if err := tracelog.NewDecisions((*a).root).Append(domain.ReviewDecision{Time: utcClock{}.Now(), ID: id, Verdict: domain.VerdictApprove, By: by}); err != nil {
+					fmt.Fprintf(os.Stderr, "%s: 承認したが判定の記録に失敗: %v\n", id, err)
 				}
 				fmt.Printf("✓ %s approved by %s\n", id, by)
 				if res.Excerpt != "" {

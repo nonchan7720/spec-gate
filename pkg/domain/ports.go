@@ -157,6 +157,18 @@ type ReviewDecisionLog interface {
 	Append(ReviewDecision) error
 }
 
+// RevokeRepository は承認の取り消し（spec-gate revoke）で claim を _pending に戻す。
+type RevokeRepository interface {
+	// Revoke は承認済みの claim の承認を取り消して claims/_pending/<ID>.yaml に戻し、戻したファイルの相対パスを返す
+	Revoke(c Claim, reason string) (path string, err error)
+}
+
+// ReviewDecisionReader は判定の記録を読む（audit・ブレーカー用）。
+type ReviewDecisionReader interface {
+	// All は記録を古い順に返す。記録が無ければ空
+	All() ([]ReviewDecision, error)
+}
+
 // EvidenceStore は自動承認の証拠（.spec-gate/evidence/<ID>.json）を読み書きする。
 type EvidenceStore interface {
 	// Load は証拠ファイルの中身を返す。無ければ ok=false
