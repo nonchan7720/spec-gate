@@ -171,6 +171,7 @@ func Execute() {
 		newExtractCmd(&a),
 		newReverseCmd(&a),
 		newLeakCmd(&a),
+		newGuardCmd(&a),
 		newHoldoutCmd(&a),
 		newPlanCmd(&a),
 		newVersionCmd(),
