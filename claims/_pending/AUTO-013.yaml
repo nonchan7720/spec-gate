@@ -1,0 +1,9 @@
+# confidence: 1/3
+# 承認するには内容を確認して claims/<領域>/ に移し、`spec-gate approve AUTO-013` を実行する
+id: AUTO-013
+kind: manual
+title: 自動承認の判定が ok の候補は claims/<領域>/<ID>.yaml に置いて承認する
+source:
+    type: markdown
+    ref: docs/spec/auto-approval.md#自動承認
+hint: 判定・領域・ID を入力に、置き先のパスと承認有無を出力する binding があれば example にできる

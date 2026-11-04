@@ -46,8 +46,25 @@ auto_approve:
     reset_at: ""             # この時刻（RFC 3339）より前の差し戻しは数えない。空なら全部数える
 ```
 
-- `policy.yaml` が読めない・`llm_commands` が空・`runs` が範囲外のときは、自動承認しない（理由を出してエラー、exit 1）
-- run k（1 始まり）は `llm_commands` の (k−1) mod 個数 番目のコマンドで抽出する。同じモデルを何回重ねても同じ思い込みは消えないので、別のモデルを並べて run を独立させる。逆変換は 1 番目のコマンドで行う
+- 書かれていない項目は既定値にする。`enabled` が false（ファイルが無いときを含む）なら、ほかの項目は確かめない
+- `enabled` が true のとき、`llm_commands` が空、`runs` が 2〜10 の外、`min_agree` が 0〜`runs` の外、`kinds` に example / structure / ui / manual 以外がある、
+  のどれかなら自動承認しない（理由を出してエラー、exit 1）。`policy.yaml` が YAML として読めないときも同じ
+- run k（1 始まり）は `llm_commands` の先頭から数えて ((k−1) mod 個数) + 1 番目のコマンドで抽出する。同じモデルを何回重ねても同じ思い込みは消えないので、別のモデルを並べて run を独立させる。逆変換は先頭のコマンドで行う
+
+binding: `go run ./tools/bind auto-policy`（入力は `policy.yaml` を読んだ値（ファイルが無ければ `null`）、出力は既定値を埋めた方針。エラーなら `{"error": <最初に当てはまった項目名>}`。項目名は llm_commands → runs → min_agree → kinds の順に調べる）
+
+| 入力 | 出力 |
+|---|---|
+| `null` | `{"enabled": false}` |
+| `{"auto_approve": {"llm_commands": []}}` | `{"enabled": false}` |
+| `{"auto_approve": {"enabled": true, "llm_commands": ["a"]}}` | `{"enabled": true, "llm_commands": ["a"], "runs": 3, "min_agree": 0, "kinds": ["example"], "require_reverse": true, "breaker": {"window": 20, "max_revoked": 2, "reset_at": ""}}` |
+| `{"auto_approve": {"enabled": true, "llm_commands": ["a", "b"], "runs": 2, "min_agree": 2, "kinds": ["example", "manual"], "require_reverse": false, "breaker": {"window": 5, "max_revoked": 1, "reset_at": "2026-11-04T00:00:00Z"}}}` | `{"enabled": true, "llm_commands": ["a", "b"], "runs": 2, "min_agree": 2, "kinds": ["example", "manual"], "require_reverse": false, "breaker": {"window": 5, "max_revoked": 1, "reset_at": "2026-11-04T00:00:00Z"}}` |
+| `{"auto_approve": {"enabled": true, "llm_commands": []}}` | `{"error": "llm_commands"}` |
+| `{"auto_approve": {"enabled": true, "llm_commands": ["a"], "runs": 1}}` | `{"error": "runs"}` |
+| `{"auto_approve": {"enabled": true, "llm_commands": ["a"], "runs": 11}}` | `{"error": "runs"}` |
+| `{"auto_approve": {"enabled": true, "llm_commands": ["a"], "runs": 3, "min_agree": 4}}` | `{"error": "min_agree"}` |
+| `{"auto_approve": {"enabled": true, "llm_commands": ["a"], "kinds": ["example", "foo"]}}` | `{"error": "kinds"}` |
+| `{"auto_approve": {"enabled": true, "llm_commands": [], "runs": 1}}` | `{"error": "llm_commands"}` |
 - 環境変数（`SPEC_GATE_EXTRACT_CMD` など）は自動承認では使わない。エージェントが差し替えられるため
 
 ## 自動承認
@@ -55,7 +72,7 @@ auto_approve:
 `spec-gate auto-approve <ref> --area <領域>` は、仕様 1 か所について、抽出から承認までを 1 つのコマンドの中で行う。
 
 1. 上の規則で選んだコマンドで `runs` 回抽出し、これまでと同じ合議（「合議の同定」「manual と例のある claim の同定」）で候補を作る
-2. `require_reverse` なら、各候補を `llm_commands` の 1 番目で逆変換する（再生成 → 比較）。仕様は再生成のプロンプトに入れない
+2. `require_reverse` なら、各候補を `llm_commands` の先頭のコマンドで逆変換する（再生成 → 比較）。仕様は再生成のプロンプトに入れない
 3. kind: example の候補を試し実行する
 4. 各候補を「自動承認の判定」にかけ、`ok` なら `claims/<領域>/<ID>.yaml` に置いて承認する。`ok` でなければ `claims/_pending/<ID>.yaml` に置き、先頭に `# auto: <判定>` の 1 行を書く
 5. 判定のたびに証拠を `.spec-gate/evidence/<ID>.json` に書く
@@ -108,6 +125,18 @@ binding: `go run ./tools/bind auto-eligible`（入力は `{"policy": {"enabled",
 
 - `check` は、`approved.by` が `auto` の claim について、`.spec-gate/evidence/<ID>.json` があり、その sha256 が `approved.evidence` と一致し、証拠の判定が `ok` であることを確かめる。満たさなければ `unapproved`（detail に理由: 「自動承認の証拠が無い」「証拠が承認時と違う」「証拠の判定が ok でない」）
 - 仕様が変わったときの `stale` はこれまでと同じ。自動承認した claim の再承認も、人間か `auto-approve` が行う
+- `approved.by` が `auto` でない claim は、証拠を見ない（これまでどおり）
+
+binding: `go run ./tools/bind auto-evidence`（入力は `{"by": approved.by, "evidence": 証拠ファイルが無ければ null、あれば {"sha_match": approved.evidence と一致するか, "verdict": 証拠の判定}}`、出力は `{"approved": 承認済みとみなすか, "detail": 理由（承認済みなら ""）}`。理由は、ファイルが無い → sha256 が違う → 判定が ok でない、の順に最初に当てはまったもの）
+
+| 入力 | 出力 |
+|---|---|
+| `{"by": "nonchan7720", "evidence": null}` | `{"approved": true, "detail": ""}` |
+| `{"by": "auto", "evidence": {"sha_match": true, "verdict": "ok"}}` | `{"approved": true, "detail": ""}` |
+| `{"by": "auto", "evidence": null}` | `{"approved": false, "detail": "自動承認の証拠が無い"}` |
+| `{"by": "auto", "evidence": {"sha_match": false, "verdict": "ok"}}` | `{"approved": false, "detail": "証拠が承認時と違う"}` |
+| `{"by": "auto", "evidence": {"sha_match": true, "verdict": "reverse"}}` | `{"approved": false, "detail": "証拠の判定が ok でない"}` |
+| `{"by": "auto", "evidence": {"sha_match": false, "verdict": "reverse"}}` | `{"approved": false, "detail": "証拠が承認時と違う"}` |
 
 ## 見張りと差し戻し
 
@@ -141,11 +170,12 @@ binding: `go run ./tools/bind auto-breaker`（入力は `{"window", "max_revoked
 
 - 承認役はサブエージェント `spec-gate-approver`（`.claude/agents/spec-gate-approver.md`）。実装しているエージェントが起動するが、
   起動時のメッセージは「`spec-gate auto-approve <ref> --area <領域>` を実行して結果を返す」だけにし、承認役は親の会話を見ない
-- 承認役が使えるのは Bash だけで、実行してよいのは `spec-gate auto-approve` と `spec-gate audit` だけ。定義ファイルの frontmatter の
-  `hooks`（PreToolUse）で、それ以外のコマンドを拒否する
+- 承認役が使えるのは Bash だけで、実行してよいのは `spec-gate auto-approve` と `spec-gate audit` だけ（ほかのコマンドを `;` `&` `|` などでつないだものも不可）
 - `spec-gate auto-approve` は、hook の入力の `agent_type` が `spec-gate-approver` のときだけ許す。それ以外（メインのエージェント・
-  ほかのサブエージェント）からの実行は hook-gate の `pre_bash` で拒否する。`agent_type` が入力に無いときも拒否する
-- `audit` は誰が実行してもよい（読み取りだけ）。`revoke` は人間だけ（`approve` と同じ規則で拒否する）
+  ほかのサブエージェント）からの実行は拒否する。`agent_type` が入力に無いときも拒否する
+- `audit` は誰が実行してもよい（読み取りだけ）。`revoke` は人間だけ（エージェントからの実行は拒否する）
+- これらの判定は「保護の範囲」と合わせて 1 つの関数（binding `guard`）で行い、PreToolUse hook の `spec-gate guard` から呼ぶ（「保護の範囲」）。
+  承認役の定義ファイルの frontmatter の `hooks`（PreToolUse）にも同じ `spec-gate guard` を書く
 - 承認するかどうかは方針と証拠が決め、承認役も決められない。承認役を分けるのは、実装しているエージェントが自動承認を走らせる時機と対象を
   自分で選べないようにするため
 
@@ -155,12 +185,41 @@ binding: `go run ./tools/bind auto-breaker`（入力は `{"window", "max_revoked
 ## 保護の範囲
 
 自動承認は「エージェントが書けない場所」と「エージェントが外せない規則」に頼る。規則そのものを消されれば保護が外れるので、規則も保護する。
-次の Edit / Write と、シェル経由の書き換え（`claims/**` と同じ規則）を hook-gate で拒否する:
+次のパスへの Edit / Write と、シェル経由の書き換え（`claims/**` と同じ規則: リダイレクトの書き込み先、`sed -i`・`tee`・`mv`・`cp`・`rm`・`truncate`・
+`git checkout`・`git restore` の同じ行の引数）を拒否する:
 
 - `.spec-gate/**`（これまでどおり。`policy.yaml` と `evidence/` を含む）
 - `.claude/feedback/**` と `.claude/gate.yaml`（hook-gate の規則）
 - `.claude/agents/spec-gate-approver.md`（承認役の定義。書き換えれば何でも実行できる承認役を作れる）
 - `.claude/settings.json` と `.claude/settings.local.json`（hook の設定。これまでも人間だけの扱いだったが、規則で拒否はしていなかった）
+
+判定は `spec-gate guard` が行う。PreToolUse hook（matcher `Bash|Edit|Write`）から呼ばれ、stdin の hook の入力（`tool_name`・`tool_input`・`agent_type`）を読み、
+拒否なら理由を stderr に出して exit 2、許可なら何も出さず exit 0。hook の設定（`.claude/settings.json`）は人間が書く。
+hook-gate の既存の規則（`claims/**` など）はそのまま残す。
+
+binding: `go run ./tools/bind guard`（入力は `{"tool": "Bash" / "Edit" / "Write", "command" か "path", "agent_type"（無ければ省略）}`、出力は `"allow"` か `"deny"`）
+
+| 入力 | 出力 |
+|---|---|
+| `{"tool": "Bash", "command": "spec-gate auto-approve docs/spec/a.md#x --area auto", "agent_type": "spec-gate-approver"}` | `"allow"` |
+| `{"tool": "Bash", "command": "spec-gate auto-approve docs/spec/a.md#x --area auto"}` | `"deny"` |
+| `{"tool": "Bash", "command": "go run . auto-approve docs/spec/a.md#x --area auto", "agent_type": "general-purpose"}` | `"deny"` |
+| `{"tool": "Bash", "command": "spec-gate audit --since 24h", "agent_type": "spec-gate-approver"}` | `"allow"` |
+| `{"tool": "Bash", "command": "spec-gate audit --since 24h"}` | `"allow"` |
+| `{"tool": "Bash", "command": "spec-gate audit; rm -rf claims", "agent_type": "spec-gate-approver"}` | `"deny"` |
+| `{"tool": "Bash", "command": "ls", "agent_type": "spec-gate-approver"}` | `"deny"` |
+| `{"tool": "Edit", "path": "pkg/domain/claim.go", "agent_type": "spec-gate-approver"}` | `"deny"` |
+| `{"tool": "Bash", "command": "spec-gate revoke AUTO-001 --reason x"}` | `"deny"` |
+| `{"tool": "Bash", "command": "go test ./..."}` | `"allow"` |
+| `{"tool": "Edit", "path": ".claude/gate.yaml"}` | `"deny"` |
+| `{"tool": "Write", "path": ".claude/feedback/protect_spec_claims.md"}` | `"deny"` |
+| `{"tool": "Edit", "path": ".claude/agents/spec-gate-approver.md"}` | `"deny"` |
+| `{"tool": "Edit", "path": ".claude/agents/spec-gate-llm-worker.md"}` | `"allow"` |
+| `{"tool": "Edit", "path": ".claude/settings.json"}` | `"deny"` |
+| `{"tool": "Write", "path": ".spec-gate/policy.yaml"}` | `"deny"` |
+| `{"tool": "Edit", "path": "pkg/domain/claim.go"}` | `"allow"` |
+| `{"tool": "Bash", "command": "echo x > .claude/gate.yaml"}` | `"deny"` |
+| `{"tool": "Bash", "command": "cat .claude/gate.yaml"}` | `"allow"` |
 
 ## 決定の記録
 
@@ -176,4 +235,5 @@ binding: `go run ./tools/bind auto-breaker`（入力は `{"window", "max_revoked
 ## 変更履歴
 
 - 2026-11-04 草案
+- 2026-11-04 承認方針・証拠の照合・保護の範囲に入出力例と binding を追加（抽出で例の形が run ごとに割れたため）。保護の判定は `spec-gate guard` で行う
 - 2026-11-04 未決事項を決定（承認役のエージェント、証拠のコミット、run ごとのコマンド、規則の保護、逆変換は match だけ）

@@ -24,18 +24,18 @@ docs/spec/auto-approval.md を実装し、方針と、エージェントが作�
 
 - [ ] 仕様の規範の節がすべて claim で覆われている
   verify: ! go run . coverage 2>/dev/null | sed -n '/^## docs\/spec\/auto-approval.md/,/^## /p' | grep -q '✗'
-- [ ] 自動承認の判定・ブレーカー・run ごとのコマンドの binding がある
-  verify: go test ./tools/bind/ -run 'TestAutoEligible|TestAutoBreaker|TestAutoRunCommands'
+- [ ] 方針・run ごとのコマンド・判定・証拠の照合・ブレーカー・保護の判定の binding がある
+  verify: go test ./tools/bind/ -run 'TestAutoPolicy|TestAutoRunCommands|TestAutoEligible|TestAutoEvidence|TestAutoBreaker|TestGuard'
 - [ ] 偽の LLM コマンドで、抽出 → 逆変換 → 試し実行 → 承認 → 証拠の記録が通る
   verify: go test ./pkg/services/ -run TestAutoApprove
 - [ ] 環境変数の LLM コマンドが自動承認に使われない
   verify: go test ./pkg/services/ -run TestAutoApproveIgnoresEnvCommand
 - [ ] 証拠の無い・書き換えられた自動承認は unapproved になる
   verify: go test ./pkg/services/ -run TestCheckAutoEvidence
-- [ ] hook-gate の規則が、revoke・承認役以外の auto-approve・保護するパスの書き換えを拒否し、関係ないコマンドは通す
-  verify: go test ./tools/feedbackcheck/
-- [ ] 承認役のサブエージェントがあり、auto-approve と audit 以外を拒否する hook を持つ
-  verify: test -f .claude/agents/spec-gate-approver.md && grep -q 'PreToolUse' .claude/agents/spec-gate-approver.md
+- [ ] spec-gate guard が hook の入力を読み、拒否なら exit 2、許可なら exit 0 で終わる
+  verify: go test ./pkg/interfaces/cli/ -run TestGuardHook
+- [ ] 承認役のサブエージェントがあり、frontmatter の PreToolUse hook で spec-gate guard を呼ぶ
+  verify: test -f .claude/agents/spec-gate-approver.md && grep -q 'spec-gate guard' .claude/agents/spec-gate-approver.md
 - [ ] 承認済みの claim（このプランのものを含む）がすべて blocking でない
   verify: go run . check --no-plans
 - [ ] 全体のテストと lint が通る
@@ -44,8 +44,7 @@ docs/spec/auto-approval.md を実装し、方針と、エージェントが作�
 ## 備考
 
 - 証拠を作る LLM 呼び出しは `.spec-gate/policy.yaml` の `llm_commands` だけ。テストでは固定の回答を返すスクリプトを `llm_commands` にする
-- 保護の規則（`.claude/feedback/**` など）を足すと、エージェントはそれ以降その規則を編集できない。規則の追加は実装の最後にまとめて行い、
-  `tools/feedbackcheck` のテストを先に書く
+- `spec-gate guard` の hook を `.claude/settings.json` に足すのは人間（実装の最後に頼む）。足したあとは、エージェントは保護したパスを編集できない
 - hook の入力の `agent_type` は実機で確かめる（verify にはできない）。実装後、人間に承認役を 1 回起動してもらい、拒否されないことと、
   メインのエージェントからの `auto-approve` が拒否されることを見てもらう
 - 既存の `review-decisions.jsonl` の形（リモート承認・MCP Apps）は変えず、行を足す経路（CLI の approve・承認画面・auto・revoke）を増やす

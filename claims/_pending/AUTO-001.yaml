@@ -1,0 +1,41 @@
+# confidence: 3/3
+# dry-run: fail: 3 件中 3 件が期待と違う
+# 承認するには内容を確認して claims/<領域>/ に移し、`spec-gate approve AUTO-001` を実行する
+id: AUTO-001
+kind: example
+title: auto-run-commands は commands を先頭から順に巡回して runs 個のコマンド配列を返す
+source:
+    type: markdown
+    ref: docs/spec/auto-approval.md#自動承認
+binding: go run ./tools/bind auto-run-commands
+examples:
+    - in:
+        commands:
+            - a
+        runs: 3
+      out:
+        - a
+        - a
+        - a
+    - in:
+        commands:
+            - a
+            - b
+        runs: 3
+      out:
+        - a
+        - b
+        - a
+    - in:
+        commands:
+            - a
+            - b
+            - c
+            - d
+        runs: 2
+      out:
+        - a
+        - b
+properties:
+    - size(output) == input.runs
+    - output.all(c, c in input.commands)

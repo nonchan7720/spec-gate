@@ -1,0 +1,9 @@
+# confidence: 3/3
+# 承認するには内容を確認して claims/<領域>/ に移し、`spec-gate approve AUDIT-010` を実行する
+id: AUDIT-010
+kind: manual
+title: 'check --json の metrics に revoked（記録の中の差し戻しの数）を加える【要確認: 「差し戻し」が判定 revoke の行と同じものか、承認画面などでの差し戻し判定も含むのかが不明】'
+source:
+    type: markdown
+    ref: docs/spec/auto-approval.md#見張りと差し戻し
+hint: 記録 jsonl を入力に metrics.revoked を返す binding と、数える判定値の定義があれば example にできる

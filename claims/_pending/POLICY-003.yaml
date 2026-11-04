@@ -1,0 +1,9 @@
+# confidence: 3/3
+# 承認するには内容を確認して claims/<領域>/ に移し、`spec-gate approve POLICY-003` を実行する
+id: POLICY-003
+kind: manual
+title: run k（1 始まり）の抽出には llm_commands の ((k−1) mod 個数) + 1 番目のコマンドを使う
+source:
+    type: markdown
+    ref: docs/spec/auto-approval.md#承認方針
+hint: 仕様に入出力の例が無い。入力 {llm_commands, k} から使うコマンドを返す binding と、仕様側の例があれば example にできる

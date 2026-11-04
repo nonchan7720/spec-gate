@@ -1,0 +1,9 @@
+# confidence: 3/3
+# 承認するには内容を確認して claims/<領域>/ に移し、`spec-gate approve BREAKER-002` を実行する
+id: BREAKER-002
+kind: manual
+title: reset_at が空でなければ、その時刻より前の差し戻しは数えない
+source:
+    type: markdown
+    ref: docs/spec/auto-approval.md#ブレーカー
+hint: auto-breaker の binding は reset_at 適用後の history を受け取るため検証できない。記録（自動承認の時刻・差し戻し時刻）と reset_at を入力に取り、止めるかを返す binding があれば example にできる

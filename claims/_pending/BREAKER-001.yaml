@@ -1,0 +1,46 @@
+# confidence: 3/3
+# dry-run: fail: 5 件中 5 件が期待と違う
+# 承認するには内容を確認して claims/<領域>/ に移し、`spec-gate approve BREAKER-001` を実行する
+id: BREAKER-001
+kind: example
+title: 直近 window 件の自動承認のうち差し戻された数が max_revoked 以上なら止める（paused）
+source:
+    type: markdown
+    ref: docs/spec/auto-approval.md#ブレーカー
+binding: go run ./tools/bind auto-breaker
+examples:
+    - in:
+        history: []
+        max_revoked: 2
+        window: 20
+      out: false
+    - in:
+        history:
+            - revoked: true
+            - revoked: false
+        max_revoked: 2
+        window: 20
+      out: false
+    - in:
+        history:
+            - revoked: true
+            - revoked: true
+        max_revoked: 2
+        window: 20
+      out: true
+    - in:
+        history:
+            - revoked: true
+            - revoked: true
+            - revoked: false
+        max_revoked: 2
+        window: 2
+      out: false
+    - in:
+        history:
+            - revoked: true
+            - revoked: true
+            - revoked: false
+        max_revoked: 2
+        window: 3
+      out: true

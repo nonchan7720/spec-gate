@@ -1,0 +1,9 @@
+# confidence: 3/3
+# 承認するには内容を確認して claims/<領域>/ に移し、`spec-gate approve BREAKER-004` を実行する
+id: BREAKER-004
+kind: manual
+title: 再開は人間が reset_at を今の時刻にするか、方針を見直して決める
+source:
+    type: markdown
+    ref: docs/spec/auto-approval.md#ブレーカー
+hint: reset_at を現在時刻に更新した後に判定が paused でなくなることを確かめるには、記録と reset_at を入力に取る binding が必要。人間の判断である点は機械で確かめられない

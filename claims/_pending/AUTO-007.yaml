@@ -1,0 +1,9 @@
+# confidence: 3/3
+# 承認するには内容を確認して claims/<領域>/ に移し、`spec-gate approve AUTO-007` を実行する
+id: AUTO-007
+kind: manual
+title: auto-approve は途中の回答をファイルに書かず（メモリ内のみ）、.spec-gate-llm/ を使わない
+source:
+    type: markdown
+    ref: docs/spec/auto-approval.md#自動承認
+hint: auto-approve 実行中のファイル書き込みを監視し、.spec-gate-llm/ と回答ファイルが作られないことを確かめる統合テストが必要

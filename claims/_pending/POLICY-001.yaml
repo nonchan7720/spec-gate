@@ -1,0 +1,121 @@
+# confidence: 3/3
+# dry-run: fail: 10 件中 10 件が期待と違う
+# 承認するには内容を確認して claims/<領域>/ に移し、`spec-gate approve POLICY-001` を実行する
+id: POLICY-001
+kind: example
+title: policy.yaml の auto_approve を既定値で埋めて検証し、enabled が false なら他を確かめず、不正なら最初に当てはまった項目名（llm_commands → runs → min_agree → kinds の順）をエラーにする
+source:
+    type: markdown
+    ref: docs/spec/auto-approval.md#承認方針
+binding: go run ./tools/bind auto-policy
+examples:
+    - in: null
+      out:
+        enabled: false
+    - in:
+        auto_approve:
+            llm_commands: []
+      out:
+        enabled: false
+    - in:
+        auto_approve:
+            enabled: true
+            llm_commands:
+                - a
+      out:
+        breaker:
+            max_revoked: 2
+            reset_at: ""
+            window: 20
+        enabled: true
+        kinds:
+            - example
+        llm_commands:
+            - a
+        min_agree: 0
+        require_reverse: true
+        runs: 3
+    - in:
+        auto_approve:
+            breaker:
+                max_revoked: 1
+                reset_at: "2026-11-04T00:00:00Z"
+                window: 5
+            enabled: true
+            kinds:
+                - example
+                - manual
+            llm_commands:
+                - a
+                - b
+            min_agree: 2
+            require_reverse: false
+            runs: 2
+      out:
+        breaker:
+            max_revoked: 1
+            reset_at: "2026-11-04T00:00:00Z"
+            window: 5
+        enabled: true
+        kinds:
+            - example
+            - manual
+        llm_commands:
+            - a
+            - b
+        min_agree: 2
+        require_reverse: false
+        runs: 2
+    - in:
+        auto_approve:
+            enabled: true
+            llm_commands: []
+      out:
+        error: llm_commands
+    - in:
+        auto_approve:
+            enabled: true
+            llm_commands:
+                - a
+            runs: 1
+      out:
+        error: runs
+    - in:
+        auto_approve:
+            enabled: true
+            llm_commands:
+                - a
+            runs: 11
+      out:
+        error: runs
+    - in:
+        auto_approve:
+            enabled: true
+            llm_commands:
+                - a
+            min_agree: 4
+            runs: 3
+      out:
+        error: min_agree
+    - in:
+        auto_approve:
+            enabled: true
+            kinds:
+                - example
+                - foo
+            llm_commands:
+                - a
+      out:
+        error: kinds
+    - in:
+        auto_approve:
+            enabled: true
+            llm_commands: []
+            runs: 1
+      out:
+        error: llm_commands
+properties:
+    - '''error'' in output || output.enabled == false || (output.runs >= 2 && output.runs <= 10)'
+    - '''error'' in output || output.enabled == false || (output.min_agree >= 0 && output.min_agree <= output.runs)'
+    - '''error'' in output || output.enabled == false || len(output.llm_commands) >= 1'
+    - '''error'' in output || output.enabled == false || all(output.kinds, {# in [''example'', ''structure'', ''ui'', ''manual'']})'

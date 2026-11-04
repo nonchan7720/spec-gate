@@ -1,0 +1,9 @@
+# confidence: 1/3
+# 承認するには内容を確認して claims/<領域>/ に移し、`spec-gate approve ELIG-005` を実行する
+id: ELIG-005
+kind: manual
+title: 'ブレーカーが止めている候補は paused と判定する【要確認: ブレーカーが止める条件は別節「ブレーカー」に委ねられており本節では定まらない】'
+source:
+    type: markdown
+    ref: docs/spec/auto-approval.md#自動承認の判定
+hint: 本節の binding では paused は真偽の入力として与えられるだけで、ブレーカーがいつ止めるかは確かめられない。「ブレーカー」節の入出力の binding が要る

@@ -1,0 +1,9 @@
+# confidence: 2/3
+# 承認するには内容を確認して claims/<領域>/ に移し、`spec-gate approve POLICY-009` を実行する
+id: POLICY-009
+kind: manual
+title: 'breaker は直近 window 件の自動承認のうち差し戻しが max_revoked に達したら自動承認を止め、reset_at より前の差し戻しは数えない（空なら全部数える）【要確認: window・max_revoked・reset_at（RFC 3339 でない値など）の不正値の扱いがエラー項目に挙がっていない】'
+source:
+    type: markdown
+    ref: docs/spec/auto-approval.md#承認方針
+hint: breaker 設定と自動承認・差し戻しの履歴（時刻付き）を入力に、停止するかを返す binding と仕様側の例があれば example にできる

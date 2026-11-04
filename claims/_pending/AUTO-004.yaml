@@ -1,0 +1,9 @@
+# confidence: 3/3
+# 承認するには内容を確認して claims/<領域>/ に移し、`spec-gate approve AUTO-004` を実行する
+id: AUTO-004
+kind: manual
+title: 'auto-approve は kind: example の候補を試し実行する'
+source:
+    type: markdown
+    ref: docs/spec/auto-approval.md#自動承認
+hint: 候補一覧を入力に、試し実行された候補 ID の一覧を出力する binding があれば example にできる

@@ -1,0 +1,9 @@
+# confidence: 2/3
+# 承認するには内容を確認して claims/<領域>/ に移し、`spec-gate approve BREAKER-005` を実行する
+id: BREAKER-005
+kind: manual
+title: ブレーカーで止めたときの判定は paused になる
+source:
+    type: markdown
+    ref: docs/spec/auto-approval.md#ブレーカー
+hint: auto-breaker binding の出力は真偽のみ。記録と方針を入力に取り判定（paused など）を返す binding と例があれば example にできる

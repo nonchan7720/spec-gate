@@ -1,0 +1,9 @@
+# confidence: 2/3
+# 承認するには内容を確認して claims/<領域>/ に移し、`spec-gate approve AUDIT-011` を実行する
+id: AUDIT-011
+kind: manual
+title: revoke は自動承認でない（approved.by が auto でない）承認済み claim も取り消せる
+source:
+    type: markdown
+    ref: docs/spec/auto-approval.md#見張りと差し戻し
+hint: 人間が承認した claim を入力に revoke の成否を返す binding があれば example にできる

@@ -1,0 +1,165 @@
+# confidence: 3/3
+# dry-run: fail: 10 件中 10 件が期待と違う
+# 承認するには内容を確認して claims/<領域>/ に移し、`spec-gate approve ELIG-001` を実行する
+id: ELIG-001
+kind: example
+title: 候補 1 件の自動承認判定は disabled, paused, kind, agree, ambiguous, dry-run, reverse の順に調べ、どれにも当てはまらなければ ok を返す
+source:
+    type: markdown
+    ref: docs/spec/auto-approval.md#自動承認の判定
+binding: go run ./tools/bind auto-eligible
+examples:
+    - in:
+        candidate:
+            confidence: 3/3
+            dry_run: pass
+            kind: example
+            reverse: match
+            title: 円未満は切り捨て
+        paused: false
+        policy:
+            enabled: true
+            kinds:
+                - example
+            min_agree: 0
+            require_reverse: true
+      out: ok
+    - in:
+        candidate:
+            confidence: 3/3
+            dry_run: pass
+            kind: example
+            reverse: match
+            title: 円未満は切り捨て
+        paused: false
+        policy:
+            enabled: false
+            kinds:
+                - example
+            min_agree: 0
+            require_reverse: true
+      out: disabled
+    - in:
+        candidate:
+            confidence: 3/3
+            dry_run: pass
+            kind: example
+            reverse: match
+            title: 円未満は切り捨て
+        paused: true
+        policy:
+            enabled: true
+            kinds:
+                - example
+            min_agree: 0
+            require_reverse: true
+      out: paused
+    - in:
+        candidate:
+            confidence: 3/3
+            dry_run: none
+            kind: manual
+            reverse: match
+            title: 締めは月末日
+        paused: false
+        policy:
+            enabled: true
+            kinds:
+                - example
+            min_agree: 0
+            require_reverse: true
+      out: kind
+    - in:
+        candidate:
+            confidence: 2/3
+            dry_run: pass
+            kind: example
+            reverse: match
+            title: 円未満は切り捨て
+        paused: false
+        policy:
+            enabled: true
+            kinds:
+                - example
+            min_agree: 0
+            require_reverse: true
+      out: agree
+    - in:
+        candidate:
+            confidence: 2/3
+            dry_run: pass
+            kind: example
+            reverse: match
+            title: 円未満は切り捨て
+        paused: false
+        policy:
+            enabled: true
+            kinds:
+                - example
+            min_agree: 2
+            require_reverse: true
+      out: ok
+    - in:
+        candidate:
+            confidence: 3/3
+            dry_run: pass
+            kind: example
+            reverse: match
+            title: '端数は切り捨て【要確認: 負の数】'
+        paused: false
+        policy:
+            enabled: true
+            kinds:
+                - example
+            min_agree: 0
+            require_reverse: true
+      out: ambiguous
+    - in:
+        candidate:
+            confidence: 3/3
+            dry_run: 'fail: 3 件中 1 件が期待と違う'
+            kind: example
+            reverse: match
+            title: 円未満は切り捨て
+        paused: false
+        policy:
+            enabled: true
+            kinds:
+                - example
+            min_agree: 0
+            require_reverse: true
+      out: dry-run
+    - in:
+        candidate:
+            confidence: 3/3
+            dry_run: pass
+            kind: example
+            reverse: mismatch
+            title: 円未満は切り捨て
+        paused: false
+        policy:
+            enabled: true
+            kinds:
+                - example
+            min_agree: 0
+            require_reverse: true
+      out: reverse
+    - in:
+        candidate:
+            confidence: 3/3
+            dry_run: pass
+            kind: example
+            reverse: skipped
+            title: 円未満は切り捨て
+        paused: false
+        policy:
+            enabled: true
+            kinds:
+                - example
+            min_agree: 0
+            require_reverse: false
+      out: ok
+properties:
+    - output in ['ok', 'disabled', 'paused', 'kind', 'agree', 'ambiguous', 'dry-run', 'reverse']
+    - '!input.policy.enabled ? output == ''disabled'' : true'
+    - 'input.policy.enabled && input.paused ? output == ''paused'' : true'

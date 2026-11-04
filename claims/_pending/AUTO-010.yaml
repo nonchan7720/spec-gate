@@ -1,0 +1,9 @@
+# confidence: 3/3
+# 承認するには内容を確認して claims/<領域>/ に移し、`spec-gate approve AUTO-010` を実行する
+id: AUTO-010
+kind: manual
+title: 証拠ファイルに ref・仕様のハッシュ・policy.yaml の sha256・各 run のコマンドと回答の sha256・候補の合意数 (n/N)・逆変換の結果 (match/mismatch/error/skipped) と食い違いの一覧・試し実行の結果・判定・時刻を書く
+source:
+    type: markdown
+    ref: docs/spec/auto-approval.md#自動承認
+hint: 生成された証拠 JSON のスキーマ（必須キーと逆変換結果の列挙値）を検査するテストまたはスキーマ定義が必要

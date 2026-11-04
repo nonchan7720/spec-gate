@@ -1,0 +1,9 @@
+# confidence: 3/3
+# 承認するには内容を確認して claims/<領域>/ に移し、`spec-gate approve AUTO-005` を実行する
+id: AUTO-005
+kind: manual
+title: '判定が ok の候補は claims/<領域>/<ID>.yaml に置いて承認し、ok でない候補は claims/_pending/<ID>.yaml に先頭行 "# auto: <判定>" を付けて置く'
+source:
+    type: markdown
+    ref: docs/spec/auto-approval.md#自動承認
+hint: 判定・領域・ID を入力に、書き出し先パスと先頭行を出力する binding があれば example にできる

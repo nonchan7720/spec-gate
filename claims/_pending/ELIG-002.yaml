@@ -1,0 +1,9 @@
+# confidence: 3/3
+# 承認するには内容を確認して claims/<領域>/ に移し、`spec-gate approve ELIG-002` を実行する
+id: ELIG-002
+kind: manual
+title: lint で拒否される候補は lint と判定する
+source:
+    type: markdown
+    ref: docs/spec/auto-approval.md#自動承認の判定
+hint: lint は binding の対象外と明記されている。lint 結果を入力に含む binding と、lint で拒否される候補の入出力例があれば example にできる

@@ -1,0 +1,9 @@
+# confidence: 2/3
+# 承認するには内容を確認して claims/<領域>/ に移し、`spec-gate approve BREAKER-006` を実行する
+id: BREAKER-006
+kind: manual
+title: エージェントは policy.yaml を書けない
+source:
+    type: markdown
+    ref: docs/spec/auto-approval.md#ブレーカー
+hint: エージェントから policy.yaml への書き込みが hook 等で拒否されることを確かめるテスト（書き込み試行と拒否の exit code）が必要

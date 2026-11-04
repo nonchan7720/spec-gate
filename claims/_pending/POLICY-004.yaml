@@ -1,0 +1,9 @@
+# confidence: 3/3
+# 承認するには内容を確認して claims/<領域>/ に移し、`spec-gate approve POLICY-004` を実行する
+id: POLICY-004
+kind: manual
+title: 逆変換は llm_commands の先頭のコマンドで行う
+source:
+    type: markdown
+    ref: docs/spec/auto-approval.md#承認方針
+hint: llm_commands を入力に、逆変換で使うコマンドを返す binding（と仕様の例）があれば example にできる

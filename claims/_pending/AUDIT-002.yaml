@@ -1,0 +1,9 @@
+# confidence: 3/3
+# 承認するには内容を確認して claims/<領域>/ に移し、`spec-gate approve AUDIT-002` を実行する
+id: AUDIT-002
+kind: manual
+title: 自動承認の記録行は承認者を auto にし、証拠ファイルのパスを加える
+source:
+    type: markdown
+    ref: docs/spec/auto-approval.md#見張りと差し戻し
+hint: 自動承認を 1 件実行して追記された jsonl 行を返す binding と、行のフィールド名（承認者・証拠パス）の定義があれば example にできる

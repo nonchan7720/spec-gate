@@ -1,0 +1,9 @@
+# confidence: 3/3
+# 承認するには内容を確認して claims/<領域>/ に移し、`spec-gate approve AUTO-002` を実行する
+id: AUTO-002
+kind: manual
+title: 'auto-approve は選んだコマンドで runs 回抽出し、既存と同じ合議（合議の同定・manual と例のある claim の同定）で候補を作る【要確認: 「上の規則」がこの節に無く参照先が不明】'
+source:
+    type: markdown
+    ref: docs/spec/auto-approval.md#自動承認
+hint: ref・area・各 run の回答を入力に、生成された候補一覧を出力とする binding があれば example にできる
