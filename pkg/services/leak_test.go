@@ -12,7 +12,7 @@ func leakService() *LeakService {
 	c.Examples = []domain.Example{{In: 1234.56, Out: 1234}, {In: "円未満は切り捨て", Out: 1}}
 	return &LeakService{
 		Claims:  &fakeClaims{claims: []domain.Claim{c}},
-		Holdout: fakeHoldout{by: map[string][]domain.Example{"A": {{In: 31337.5, Out: 1234}}}},
+		Holdout: fakeHoldout{by: map[string][]domain.HoldoutExample{"A": {{In: 31337.5, OutSHA256: hash1234}, {In: 1234.56, OutSHA256: hash1234}}}},
 	}
 }
 
@@ -35,6 +35,21 @@ func TestLeak_FindsExampleAndHoldoutValues(t *testing.T) {
 		if rep.Findings[i] != want[i] {
 			t.Fatalf("[%d] got %+v, want %+v", i, rep.Findings[i], want[i])
 		}
+	}
+}
+
+func TestLeak_HoldoutHasNoPlaintextOutput(t *testing.T) {
+	s := &LeakService{
+		Claims:  &fakeClaims{},
+		Holdout: fakeHoldout{by: map[string][]domain.HoldoutExample{"A": {{In: "abc", OutSHA256: hash1234}}}},
+	}
+	// 期待値はハッシュでしか持たないので、ハッシュの文字列や短い in は対象にならない
+	rep, err := s.Scan([]LeakFile{{Path: "src/x.ts", Content: "const h = " + hash1234 + "\nreturn 'abc'\n"}})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(rep.Findings) != 0 {
+		t.Fatalf("holdout から調べるのは閾値以上の in だけ: %+v", rep.Findings)
 	}
 }
 

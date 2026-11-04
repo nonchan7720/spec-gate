@@ -2,7 +2,7 @@ package services
 
 import "github.com/nonchan7720/spec-gate/pkg/domain"
 
-// LeakService は実装ファイルに claim の examples・holdout の値がそのまま書かれていないかを調べる
+// LeakService は実装ファイルに claim の examples・holdout（in だけ）の値がそのまま書かれていないかを調べる
 // （docs/spec/harness.md「リテラル漏れ検知」）。ファイルの読み込みは呼び出し側が行う。
 type LeakService struct {
 	Claims domain.ClaimRepository
@@ -52,7 +52,8 @@ func (s *LeakService) Scan(files []LeakFile) (LeakReport, error) {
 	return rep, nil
 }
 
-// values は claim の examples の値（公開）と、holdout だけにある値（非公開）を返す。
+// values は claim の examples の値（公開）と、holdout の in だけにある値（非公開）を返す。
+// holdout は期待値をハッシュでしか持たないので、holdout から調べるのは in だけ。
 // examples にも同じ値があれば公開として扱う（表示しても holdout は漏れない）。
 func (s *LeakService) values() (public, hidden []any, err error) {
 	claims, err := s.Claims.All()
@@ -70,7 +71,7 @@ func (s *LeakService) values() (public, hidden []any, err error) {
 		return nil, nil, err
 	}
 	for _, exs := range all {
-		for _, v := range domain.ExampleValues(exs) {
+		for _, v := range domain.HoldoutInputValues(exs) {
 			if !containsValue(public, v) {
 				hidden = append(hidden, v)
 			}

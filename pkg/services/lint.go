@@ -2,7 +2,8 @@ package services
 
 import "github.com/nonchan7720/spec-gate/pkg/domain"
 
-// LintService は claim の内部整合を検査する。examples に加え、holdout も properties との整合を確かめる。
+// LintService は claim の内部整合を検査する。examples は properties との整合を、holdout は形だけを確かめる
+// （holdout は期待値をハッシュでしか持たないので properties とは照合できない）。
 // holdout の問題は番号だけで報告し、値は出さない（domain.LintHoldout）。
 type LintService struct {
 	Claims domain.ClaimRepository

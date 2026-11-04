@@ -14,17 +14,18 @@ func lintClaim() domain.Claim {
 	return c
 }
 
-func TestLint_IncludesHoldoutWithoutValues(t *testing.T) {
+func TestLint_HoldoutShapeOnlyWithoutValues(t *testing.T) {
 	s := &LintService{
-		Claims:  &fakeClaims{claims: []domain.Claim{lintClaim()}},
-		Holdout: fakeHoldout{by: map[string][]domain.Example{"A": {{In: 31337, Out: 42424}}}},
+		Claims: &fakeClaims{claims: []domain.Claim{lintClaim()}},
+		// holdout[0] は property（output <= input）とは無関係に形だけを見る。holdout[1] はハッシュの形が違う
+		Holdout: fakeHoldout{by: map[string][]domain.HoldoutExample{"A": {{In: 31337, OutSHA256: hash1234}, {In: 42424, OutSHA256: "42424"}}}},
 	}
 	issues, n, err := s.Run()
 	if err != nil {
 		t.Fatal(err)
 	}
-	if n != 1 || len(issues) != 1 || issues[0].ClaimID != "A" {
-		t.Fatalf("holdout が property を満たさなければ報告する: %d %+v", n, issues)
+	if n != 1 || len(issues) != 1 || issues[0].ClaimID != "A" || !strings.Contains(issues[0].Message, "holdout[1]") {
+		t.Fatalf("holdout は形だけを見る: %d %+v", n, issues)
 	}
 	if strings.Contains(issues[0].Message, "31337") || strings.Contains(issues[0].Message, "42424") {
 		t.Fatalf("holdout の値は出さない: %q", issues[0].Message)

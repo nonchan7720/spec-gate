@@ -18,7 +18,7 @@ func newLeakCmd(a **app) *cobra.Command {
 		Short: "実装ファイルに claim の examples・holdout の値がそのまま書かれていないかを調べる（見つかれば exit 1）",
 		Long: `数値は数字 3 桁以上、文字列は 4 文字以上の値だけを対象にする。
 テストファイル（_test.go / .test.ts / .spec.ts）と claims/・holdout/・docs/ は対象外。
-holdout の値は表示せず、行番号だけを出す。`,
+holdout は期待値をハッシュでしか持たないので in の値だけを調べ、値は表示せず行番号だけを出す。`,
 		Args: cobra.MinimumNArgs(1),
 		RunE: func(cmd *cobra.Command, args []string) error {
 			code, err := runLeak(os.Stdout, *a, args)

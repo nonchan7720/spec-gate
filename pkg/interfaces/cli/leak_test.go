@@ -18,7 +18,7 @@ examples:
   - { in: 1234.56, out: 1234 }
   - { in: "円未満は切り捨て", out: 0 }
 `)
-	writeFile(t, root, "holdout/ROUND-001.yaml", "examples:\n  - { in: 31337.5, out: 31337 }\n")
+	writeFile(t, root, "holdout/ROUND-001.yaml", "examples:\n  - { in: 31337.5, out_sha256: 1483099c89000a68c3d88446a6a7669b765f09900cbfb0898ccd784b2a6bfe2d }\n")
 	return root
 }
 
