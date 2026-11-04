@@ -36,10 +36,7 @@ func writeReport(w io.Writer, rep services.CheckReport, forHook bool) {
 		}
 	}
 
-	all := append(domain.Results{}, rep.Claims...)
-	for _, p := range rep.Plans {
-		all = append(all, p.Items...)
-	}
+	all := allResults(rep)
 	_, _ = fmt.Fprintf(w, "\n%d pass, %d fail, %d stale, %d unapproved, %d unverified",
 		all.Count(domain.StatusPass), all.Count(domain.StatusFail), all.Count(domain.StatusStale),
 		all.Count(domain.StatusUnapproved), all.Count(domain.StatusUnverified))

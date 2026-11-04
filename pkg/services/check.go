@@ -73,7 +73,10 @@ func (s *CheckService) Run(ctx context.Context, req CheckRequest) (CheckReport, 
 
 	report := CheckReport{Skipped: skipped}
 	for _, c := range claims {
-		report.Claims = append(report.Claims, s.checkOne(ctx, c, req))
+		r := s.checkOne(ctx, c, req)
+		// checker が返す Result には kind が無いので、どの段階で止まっても claim の kind を付ける
+		r.Kind = c.Kind
+		report.Claims = append(report.Claims, r)
 	}
 
 	if !req.NoPlans && len(req.Only) == 0 {

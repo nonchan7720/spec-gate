@@ -16,6 +16,7 @@ func newCheckCmd(a **app) *cobra.Command {
 		ui      bool
 		noPlans bool
 		hook    bool
+		asJSON  bool
 	)
 	cmd := &cobra.Command{
 		Use:   "check",
@@ -25,7 +26,8 @@ func newCheckCmd(a **app) *cobra.Command {
   --changed  git の変更ファイルに関係する claim だけを対象にする
   --only     claim ID をカンマ区切りで指定（プランは見ない）
   --ui       Playwright を実行して strings を検証する（アプリ/Storybook を起動しておくこと）
-  --hook     Claude Code の Stop hook 用。失敗時は stderr にレポートを出し exit 2 でエージェントを止める`,
+  --hook     Claude Code の Stop hook 用。失敗時は stderr にレポートを出し exit 2 でエージェントを止める
+  --json     CI 用に判定結果（各 claim の id・kind・status・title・detail・spec と件数）を JSON で出す。exit code は同じ`,
 		RunE: func(cmd *cobra.Command, _ []string) error {
 			req := services.CheckRequest{Changed: changed, UI: ui, NoPlans: noPlans}
 			if only != "" {
@@ -42,9 +44,12 @@ func newCheckCmd(a **app) *cobra.Command {
 				exitHook(hookResult(rep))
 				return nil
 			}
-			writeReport(os.Stdout, rep, false)
-			if rep.HasBlocking() {
-				os.Exit(1)
+			code, err := renderCheck(os.Stdout, rep, checkOutput{JSON: asJSON})
+			if err != nil {
+				return err
+			}
+			if code != 0 {
+				os.Exit(code)
 			}
 			return nil
 		},
@@ -54,6 +59,7 @@ func newCheckCmd(a **app) *cobra.Command {
 	cmd.Flags().BoolVar(&ui, "ui", false, "Playwright で strings を検証")
 	cmd.Flags().BoolVar(&noPlans, "no-plans", false, "プランを判定しない")
 	cmd.Flags().BoolVar(&hook, "hook", false, "Claude Code Stop hook モード")
+	cmd.Flags().BoolVar(&asJSON, "json", false, "判定結果を JSON で出す（CI 用）")
 	return cmd
 }
 
