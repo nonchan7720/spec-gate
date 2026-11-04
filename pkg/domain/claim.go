@@ -61,6 +61,10 @@ type Claim struct {
 	Binding    string    `yaml:"binding,omitempty"`
 	Examples   []Example `yaml:"examples,omitempty"`
 	Properties []string  `yaml:"properties,omitempty"` // expr 式。input / output が使える
+	// Fuzz を書くと、examples に加えてランダムな入力で properties と relations を評価する。
+	Fuzz *Fuzz `yaml:"fuzz,omitempty"`
+	// Relations はメタモルフィック関係（expr 式）。x は生成した入力、f(...) は binding の呼び出し。
+	Relations []string `yaml:"relations,omitempty"`
 
 	// kind: structure
 	Layers    map[string]string `yaml:"layers,omitempty"`    // 層名 → ディレクトリ
@@ -87,13 +91,27 @@ func (c Claim) Validate() error {
 	case c.Source.Type == "" || c.Source.Ref == "":
 		return fmt.Errorf("%s: source.type / source.ref が必要", c.ID)
 	}
+	if c.Kind != KindExample && (c.Fuzz != nil || len(c.Relations) > 0) {
+		return fmt.Errorf("%s: fuzz / relations は kind: example だけ", c.ID)
+	}
 	switch c.Kind {
 	case KindExample:
 		if c.Binding == "" {
 			return fmt.Errorf("%s: example には binding が必要", c.ID)
 		}
-		if len(c.Examples) == 0 && len(c.Properties) == 0 {
+		if len(c.Examples) == 0 && len(c.Properties) == 0 && len(c.Relations) == 0 {
 			return fmt.Errorf("%s: examples か properties が必要", c.ID)
+		}
+		if len(c.Relations) > 0 && c.Fuzz == nil {
+			return fmt.Errorf("%s: relations は fuzz の入力で評価するので fuzz が必要", c.ID)
+		}
+		if c.Fuzz != nil {
+			if err := c.Fuzz.validate(); err != nil {
+				return fmt.Errorf("%s: %w", c.ID, err)
+			}
+			if len(c.Properties) == 0 && len(c.Relations) == 0 {
+				return fmt.Errorf("%s: fuzz には評価する properties か relations が必要", c.ID)
+			}
 		}
 	case KindStructure:
 		if len(c.Layers) == 0 {
