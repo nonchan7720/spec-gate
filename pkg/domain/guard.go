@@ -43,21 +43,48 @@ var (
 	protectedDirs = []string{".spec-gate", ".claude/feedback", "bin/.pinned"}
 )
 
-// IsProtectedPath は path（root からの相対か絶対）が保護するパスか。root が空なら path を相対とみなす。
-func IsProtectedPath(path, root string) bool {
+// relToRoot は path を root からの相対（スラッシュ区切り）にする。root の外なら false。root が空なら path を相対とみなす。
+func relToRoot(path, root string) (string, bool) {
 	p := filepath.ToSlash(filepath.Clean(path))
 	if root != "" && filepath.IsAbs(path) {
 		rel, err := filepath.Rel(root, path)
 		if err != nil || strings.HasPrefix(rel, "..") {
-			return false
+			return "", false
 		}
 		p = filepath.ToSlash(rel)
+	}
+	return p, true
+}
+
+// IsProtectedPath は path（root からの相対か絶対）が保護するパスか。root が空なら path を相対とみなす。
+func IsProtectedPath(path, root string) bool {
+	p, ok := relToRoot(path, root)
+	if !ok {
+		return false
 	}
 	if slices.Contains(protectedExact, p) {
 		return true
 	}
 	for _, d := range protectedDirs {
 		if p == d || strings.HasPrefix(p, d+"/") {
+			return true
+		}
+	}
+	return false
+}
+
+// coversProtected は path が保護するパスか、保護するパスを含むディレクトリ（bin・.claude など。ルートそのものは除く）か。
+// rm -rf bin・mv bin x・go build -o bin/ のように、親を消す・置き換える操作を止めるのに使う。
+func coversProtected(path, root string) bool {
+	if IsProtectedPath(path, root) {
+		return true
+	}
+	p, ok := relToRoot(path, root)
+	if !ok || p == "." || p == "" {
+		return false
+	}
+	for _, e := range slices.Concat(protectedExact, protectedDirs) {
+		if strings.HasPrefix(e, p+"/") {
 			return true
 		}
 	}
@@ -77,7 +104,7 @@ func Guard(in GuardInput, root string) GuardDecision {
 		if approver {
 			return deny("承認役（spec-gate-approver）は Bash で spec-gate auto-approve / audit を実行するだけ。ファイルは書き換えない")
 		}
-		if IsProtectedPath(in.Path, root) {
+		if IsProtectedPath(in.Path, root) || outsideSpecGate(in.Path, root) {
 			return deny(in.Path + " は保護しているので書き換えない（hook-gate の規則・承認役の定義・hook の設定・固定版の spec-gate の入口・.spec-gate/）")
 		}
 		return allow()
@@ -214,7 +241,7 @@ var goRunFlagsWithValue = map[string]bool{"-tags": true, "-ldflags": true, "-gcf
 // spec-gate（パス付きも）と go run [フラグ] <パッケージ> を spec-gate とみなす。
 func specGateSubcommand(fields []string) (string, bool) {
 	switch {
-	case len(fields) > 0 && strings.TrimSuffix(filepath.Base(fields[0]), ".exe") == "spec-gate":
+	case len(fields) > 0 && slices.Contains([]string{"spec-gate", "spec-gate.exe", "spec-gate.real"}, filepath.Base(fields[0])):
 		return subcommandAfter(fields[1:]), true
 	case len(fields) > 1 && filepath.Base(fields[0]) == "go" && fields[1] == "run":
 		i := 2
@@ -249,8 +276,14 @@ func subcommandAfter(f []string) string {
 
 var redirectTarget = regexp.MustCompile(`>{1,2}\s*["']?([^\s"';&|]+)`)
 
-// writeCommands は、引数のパスを書き換えるコマンド（claims/** の保護と同じ顔ぶれに、ln・install を足したもの）。
-var writeCommands = map[string]bool{"tee": true, "mv": true, "cp": true, "rm": true, "truncate": true, "ln": true, "install": true}
+// writeCommands は、引数のパスを書き換えるコマンド（claims/** の保護と同じ顔ぶれに、ln・install・chmod を足したもの）。
+var writeCommands = map[string]bool{"tee": true, "mv": true, "cp": true, "rm": true, "truncate": true, "ln": true, "install": true, "chmod": true}
+
+// removeCommands は、引数のディレクトリごと消す・置き換えるコマンド。保護するパスの親（bin など）も拒否する。
+var removeCommands = map[string]bool{"rm": true, "mv": true}
+
+// gobinTarget は GOBIN=<パス>（go install の出力先）。
+var gobinTarget = regexp.MustCompile(`\bGOBIN=["']?([^\s"';&|]+)`)
 
 // shellWriteTarget は、区切った 1 つのコマンドが保護するパスへ書き込むなら、そのパスを返す。
 func shellWriteTarget(seg string, fields []string, root string) (string, bool) {
@@ -259,26 +292,83 @@ func shellWriteTarget(seg string, fields []string, root string) (string, bool) {
 			return m[1], true
 		}
 	}
+	for _, m := range gobinTarget.FindAllStringSubmatch(seg, -1) {
+		if coversProtected(m[1], root) {
+			return m[1], true
+		}
+	}
 	if len(fields) == 0 {
 		return "", false
 	}
 	cmd := filepath.Base(fields[0])
+	if cmd == "go" && len(fields) > 1 && fields[1] == "build" {
+		return goBuildTarget(fields[2:], root)
+	}
+	// go install .（このモジュール）は GOBIN か ~/go/bin に spec-gate を置く。どちらも PATH に入りうる
+	if cmd == "go" && len(fields) > 1 && fields[1] == "install" {
+		for _, f := range fields[2:] {
+			if f == "." || f == "./" {
+				return "go install " + f, true
+			}
+		}
+	}
 	branch := len(fields) > 2 && (fields[2] == "-b" || fields[2] == "-B") // git checkout -b の引数はブランチ名
-	writes := writeCommands[cmd] ||
-		(cmd == "sed" && len(fields) > 1 && strings.HasPrefix(fields[1], "-i")) ||
-		(cmd == "git" && len(fields) > 1 && (fields[1] == "restore" || (fields[1] == "checkout" && !branch))) ||
-		(cmd == "go" && len(fields) > 1 && fields[1] == "build") // go build -o <パス>
+	gitRestore := cmd == "git" && len(fields) > 1 && (fields[1] == "restore" || (fields[1] == "checkout" && !branch))
+	writes := writeCommands[cmd] || gitRestore ||
+		(cmd == "sed" && len(fields) > 1 && strings.HasPrefix(fields[1], "-i"))
 	if !writes {
 		return "", false
 	}
+	// 消す・置き換える・戻すコマンドは、保護するパスの親ディレクトリも拒否する（git checkout HEAD~1 -- bin で古い入口に戻す、など）
+	parent := removeCommands[cmd] || gitRestore
 	for _, f := range fields[1:] {
 		a := strings.Trim(f, `"'`)
 		if _, v, ok := strings.Cut(a, "="); ok && strings.HasPrefix(a, "-") {
-			a = v // -o=bin/spec-gate
+			a = v
 		}
-		if IsProtectedPath(a, root) {
+		if IsProtectedPath(a, root) || (parent && coversProtected(a, root)) || (cmd != "rm" && outsideSpecGate(a, root)) {
 			return a, true
 		}
 	}
 	return "", false
+}
+
+// goBuildTarget は go build の出力先（-C <dir> と -o <パス>）が保護するパスか、その親（出力が <dir>/spec-gate になる）なら返す。
+func goBuildTarget(args []string, root string) (string, bool) {
+	var dir, out string
+	for i := 0; i < len(args); i++ {
+		a := strings.Trim(args[i], `"'`)
+		name, v, has := strings.Cut(a, "=")
+		if (name == "-o" || name == "-C") && !has && i+1 < len(args) {
+			i++
+			v = strings.Trim(args[i], `"'`)
+		}
+		switch name {
+		case "-o":
+			out = v
+		case "-C":
+			dir = v
+		}
+	}
+	if out == "" {
+		return "", false
+	}
+	target := out
+	if dir != "" && !filepath.IsAbs(out) {
+		target = filepath.Join(dir, out)
+	}
+	if coversProtected(target, root) || outsideSpecGate(target, root) {
+		return out, true
+	}
+	return "", false
+}
+
+// outsideSpecGate は、プロジェクトの外の spec-gate という名前のファイルか。承認役は PATH 上の spec-gate を実行できるので、
+// エージェントが組んだバイナリを PATH に置かせない（~/.local/bin/spec-gate など）。
+func outsideSpecGate(path, root string) bool {
+	if filepath.Base(path) != "spec-gate" {
+		return false
+	}
+	_, inside := relToRoot(path, root)
+	return !inside || (root == "" && filepath.IsAbs(path))
 }

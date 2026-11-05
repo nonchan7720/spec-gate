@@ -191,6 +191,18 @@ README「人間の関わり方 — HITL と HOTL」の「この先」を spec-ga
 - [ ] 「固定版で動かす」の残りの候補（人間の判断待ち）: PIN-005・PIN-010 は承認してよい。PIN-001-2・PIN-002-2 は PIN-001 の一部、
       PIN-002-3 は例が無く読めない、PIN-003-2 は PIN-002 と同じなので却下でよい。PIN-002・PIN-003（install・go build -o）は承認してよい。
       PIN-008・PIN-009 は「要確認」（時間切れの秒数・「など」の範囲）
+- [x] 独立レビュー（2026-11-05、別のエージェント）で見つかった穴を直した:
+      - 保護するパスの親（`rm -rf bin`・`mv bin x`・`git checkout HEAD~1 -- bin`）と `go build -o bin/`・`go build -C bin -o spec-gate`・`GOBIN=bin` を拒否
+      - `chmod` で入口の実行権を外す（hook が exit 126 で素通り）のを拒否
+      - ロックの待ちを 1 秒までにした（握られたまま hook の時間切れ＝素通りにさせない）。wget は 1 回だけ・6 秒
+      - `review --by x record` のようにフラグを挟んでも固定版で動かす
+      - `bin/spec-gate.real auto-approve` を spec-gate とみなす（承認役以外の auto-approve を素通りしていた）
+      - 承認役は PATH 上の `spec-gate` を実行できるので、プロジェクトの外に `spec-gate` という名前のファイルを作る・写す・実行権を付ける操作と
+        `go install .` を拒否（`~/.local/bin/spec-gate` に組んだバイナリで承認させる経路）
+- [ ] 仕様に足す（人間の判断。足すと PIN-001 / 承認役の claim が stale になり、再承認に CLI が要る）: 上の拒否のうち表に無いもの。
+      承認役に許すコマンドを `bin/spec-gate` に絞るか（今は素の `spec-gate` も許すので、PATH の汚染を guard で止めている）
+- [ ] 残る抜け道（以前から）: `$PWD`・`~` を含むパス、シンボリックリンク経由、`cd bin && rm spec-gate` のようなカレントからの相対、
+      `perl -i`・`dd of=`。シェルの文字列を見るだけの判定には限界がある
 - [ ] 残る危険（小）: sha256 を照らしてから exec するまでの間にバイナリを差し替えられる。差し替えるには Bash が要り、その Bash は guard を通る
 - [ ] 残る危険（小）: 取得は 7 秒で諦めるが、hook の 10 秒の時間切れ（止めない扱い）に近い。cloud では SessionStart で先に取る
 - [ ] 直さないと決めた: スマホ（preview が落ちる端末）のリモート承認は、question 文で省略された例を照合できない。

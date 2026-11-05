@@ -5,7 +5,7 @@
 # リポジトリからビルドしたバイナリで動かすと、エージェントがソースを書き換えてビルドし直すだけで guard を弱められるため。
 #   - 固定版は下の PINNED_VERSION のリリースの配布物。bin/.pinned/<版>/spec-gate に置き、実行のたびに sha256 を下の表と照らす
 #   - 無いか食い違えば取り直す（配布物を展開したバイナリも照らす）。それでも合わなければ動かさない
-#   - 取得は 7 秒で諦める（hook の時間切れは失敗でも「止めない」扱いなので、その前に止める側で終わる）
+#   - ロックは 1 秒・取得は 6 秒で諦める（hook の時間切れは失敗でも「止めない」扱いなので、その前に止める側で終わる）
 #   - 動かせないとき、guard なら exit 2（止める側。Claude Code は exit 2 以外の失敗を「止めない」と扱う）、ほかは exit 1
 # それ以外のサブコマンドは開発中のビルド bin/spec-gate.real（git の管理外）を使い、無ければビルドする
 # （scripts/session-start.sh と同じロック bin/.build.lock を取る）。
@@ -28,8 +28,8 @@ pinned_sha256() {
 dir=$(cd "$(dirname "$0")" && pwd)
 root=$(dirname "$dir")
 
-# サブコマンド（-C / --root とその値、ほかのフラグを飛ばした最初の語）と、その次の語
-sub= next=
+# サブコマンド（-C / --root とその値、ほかのフラグを飛ばした最初の語）と、その後ろの語
+sub= rest=()
 args=("$@")
 for ((i = 0; i < ${#args[@]}; i++)); do
   case ${args[i]} in
@@ -37,7 +37,7 @@ for ((i = 0; i < ${#args[@]}; i++)); do
     -*) ;;
     *)
       sub=${args[i]}
-      next=${args[i + 1]:-}
+      rest=("${args[@]:i+1}")
       break
       ;;
   esac
@@ -70,16 +70,17 @@ ensure_pinned() {
     mkdir -p "$dir/.pinned" || fail "bin/.pinned を作れない"
     (
       exec 9>"$dir/.pinned/.lock"
-      command -v flock >/dev/null && flock 9
+      # 待つのは 1 秒まで（ロックを握られたまま hook の時間切れ＝「止めない」にさせない）
+      if command -v flock >/dev/null; then flock -w 1 9 || exit 1; fi
       [[ -x $bin && $(sha256_of "$bin") == "$want" ]] && exit 0
       tmp=$(mktemp -d "$dir/.pinned/.dl.XXXXXX") || exit 1
       trap 'rm -rf "$tmp"' EXIT
       url=https://github.com/$PINNED_REPO/releases/download/$PINNED_VERSION/spec-gate_${os}_${arch}.tar.gz
       echo "spec-gate: 固定版 $PINNED_VERSION を取得する（$url）" >&2
       if command -v curl >/dev/null 2>&1; then
-        curl -fsSL --connect-timeout 3 --max-time 7 -o "$tmp/a.tar.gz" "$url" >&2 || exit 1
+        curl -fsSL --connect-timeout 3 --max-time 6 -o "$tmp/a.tar.gz" "$url" >&2 || exit 1
       elif command -v wget >/dev/null 2>&1; then
-        wget -q -T 7 -O "$tmp/a.tar.gz" "$url" >&2 || exit 1
+        wget -q --tries=1 -T 6 -O "$tmp/a.tar.gz" "$url" >&2 || exit 1
       else
         exit 1
       fi
@@ -110,7 +111,10 @@ fi
 
 case $sub in
   guard | auto-approve | mcp) run_pinned "$@" ;;
-  review) [[ $next == record ]] && run_pinned "$@" ;;
+  review)
+    # review --by x record のようにフラグを挟んでも record とみなす
+    for a in "${rest[@]}"; do [[ $a == record ]] && run_pinned "$@"; done
+    ;;
 esac
 
 real=$dir/spec-gate.real
