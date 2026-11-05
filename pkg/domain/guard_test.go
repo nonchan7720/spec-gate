@@ -38,3 +38,40 @@ func TestGuard_DenyHasReason(t *testing.T) {
 		t.Fatal("拒否には理由を付ける（hook が stderr に出す）")
 	}
 }
+
+// 自己レビューで見つかった抜け道（2026-11-04）。
+func TestGuard_Bypasses(t *testing.T) {
+	root := "/repo"
+	approver := func(cmd string) GuardInput { return GuardInput{Tool: "Bash", Command: cmd, AgentType: ApproverAgentType} }
+	agent := func(cmd string) GuardInput { return GuardInput{Tool: "Bash", Command: cmd} }
+	cases := []struct {
+		name string
+		in   GuardInput
+		want string
+	}{
+		{"承認役の go run", approver("go run /tmp/x.go audit"), GuardDeny},
+		{"承認役の環境変数の前置き", approver("PATH=/tmp/evil spec-gate auto-approve a.md#x --area auto"), GuardDeny},
+		{"承認役の LD_PRELOAD", approver("LD_PRELOAD=/tmp/x.so spec-gate audit"), GuardDeny},
+		{"承認役のほかの場所の spec-gate", approver("/tmp/evil/spec-gate audit"), GuardDeny},
+		{"承認役のルートの bin", approver("/repo/bin/spec-gate -C /repo auto-approve a.md#x --area auto"), GuardAllow},
+		{"$(…) の中の revoke", agent("echo $(spec-gate revoke AUTO-001 --reason x)"), GuardDeny},
+		{"バッククォートの中の revoke", agent("echo `spec-gate revoke AUTO-001 --reason x`"), GuardDeny},
+		{"bash -c の auto-approve", agent("bash -c 'spec-gate auto-approve docs/a.md#x --area auto'"), GuardDeny},
+		{"sh -lc の revoke", agent(`sh -lc "go run . revoke X --reason y"`), GuardDeny},
+		{"eval の revoke", agent("eval 'spec-gate revoke X --reason y'"), GuardDeny},
+		{"sudo cp で保護パス", agent("sudo cp x .spec-gate/policy.yaml"), GuardDeny},
+		{"sudo -u の後ろ", agent("sudo -u root spec-gate revoke X --reason y"), GuardDeny},
+		{"timeout の後ろ", agent("timeout 10 spec-gate auto-approve a.md#x"), GuardDeny},
+		{"go run のフラグの値", agent("go run -tags t . revoke X --reason y"), GuardDeny},
+		{"go run の = つきフラグ", agent("go run -tags=t . auto-approve a.md#x"), GuardDeny},
+		{"xargs の後ろ", agent("echo X | xargs spec-gate revoke --reason y"), GuardDeny},
+		{"関係ない go run", agent("go run -tags t ./tools/bind guard"), GuardAllow},
+		{"grep での言及は通す", agent(`grep -rn "auto-approve" docs`), GuardAllow},
+		{"関係ない bash -c", agent("bash -c 'go test ./...'"), GuardAllow},
+	}
+	for _, c := range cases {
+		if got := Guard(c.in, root); got.Verdict != c.want {
+			t.Errorf("%s: %q = %s (%s), want %s", c.name, c.in.Command, got.Verdict, got.Reason, c.want)
+		}
+	}
+}

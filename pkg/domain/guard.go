@@ -69,7 +69,7 @@ func Guard(in GuardInput, root string) GuardDecision {
 	switch in.Tool {
 	case "Bash":
 		if approver {
-			return guardApproverCommand(in.Command)
+			return guardApproverCommand(in.Command, root)
 		}
 		return guardCommand(in.Command, root)
 	case "Edit", "Write", "MultiEdit", "NotebookEdit":
@@ -91,20 +91,35 @@ func Guard(in GuardInput, root string) GuardDecision {
 var shellMeta = regexp.MustCompile("[;&|<>`\n]|\\$\\(")
 
 // guardApproverCommand は、承認役が実行してよい spec-gate auto-approve / audit だけを 1 つ許す。
-func guardApproverCommand(command string) GuardDecision {
+// spec-gate のバイナリを前置きなしで実行するものに限る（go run・環境変数の前置き・ほかの場所の spec-gate は任意のコードを動かせる）。
+func guardApproverCommand(command, root string) GuardDecision {
 	if shellMeta.MatchString(command) {
 		return deny("承認役のコマンドは spec-gate auto-approve / audit を 1 つだけ（; & | や置き換えでつながない）")
 	}
-	if sub, ok := specGateSubcommand(strings.Fields(command)); ok && (sub == "auto-approve" || sub == "audit") {
+	f := strings.Fields(command)
+	if len(f) == 0 || !isSpecGateBinary(f[0], root) {
+		return deny("承認役は spec-gate のバイナリ（spec-gate・bin/spec-gate・<ルート>/bin/spec-gate）を前置きなしで実行するだけ")
+	}
+	if sub := subcommandAfter(f[1:]); sub == "auto-approve" || sub == "audit" {
 		return allow()
 	}
 	return deny("承認役が実行してよいのは spec-gate auto-approve と spec-gate audit だけ")
 }
 
+// isSpecGateBinary は、承認役が実行してよい spec-gate のバイナリか。
+func isSpecGateBinary(f, root string) bool {
+	switch f {
+	case "spec-gate", "bin/spec-gate", "./bin/spec-gate":
+		return true
+	}
+	return root != "" && f == filepath.Join(root, "bin", "spec-gate")
+}
+
 // guardCommand は承認役でないエージェントの Bash を確かめる。auto-approve（承認役だけ）・revoke（人間だけ）と、保護するパスへのシェル経由の書き込みを拒否する。
+// $(…)・バッククォート・sh -c '…'・eval の中身と、sudo・env・time などの前置きの後ろも見る。
 func guardCommand(command, root string) GuardDecision {
-	for _, seg := range splitCommands(command) {
-		fields := strings.Fields(seg)
+	for _, seg := range commandUnits(command, 0) {
+		fields := unwrap(tokens(seg))
 		switch sub, _ := specGateSubcommand(fields); sub {
 		case "auto-approve":
 			return deny("spec-gate auto-approve は承認役（spec-gate-approver サブエージェント）だけが実行する")
@@ -118,46 +133,117 @@ func guardCommand(command, root string) GuardDecision {
 	return allow()
 }
 
-// splitCommands はコマンドを ; & | 改行で区切る（引用符の中までは見ない。区切りすぎは拒否の側に倒れる）。
-func splitCommands(command string) []string {
-	return regexp.MustCompile(`[;&|\n]+`).Split(command, -1)
+var (
+	// nestedShell は sh -c '…'・bash -lc "…"・eval '…' の中身
+	nestedShell = regexp.MustCompile(`\b(?:ba|z|da|k)?sh\s+(?:-[a-zA-Z]+\s+)*-[a-zA-Z]*c\s+(?:'([^']*)'|"([^"]*)"|(\S+))|\beval\s+(?:'([^']*)'|"([^"]*)"|(\S+))`)
+	// substitution は $( ( ) とバッククォート。区切りに置き換えて、中のコマンドも 1 つのコマンドとして見る
+	substitution = regexp.MustCompile("\\$\\(|[()`]")
+	separators   = regexp.MustCompile(`[;&|\n]+`)
+)
+
+// commandUnits はコマンドを、判定する単位（区切り・置き換え・入れ子のシェルの中身）に分ける。区切りすぎは拒否の側に倒れる。
+func commandUnits(command string, depth int) []string {
+	var out []string
+	if depth < 4 {
+		for _, m := range nestedShell.FindAllStringSubmatch(command, -1) {
+			for _, g := range m[1:] {
+				if g != "" {
+					out = append(out, commandUnits(g, depth+1)...)
+				}
+			}
+		}
+	}
+	return append(out, separators.Split(substitution.ReplaceAllString(command, ";"), -1)...)
 }
 
-// specGateSubcommand は spec-gate を呼ぶコマンドのサブコマンドを返す。先頭の環境変数・env・mise exec -- と、
-// -C / --root とその値を飛ばす。spec-gate（パス付きも）と go run <パッケージ> を spec-gate とみなす。
-func specGateSubcommand(fields []string) (string, bool) {
-	i := 0
-	for i < len(fields) {
-		f := fields[i]
-		if f == "env" || (strings.Contains(f, "=") && !strings.HasPrefix(f, "-")) {
-			i++
-			continue
-		}
-		if f == "mise" && i+2 < len(fields) && (fields[i+1] == "exec" || fields[i+1] == "x") && fields[i+2] == "--" {
-			i += 3
-			continue
-		}
-		break
+// tokens は空白で区切り、各語の前後の引用符を外す。
+func tokens(seg string) []string {
+	f := strings.Fields(seg)
+	for i := range f {
+		f[i] = strings.Trim(f[i], `"'`)
 	}
-	switch {
-	case i < len(fields) && strings.TrimSuffix(filepath.Base(strings.Trim(fields[i], `"'`)), ".exe") == "spec-gate":
-		i++
-	case i+2 < len(fields) && fields[i] == "go" && fields[i+1] == "run":
-		i += 3
-	default:
-		return "", false
-	}
-	for i < len(fields) {
-		switch f := fields[i]; {
-		case f == "-C" || f == "--root":
-			i += 2
-		case strings.HasPrefix(f, "-"):
-			i++
+	return f
+}
+
+// wrapperFlagsWithValue は前置きのコマンドの、値を取るフラグ。
+var wrapperFlagsWithValue = map[string]bool{"-u": true, "-g": true, "-n": true, "-s": true, "-k": true, "-C": true, "-D": true}
+
+// wrappers は後ろのコマンドを実行する前置き。
+var wrappers = map[string]bool{"sudo": true, "doas": true, "env": true, "time": true, "nohup": true, "exec": true, "command": true,
+	"builtin": true, "nice": true, "xargs": true, "timeout": true, "stdbuf": true, "setsid": true}
+
+// unwrap は先頭の環境変数の代入・前置きのコマンド（とそのフラグ）・mise exec -- を外す。
+func unwrap(f []string) []string {
+	for len(f) > 0 {
+		head := filepath.Base(f[0])
+		switch {
+		case strings.Contains(f[0], "=") && !strings.HasPrefix(f[0], "-"):
+			f = f[1:]
+		case head == "mise" && len(f) > 1 && (f[1] == "exec" || f[1] == "x"):
+			i := 2
+			for i < len(f) && f[i] != "--" {
+				i++
+			}
+			f = f[min(i+1, len(f)):]
+		case wrappers[head]:
+			f = f[1:]
+			for len(f) > 0 && strings.HasPrefix(f[0], "-") {
+				skip := 1
+				if wrapperFlagsWithValue[f[0]] {
+					skip = 2
+				}
+				f = f[min(skip, len(f)):]
+			}
+			if head == "timeout" && len(f) > 0 {
+				f = f[1:] // 時間
+			}
 		default:
-			return f, true
+			return f
+		}
+	}
+	return f
+}
+
+// goRunFlagsWithValue は go run の、値を取るフラグ。
+var goRunFlagsWithValue = map[string]bool{"-tags": true, "-ldflags": true, "-gcflags": true, "-asmflags": true, "-o": true, "-C": true,
+	"-mod": true, "-modfile": true, "-p": true, "-exec": true, "-toolexec": true, "-overlay": true, "-pgo": true, "-buildmode": true,
+	"-compiler": true, "-gccgoflags": true, "-installsuffix": true, "-pkgdir": true, "-covermode": true, "-coverpkg": true}
+
+// specGateSubcommand は spec-gate を呼ぶコマンド（前置きを外したもの）のサブコマンドを返す。
+// spec-gate（パス付きも）と go run [フラグ] <パッケージ> を spec-gate とみなす。
+func specGateSubcommand(fields []string) (string, bool) {
+	switch {
+	case len(fields) > 0 && strings.TrimSuffix(filepath.Base(fields[0]), ".exe") == "spec-gate":
+		return subcommandAfter(fields[1:]), true
+	case len(fields) > 1 && filepath.Base(fields[0]) == "go" && fields[1] == "run":
+		i := 2
+		for i < len(fields) && strings.HasPrefix(fields[i], "-") {
+			name, _, hasValue := strings.Cut(fields[i], "=")
+			if goRunFlagsWithValue[name] && !hasValue {
+				i++
+			}
+			i++
+		}
+		if i < len(fields) {
+			return subcommandAfter(fields[i+1:]), true
 		}
 	}
 	return "", false
+}
+
+// subcommandAfter は spec-gate の後ろの語からサブコマンドを返す（-C / --root とその値、ほかのフラグを飛ばす）。
+func subcommandAfter(f []string) string {
+	for i := 0; i < len(f); {
+		switch {
+		case f[i] == "-C" || f[i] == "--root":
+			i += 2
+		case strings.HasPrefix(f[i], "-"):
+			i++
+		default:
+			return f[i]
+		}
+	}
+	return ""
 }
 
 var redirectTarget = regexp.MustCompile(`>{1,2}\s*["']?([^\s"';&|]+)`)
