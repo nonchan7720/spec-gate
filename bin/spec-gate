@@ -80,7 +80,9 @@ ensure_pinned() {
       if command -v curl >/dev/null 2>&1; then
         curl -fsSL --connect-timeout 3 --max-time 6 -o "$tmp/a.tar.gz" "$url" >&2 || exit 1
       elif command -v wget >/dev/null 2>&1; then
-        wget -q --tries=1 -T 6 -O "$tmp/a.tar.gz" "$url" >&2 || exit 1
+        # -T は段階ごとの上限なので、全体は timeout で区切る（無ければ取得しない）
+        command -v timeout >/dev/null 2>&1 || exit 1
+        timeout 6 wget -q --tries=1 -T 6 -O "$tmp/a.tar.gz" "$url" >&2 || exit 1
       else
         exit 1
       fi

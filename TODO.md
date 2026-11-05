@@ -201,10 +201,21 @@ README「人間の関わり方 — HITL と HOTL」の「この先」を spec-ga
         `go install .` を拒否（`~/.local/bin/spec-gate` に組んだバイナリで承認させる経路）
 - [ ] 仕様に足す（人間の判断。足すと PIN-001 / 承認役の claim が stale になり、再承認に CLI が要る）: 上の拒否のうち表に無いもの。
       承認役に許すコマンドを `bin/spec-gate` に絞るか（今は素の `spec-gate` も許すので、PATH の汚染を guard で止めている）
+- [x] 2 回目の独立レビューで直した: `chmod -R a-x bin`・`cp -rT x bin`（親ディレクトリへの chmod・cp・install）、`-o` 無しの `go build -C bin`、
+      ルートやその上を動かす・消す（`mv . ../x`・`rm -rf ../repo`）、版を指定してルートを戻す（`git checkout HEAD~1 -- .`・`git restore --source=`）、
+      `git -C <dir> …` の前置き、エージェントが `review … record` を直接実行する（フラグを挟む・`.real` 経由。hook-gate の規則は `review record` の並びしか見ない）。
+      `git restore --staged`（index だけ）は許す。wget は `timeout 6` で全体を区切る
+- [ ] 人間の判断: 承認役に許すコマンドを `bin/spec-gate` に絞る（仕様「承認役のエージェント」の表を変える）。今は素の `spec-gate` を PATH から
+      引くので、`cp ./spec-gate /usr/local/bin/`・`go install`（引数なし・パス指定）・`go build -o <PATH のディレクトリ>/` で組んだものを
+      承認役に実行させられる。文字列の判定では塞ぎきれないので、表を変えるのが根本の対策
+- [ ] 人間の判断: ブランチ・コミットの切り替え（`git checkout <古いコミット>`・`git reset --hard`・`git switch --detach`）で bin/spec-gate が
+      無くなると hook が素通りになる。切り替えは正当な操作なので、入口をリポジトリの外（mise で入れるなど）に置くかを決める
 - [ ] 残る抜け道（以前から）: `$PWD`・`~` を含むパス、シンボリックリンク経由、`cd bin && rm spec-gate` のようなカレントからの相対、
-      `perl -i`・`dd of=`。シェルの文字列を見るだけの判定には限界がある
+      `perl -i`・`dd of=`・`rsync`・`tar -C`・`git clean -fdx`、名前を変えた spec-gate（`go build -o /tmp/sg . && /tmp/sg auto-approve`）。
+      シェルの文字列を見るだけの判定には限界がある
 - [ ] 残る危険（小）: sha256 を照らしてから exec するまでの間にバイナリを差し替えられる。差し替えるには Bash が要り、その Bash は guard を通る
-- [ ] 残る危険（小）: 取得は 7 秒で諦めるが、hook の 10 秒の時間切れ（止めない扱い）に近い。cloud では SessionStart で先に取る
+- [ ] 残る危険（小）: ロックは 1 秒・取得は 6 秒で諦めるが、hook の 10 秒の時間切れ（止めない扱い）に近い。cloud では SessionStart で先に取る。
+      固定版がまだ無いときに hook が並行すると、2 つ目以降はロックを待てず止める側（exit 2）になる
 - [ ] 直さないと決めた: スマホ（preview が落ちる端末）のリモート承認は、question 文で省略された例を照合できない。
       ダイアログの間エージェントは動けないので、表示から反映までに書き換える隙はほぼ無い。省略は「ほか n 件」「長いので省略」で人間に見える
 - 手順のずれ（事実として記録）: 自動承認はプランを凍結する前に実装した（利用者の「PdM として判断して進めて」による）。

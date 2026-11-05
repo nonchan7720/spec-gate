@@ -153,6 +153,11 @@ func guardCommand(command, root string) GuardDecision {
 			return deny("spec-gate auto-approve は承認役（spec-gate-approver サブエージェント）だけが実行する")
 		case "revoke":
 			return deny("spec-gate revoke（承認の取り消し）は人間の操作。ユーザーに依頼すること")
+		case "review":
+			// review --by x record のようにフラグを挟んでも record（hook が受ける人間の回答）。偽の stdin で承認を作れる
+			if slices.Contains(fields, "record") {
+				return deny("spec-gate review record は質問ダイアログの hook が実行する。エージェントは実行しない")
+			}
 		}
 		if target, ok := shellWriteTarget(seg, fields, root); ok {
 			return deny(target + " は保護しているのでシェル経由でも書き換えない")
@@ -279,8 +284,31 @@ var redirectTarget = regexp.MustCompile(`>{1,2}\s*["']?([^\s"';&|]+)`)
 // writeCommands は、引数のパスを書き換えるコマンド（claims/** の保護と同じ顔ぶれに、ln・install・chmod を足したもの）。
 var writeCommands = map[string]bool{"tee": true, "mv": true, "cp": true, "rm": true, "truncate": true, "ln": true, "install": true, "chmod": true}
 
-// removeCommands は、引数のディレクトリごと消す・置き換えるコマンド。保護するパスの親（bin など）も拒否する。
-var removeCommands = map[string]bool{"rm": true, "mv": true}
+// parentCommands は、引数のディレクトリの中まで消す・置き換える・書き込むコマンド。保護するパスの親（bin など）と、
+// プロジェクトのルートやその上も拒否する（ルートごと動かせば入口が無くなり hook が素通りになる）。
+var parentCommands = map[string]bool{"rm": true, "mv": true, "cp": true, "install": true, "chmod": true, "chown": true}
+
+// coversRoot は path がプロジェクトのルートか、その上のディレクトリか。
+func coversRoot(path, root string) bool {
+	p := filepath.ToSlash(filepath.Clean(path))
+	if root == "" || !filepath.IsAbs(path) {
+		return p == "." || p == ".." || strings.HasPrefix(p, "../")
+	}
+	r := filepath.ToSlash(filepath.Clean(root))
+	return r == p || strings.HasPrefix(r, strings.TrimSuffix(p, "/")+"/")
+}
+
+// gitSubcommand は git の前置きのフラグ（-C <dir>・-c <k=v>・--git-dir=…・--work-tree=… など）を飛ばしたサブコマンドの位置。
+func gitSubcommand(fields []string) int {
+	i := 1
+	for i < len(fields) && strings.HasPrefix(fields[i], "-") {
+		if fields[i] == "-C" || fields[i] == "-c" || fields[i] == "--git-dir" || fields[i] == "--work-tree" || fields[i] == "--namespace" {
+			i++
+		}
+		i++
+	}
+	return i
+}
 
 // gobinTarget は GOBIN=<パス>（go install の出力先）。
 var gobinTarget = regexp.MustCompile(`\bGOBIN=["']?([^\s"';&|]+)`)
@@ -312,21 +340,44 @@ func shellWriteTarget(seg string, fields []string, root string) (string, bool) {
 			}
 		}
 	}
-	branch := len(fields) > 2 && (fields[2] == "-b" || fields[2] == "-B") // git checkout -b の引数はブランチ名
-	gitRestore := cmd == "git" && len(fields) > 1 && (fields[1] == "restore" || (fields[1] == "checkout" && !branch))
+	args := fields[1:]
+	var gitRestore, treeish bool
+	if cmd == "git" {
+		i := gitSubcommand(fields)
+		if i >= len(fields) {
+			return "", false
+		}
+		sub, rest := fields[i], fields[i+1:]
+		branch := len(rest) > 0 && (rest[0] == "-b" || rest[0] == "-B") // git checkout -b の引数はブランチ名
+		staged := slices.Contains(rest, "--staged") && !slices.Contains(rest, "--worktree") && !slices.Contains(rest, "-W")
+		gitRestore = (sub == "restore" && !staged) || (sub == "checkout" && !branch)
+		// 版を指定して戻す（git checkout <rev> -- …・git restore --source=<rev> …）なら、ルート（.）も親とみなす
+		if dash := slices.Index(rest, "--"); sub == "checkout" && dash > 0 {
+			treeish = true
+		}
+		for _, r := range rest {
+			treeish = treeish || r == "-s" || r == "--source" || strings.HasPrefix(r, "--source=")
+		}
+		args = rest
+	}
 	writes := writeCommands[cmd] || gitRestore ||
 		(cmd == "sed" && len(fields) > 1 && strings.HasPrefix(fields[1], "-i"))
 	if !writes {
 		return "", false
 	}
 	// 消す・置き換える・戻すコマンドは、保護するパスの親ディレクトリも拒否する（git checkout HEAD~1 -- bin で古い入口に戻す、など）
-	parent := removeCommands[cmd] || gitRestore
-	for _, f := range fields[1:] {
+	parent := parentCommands[cmd] || gitRestore
+	whole := parentCommands[cmd] || treeish
+	for _, f := range args {
 		a := strings.Trim(f, `"'`)
 		if _, v, ok := strings.Cut(a, "="); ok && strings.HasPrefix(a, "-") {
 			a = v
 		}
-		if IsProtectedPath(a, root) || (parent && coversProtected(a, root)) || (cmd != "rm" && outsideSpecGate(a, root)) {
+		if strings.HasPrefix(a, "-") && !strings.Contains(a, "/") {
+			continue
+		}
+		if IsProtectedPath(a, root) || (parent && coversProtected(a, root)) || (whole && coversRoot(a, root)) ||
+			(cmd != "rm" && outsideSpecGate(a, root)) {
 			return a, true
 		}
 	}
@@ -351,6 +402,10 @@ func goBuildTarget(args []string, root string) (string, bool) {
 		}
 	}
 	if out == "" {
+		// -o が無ければ <dir>（-C）か今のディレクトリに spec-gate を書く
+		if dir != "" && coversProtected(dir, root) {
+			return dir, true
+		}
 		return "", false
 	}
 	target := out
