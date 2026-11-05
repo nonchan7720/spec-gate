@@ -1,14 +1,119 @@
 #!/usr/bin/env bash
-# spec-gate の入口（コミットするスクリプト）。本物のバイナリは bin/spec-gate.real（git の管理外）。
-# hook（.claude/settings.json・.claude/agents/spec-gate-approver.md）はこのパスを呼ぶ。バイナリが無いときに
-# hook が失敗して素通りする（Claude Code は exit 2 以外の失敗を「止めない」と扱う）のを防ぐため、
-#   1. bin/spec-gate.real があれば実行する
-#   2. 無ければビルドしてから実行する（scripts/mcp.sh・session-start.sh と同じロック bin/.build.lock を取る）
-#   3. ビルドできず guard として呼ばれたなら exit 2（止める側）。それ以外は exit 1
+# spec-gate の入口（コミットするスクリプト。docs/spec/auto-approval.md「固定版で動かす」）。
+#
+# hook と承認の経路（guard・review record・auto-approve・mcp）は、リリース済みの固定版のバイナリで動かす。
+# リポジトリからビルドしたバイナリで動かすと、エージェントがソースを書き換えてビルドし直すだけで guard を弱められるため。
+#   - 固定版は下の PINNED_VERSION のリリースの配布物。bin/.pinned/<版>/spec-gate に置き、実行のたびに sha256 を下の表と照らす
+#   - 無いか食い違えば取り直す（配布物を展開したバイナリも照らす）。それでも合わなければ動かさない
+#   - 取得は 7 秒で諦める（hook の時間切れは失敗でも「止めない」扱いなので、その前に止める側で終わる）
+#   - 動かせないとき、guard なら exit 2（止める側。Claude Code は exit 2 以外の失敗を「止めない」と扱う）、ほかは exit 1
+# それ以外のサブコマンドは開発中のビルド bin/spec-gate.real（git の管理外）を使い、無ければビルドする
+# （scripts/session-start.sh と同じロック bin/.build.lock を取る）。
+#
+# 版を上げるのは人間（scripts/pin-spec-gate.sh <タグ> がこの表を書き換える）。このファイルと bin/.pinned/ は guard が保護する。
+set -uo pipefail
+
+PINNED_VERSION=v0.0.0-dev.948bc6c
+PINNED_REPO=nonchan7720/spec-gate
+# 配布物を展開した spec-gate のバイナリの sha256（<os>_<arch>）
+pinned_sha256() {
+  case $1 in
+    linux_amd64) echo 122db5b72f6c7c06350ce19982ca7e8cf379d0bf3f1f5393993cfe2e5493c21d ;;
+    linux_arm64) echo a8b1dd9a089fdf51c07d4ec5aecb8280a37a2bc7d5bad3ea0b71f9aadd975f0b ;;
+    darwin_amd64) echo 3c7e96db147f4e1001c6e940fe9db8c050332503e65bef9fcde0cc05529a5e27 ;;
+    darwin_arm64) echo 8b2809a82090fade391894bc0ae219dbfa0b40a65ff63610f5c3c8e4a7a2cfee ;;
+  esac
+}
+
 dir=$(cd "$(dirname "$0")" && pwd)
 root=$(dirname "$dir")
-real=$dir/spec-gate.real
 
+# サブコマンド（-C / --root とその値、ほかのフラグを飛ばした最初の語）と、その次の語
+sub= next=
+args=("$@")
+for ((i = 0; i < ${#args[@]}; i++)); do
+  case ${args[i]} in
+    -C | --root) ((i++)) ;;
+    -*) ;;
+    *)
+      sub=${args[i]}
+      next=${args[i + 1]:-}
+      break
+      ;;
+  esac
+done
+
+fail() {
+  echo "spec-gate: $1" >&2
+  [[ $sub == guard ]] && exit 2
+  exit 1
+}
+
+sha256_of() {
+  if command -v sha256sum >/dev/null 2>&1; then
+    sha256sum "$1" | cut -d' ' -f1
+  elif command -v shasum >/dev/null 2>&1; then
+    shasum -a 256 "$1" | cut -d' ' -f1
+  fi
+}
+
+ensure_pinned() {
+  local os arch want bin tmp url
+  case $(uname -s) in Linux) os=linux ;; Darwin) os=darwin ;; *) os=unknown ;; esac
+  case $(uname -m) in x86_64 | amd64) arch=amd64 ;; aarch64 | arm64) arch=arm64 ;; *) arch=unknown ;; esac
+  want=$(pinned_sha256 "${os}_${arch}")
+  [[ -n $want ]] || fail "固定版 $PINNED_VERSION に ${os}_${arch} のバイナリが無いので動かさない"
+  command -v sha256sum >/dev/null 2>&1 || command -v shasum >/dev/null 2>&1 || fail "sha256sum も shasum も無く、固定版を照らせないので動かさない"
+  bin=$dir/.pinned/$PINNED_VERSION/spec-gate
+
+  if [[ ! -x $bin || $(sha256_of "$bin") != "$want" ]]; then
+    mkdir -p "$dir/.pinned" || fail "bin/.pinned を作れない"
+    (
+      exec 9>"$dir/.pinned/.lock"
+      command -v flock >/dev/null && flock 9
+      [[ -x $bin && $(sha256_of "$bin") == "$want" ]] && exit 0
+      tmp=$(mktemp -d "$dir/.pinned/.dl.XXXXXX") || exit 1
+      trap 'rm -rf "$tmp"' EXIT
+      url=https://github.com/$PINNED_REPO/releases/download/$PINNED_VERSION/spec-gate_${os}_${arch}.tar.gz
+      echo "spec-gate: 固定版 $PINNED_VERSION を取得する（$url）" >&2
+      if command -v curl >/dev/null 2>&1; then
+        curl -fsSL --connect-timeout 3 --max-time 7 -o "$tmp/a.tar.gz" "$url" >&2 || exit 1
+      elif command -v wget >/dev/null 2>&1; then
+        wget -q -T 7 -O "$tmp/a.tar.gz" "$url" >&2 || exit 1
+      else
+        exit 1
+      fi
+      tar -xzf "$tmp/a.tar.gz" -C "$tmp" spec-gate >&2 || exit 1
+      [[ $(sha256_of "$tmp/spec-gate") == "$want" ]] || {
+        echo "spec-gate: 取得した固定版の sha256 が bin/spec-gate の表と違う" >&2
+        exit 1
+      }
+      chmod 755 "$tmp/spec-gate" && mkdir -p "$(dirname "$bin")" && mv -f "$tmp/spec-gate" "$bin"
+    )
+    # 取得の後にもう一度照らす（取得の外で置き換えられていても動かさない）
+    [[ -x $bin && $(sha256_of "$bin") == "$want" ]] ||
+      fail "固定版 $PINNED_VERSION を用意できない（ネットワーク・sha256 の食い違い）。${sub:-取得} は動かさない"
+  fi
+  pinned=$bin
+}
+
+run_pinned() {
+  ensure_pinned
+  exec "$pinned" "$@"
+}
+
+# --fetch-pinned: 固定版を取得して照らすだけ（scripts/session-start.sh が先に取っておく。hook の 10 秒の時間切れは「止めない」扱いになるため）
+if [[ ${1:-} == --fetch-pinned ]]; then
+  ensure_pinned
+  exit 0
+fi
+
+case $sub in
+  guard | auto-approve | mcp) run_pinned "$@" ;;
+  review) [[ $next == record ]] && run_pinned "$@" ;;
+esac
+
+real=$dir/spec-gate.real
 if [[ ! -x $real ]] && command -v go >/dev/null 2>&1; then
   (
     exec 9>"$dir/.build.lock"
@@ -16,15 +121,5 @@ if [[ ! -x $real ]] && command -v go >/dev/null 2>&1; then
     [[ -x $real ]] || go build -C "$root" -o "$real" . >&2
   )
 fi
-if [[ -x $real ]]; then
-  exec "$real" "$@"
-fi
-
-for a in "$@"; do
-  if [[ $a == guard ]]; then
-    echo "spec-gate guard: spec-gate を動かせない（bin/spec-gate.real が無く、ビルドもできない）ので止める。go を入れるか go build -o bin/spec-gate.real . を実行する" >&2
-    exit 2
-  fi
-done
-echo "spec-gate: bin/spec-gate.real が無く、ビルドもできない（go が無い）" >&2
-exit 1
+[[ -x $real ]] && exec "$real" "$@"
+fail "bin/spec-gate.real が無く、ビルドもできない（go が無い）"

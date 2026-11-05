@@ -1,0 +1,9 @@
+# confidence: 2/3
+# 承認するには内容を確認して claims/<領域>/ に移し、`spec-gate approve PIN-003` を実行する
+id: PIN-003
+kind: manual
+title: go build -o は「保護の範囲」のパスにも効く（出力先が保護対象なら拒否する）
+source:
+    type: markdown
+    ref: docs/spec/auto-approval.md#固定版で動かす
+hint: 仕様に「保護の範囲」のパスを出力先にした go build -o の例が無い。guard の binding に保護の範囲のパスへの go build -o と期待出力 deny の例があれば example にできる

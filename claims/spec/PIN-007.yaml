@@ -1,0 +1,11 @@
+id: PIN-007
+kind: manual
+title: 固定版を動かせないとき guard は exit 2 で終わる
+source:
+    type: markdown
+    ref: docs/spec/auto-approval.md#固定版で動かす
+approved:
+    by: nonchan7720
+    at: "2026-11-05T16:24:29Z"
+    source_hash: sha256:c840bc4ef3334600bd982504af63e8f59cf8c5c264c9c160df423fc541c34ef3
+hint: 固定版バイナリが取得・照合できない状態を作って bin/spec-gate guard を実行し exit code を返す binding があれば example にできる

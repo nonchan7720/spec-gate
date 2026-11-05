@@ -1,0 +1,10 @@
+# confidence: 1/3
+# dry-run: none
+# 承認するには内容を確認して claims/<領域>/ に移し、`spec-gate approve PIN-002-3` を実行する
+id: PIN-002-3
+kind: example
+title: シェル経由の書き換えとして install と go build -o も保護の対象に含め、go build -o は「保護の範囲」のパスにも効く
+source:
+    type: markdown
+    ref: docs/spec/auto-approval.md#固定版で動かす
+binding: go run ./tools/bind guard

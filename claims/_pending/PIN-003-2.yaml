@@ -1,0 +1,9 @@
+# confidence: 1/3
+# 承認するには内容を確認して claims/<領域>/ に移し、`spec-gate approve PIN-003-2` を実行する
+id: PIN-003-2
+kind: manual
+title: シェル経由の書き換えの判定には install も含め、保護対象のパスを出力先とする install を拒否する
+source:
+    type: markdown
+    ref: docs/spec/auto-approval.md#固定版で動かす
+hint: '仕様に install の入出力例が無い。guard binding に {tool: Bash, command: "install <src> bin/spec-gate"} -> "deny" のような例があれば example にできる'

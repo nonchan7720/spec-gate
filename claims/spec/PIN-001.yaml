@@ -1,0 +1,48 @@
+id: PIN-001
+kind: example
+title: guard は固定版の入口と置き場所（bin/spec-gate・bin/.pinned/**・.mcp.json・scripts/mcp.sh）への書き換えを拒否し、ln・go build -o による書き換えも拒否する
+source:
+    type: markdown
+    ref: docs/spec/auto-approval.md#固定版で動かす
+approved:
+    by: nonchan7720
+    at: "2026-11-05T16:24:28Z"
+    source_hash: sha256:c840bc4ef3334600bd982504af63e8f59cf8c5c264c9c160df423fc541c34ef3
+binding: go run ./tools/bind guard
+examples:
+    - in:
+        path: bin/spec-gate
+        tool: Edit
+      out: deny
+    - in:
+        path: bin/.pinned/v0.0.0-dev.948bc6c/spec-gate
+        tool: Write
+      out: deny
+    - in:
+        path: .mcp.json
+        tool: Edit
+      out: deny
+    - in:
+        path: scripts/mcp.sh
+        tool: Write
+      out: deny
+    - in:
+        path: scripts/pin-spec-gate.sh
+        tool: Edit
+      out: allow
+    - in:
+        command: go build -o bin/spec-gate .
+        tool: Bash
+      out: deny
+    - in:
+        command: go build -o bin/spec-gate.real .
+        tool: Bash
+      out: allow
+    - in:
+        command: ln -sf /tmp/x bin/spec-gate
+        tool: Bash
+      out: deny
+    - in:
+        command: rm -rf bin/.pinned
+        tool: Bash
+      out: deny

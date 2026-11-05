@@ -38,8 +38,9 @@ func deny(reason string) GuardDecision { return GuardDecision{Verdict: GuardDeny
 
 // protectedExact と protectedDirs は、エージェントが書き換えてはいけないパス（プロジェクトルートからの相対）。
 var (
-	protectedExact = []string{".claude/gate.yaml", ".claude/agents/spec-gate-approver.md", ".claude/settings.json", ".claude/settings.local.json"}
-	protectedDirs  = []string{".spec-gate", ".claude/feedback"}
+	protectedExact = []string{".claude/gate.yaml", ".claude/agents/spec-gate-approver.md", ".claude/settings.json", ".claude/settings.local.json",
+		"bin/spec-gate", ".mcp.json", "scripts/mcp.sh"}
+	protectedDirs = []string{".spec-gate", ".claude/feedback", "bin/.pinned"}
 )
 
 // IsProtectedPath は path（root からの相対か絶対）が保護するパスか。root が空なら path を相対とみなす。
@@ -77,7 +78,7 @@ func Guard(in GuardInput, root string) GuardDecision {
 			return deny("承認役（spec-gate-approver）は Bash で spec-gate auto-approve / audit を実行するだけ。ファイルは書き換えない")
 		}
 		if IsProtectedPath(in.Path, root) {
-			return deny(in.Path + " は保護しているので書き換えない（hook-gate の規則・承認役の定義・hook の設定・.spec-gate/）")
+			return deny(in.Path + " は保護しているので書き換えない（hook-gate の規則・承認役の定義・hook の設定・固定版の spec-gate の入口・.spec-gate/）")
 		}
 		return allow()
 	}
@@ -248,8 +249,8 @@ func subcommandAfter(f []string) string {
 
 var redirectTarget = regexp.MustCompile(`>{1,2}\s*["']?([^\s"';&|]+)`)
 
-// writeCommands は、引数のパスを書き換えるコマンド（claims/** の保護と同じ顔ぶれ）。
-var writeCommands = map[string]bool{"tee": true, "mv": true, "cp": true, "rm": true, "truncate": true}
+// writeCommands は、引数のパスを書き換えるコマンド（claims/** の保護と同じ顔ぶれに、ln・install を足したもの）。
+var writeCommands = map[string]bool{"tee": true, "mv": true, "cp": true, "rm": true, "truncate": true, "ln": true, "install": true}
 
 // shellWriteTarget は、区切った 1 つのコマンドが保護するパスへ書き込むなら、そのパスを返す。
 func shellWriteTarget(seg string, fields []string, root string) (string, bool) {
@@ -265,12 +266,17 @@ func shellWriteTarget(seg string, fields []string, root string) (string, bool) {
 	branch := len(fields) > 2 && (fields[2] == "-b" || fields[2] == "-B") // git checkout -b の引数はブランチ名
 	writes := writeCommands[cmd] ||
 		(cmd == "sed" && len(fields) > 1 && strings.HasPrefix(fields[1], "-i")) ||
-		(cmd == "git" && len(fields) > 1 && (fields[1] == "restore" || (fields[1] == "checkout" && !branch)))
+		(cmd == "git" && len(fields) > 1 && (fields[1] == "restore" || (fields[1] == "checkout" && !branch))) ||
+		(cmd == "go" && len(fields) > 1 && fields[1] == "build") // go build -o <パス>
 	if !writes {
 		return "", false
 	}
 	for _, f := range fields[1:] {
-		if a := strings.Trim(f, `"'`); IsProtectedPath(a, root) {
+		a := strings.Trim(f, `"'`)
+		if _, v, ok := strings.Cut(a, "="); ok && strings.HasPrefix(a, "-") {
+			a = v // -o=bin/spec-gate
+		}
+		if IsProtectedPath(a, root) {
 			return a, true
 		}
 	}

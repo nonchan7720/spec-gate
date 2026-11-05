@@ -1,0 +1,9 @@
+# confidence: 3/3
+# 承認するには内容を確認して claims/<領域>/ に移し、`spec-gate approve PIN-008` を実行する
+id: PIN-008
+kind: manual
+title: '配布物の取得は hook の時間切れより前に諦める【要確認: hook の時間切れの値と諦めるまでの時間が仕様に書かれていない】'
+source:
+    type: markdown
+    ref: docs/spec/auto-approval.md#固定版で動かす
+hint: hook の時間切れの値と取得のタイムアウト値が定まり、それらを比較できる binding があれば検証できる

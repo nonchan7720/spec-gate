@@ -1,0 +1,11 @@
+id: PIN-006
+kind: manual
+title: 固定版バイナリは bin/.pinned/<版>/ に置き、実行のたびに sha256 を照らし、無いか食い違えば配布物を取り直し、それでも合わなければ動かさない
+source:
+    type: markdown
+    ref: docs/spec/auto-approval.md#固定版で動かす
+approved:
+    by: nonchan7720
+    at: "2026-11-05T16:24:28Z"
+    source_hash: sha256:c840bc4ef3334600bd982504af63e8f59cf8c5c264c9c160df423fc541c34ef3
+hint: バイナリの有無・sha256 の一致・取り直し後の一致を入力とし、実行するか否かを出力する binding があれば example にできる
