@@ -13,15 +13,15 @@
 # 版を上げるのは人間（scripts/pin-spec-gate.sh <タグ> がこの表を書き換える）。このファイルと bin/.pinned/ は guard が保護する。
 set -uo pipefail
 
-PINNED_VERSION=v0.0.0-dev.948bc6c
+PINNED_VERSION=v0.0.0-dev.7e2b718
 PINNED_REPO=nonchan7720/spec-gate
 # 配布物を展開した spec-gate のバイナリの sha256（<os>_<arch>）
 pinned_sha256() {
   case $1 in
-    linux_amd64) echo 122db5b72f6c7c06350ce19982ca7e8cf379d0bf3f1f5393993cfe2e5493c21d ;;
-    linux_arm64) echo a8b1dd9a089fdf51c07d4ec5aecb8280a37a2bc7d5bad3ea0b71f9aadd975f0b ;;
-    darwin_amd64) echo 3c7e96db147f4e1001c6e940fe9db8c050332503e65bef9fcde0cc05529a5e27 ;;
-    darwin_arm64) echo 8b2809a82090fade391894bc0ae219dbfa0b40a65ff63610f5c3c8e4a7a2cfee ;;
+    linux_amd64) echo cdc2998d1514fdf1aa968e10c59546a826b08706e8ae4a5e7b1a1eff21e75742 ;;
+    linux_arm64) echo 7f92684aa08a9f07b339636cc7ba4db6f936f3a2ac53cfe4bf28a3085eaf507d ;;
+    darwin_amd64) echo cbf6cdcf8951644247938ef21f8ade9ab131e5e5502921615e2ef7b8c8745858 ;;
+    darwin_arm64) echo 9f3cb8bad1f2c8c77dec2704a504fb2481b68af760776fc63ef28e02f388c4b0 ;;
   esac
 }
 

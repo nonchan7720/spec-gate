@@ -186,8 +186,8 @@ README「人間の関わり方 — HITL と HOTL」の「この先」を spec-ga
       → hook と承認の経路（guard・review record・auto-approve・mcp）を固定版のリリースのバイナリで動かす（2026-11-05、仕様「固定版で動かす」）。
       `bin/spec-gate` が版と sha256 を持ち、`bin/.pinned/` に取得して毎回照らす。入口・置き場所・`.mcp.json`・`scripts/mcp.sh` を guard で保護し、
       シェル経由の書き換えに `ln`・`install`・`go build -o` を足した
-- [ ] 固定版を、入口の保護を含む版に上げる（この PR の後の main のリリース）。今の固定版 v0.0.0-dev.948bc6c の guard は
-      `bin/spec-gate` などの新しい保護を知らないので、上げるまでは入口をエージェントが書き換えられる
+- [x] 固定版を、入口の保護を含む v0.0.0-dev.7e2b718（#40 のマージ）に上げた。これ以降、入口（`bin/spec-gate`）と固定版の版上げは
+      エージェントからはできない（guard が拒否する）。次に上げるときは人間が `scripts/pin-spec-gate.sh <タグ>` を実行してコミットする
 - [ ] 「固定版で動かす」の残りの候補（人間の判断待ち）: PIN-005・PIN-010 は承認してよい。PIN-001-2・PIN-002-2 は PIN-001 の一部、
       PIN-002-3 は例が無く読めない、PIN-003-2 は PIN-002 と同じなので却下でよい。PIN-002・PIN-003（install・go build -o）は承認してよい。
       PIN-008・PIN-009 は「要確認」（時間切れの秒数・「など」の範囲）
