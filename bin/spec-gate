@@ -1,0 +1,30 @@
+#!/usr/bin/env bash
+# spec-gate の入口（コミットするスクリプト）。本物のバイナリは bin/spec-gate.real（git の管理外）。
+# hook（.claude/settings.json・.claude/agents/spec-gate-approver.md）はこのパスを呼ぶ。バイナリが無いときに
+# hook が失敗して素通りする（Claude Code は exit 2 以外の失敗を「止めない」と扱う）のを防ぐため、
+#   1. bin/spec-gate.real があれば実行する
+#   2. 無ければビルドしてから実行する（scripts/mcp.sh・session-start.sh と同じロック bin/.build.lock を取る）
+#   3. ビルドできず guard として呼ばれたなら exit 2（止める側）。それ以外は exit 1
+dir=$(cd "$(dirname "$0")" && pwd)
+root=$(dirname "$dir")
+real=$dir/spec-gate.real
+
+if [[ ! -x $real ]] && command -v go >/dev/null 2>&1; then
+  (
+    exec 9>"$dir/.build.lock"
+    command -v flock >/dev/null && flock 9
+    [[ -x $real ]] || go build -C "$root" -o "$real" . >&2
+  )
+fi
+if [[ -x $real ]]; then
+  exec "$real" "$@"
+fi
+
+for a in "$@"; do
+  if [[ $a == guard ]]; then
+    echo "spec-gate guard: spec-gate を動かせない（bin/spec-gate.real が無く、ビルドもできない）ので止める。go を入れるか go build -o bin/spec-gate.real . を実行する" >&2
+    exit 2
+  fi
+done
+echo "spec-gate: bin/spec-gate.real が無く、ビルドもできない（go が無い）" >&2
+exit 1

@@ -1,6 +1,8 @@
 node_modules/
 /spec-gate
-bin/
+# bin/spec-gate はコミットする入口のスクリプト（本物のバイナリは bin/spec-gate.real）
+bin/*
+!bin/spec-gate
 .DS_Store
 .env
 

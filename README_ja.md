@@ -522,7 +522,7 @@ lint や仕様の読み取りで拒否されたら `_pending/` に戻して理�
   シェルから `spec-gate mcp` を起動して直接呼ぶ経路は hook-gate（`protect_spec_claims`）が拒否する
 - 画面に見せた内容の sha256 が今の候補と違えば反映しない。承認は承認画面と同じ処理（lint・試し実行・仕様のハッシュ記録）で、`.spec-gate/review-decisions.jsonl` に記録する
 - **実機未検証**: Claude Code（とくにスマホのアプリ）が MCP Apps の画面を表示するかは公式に書かれていない。表示されなくても、`review` の結果に候補の要約が返る
-- `.mcp.json` は `scripts/mcp.sh` を起動する。`bin/spec-gate` を使い回し、Go のソースか画面の HTML のほうが新しいときだけビルドし直す（起動のたびに `go run` すると MCP の起動タイムアウト 30 秒を超えた）。cloud セッションでは SessionStart hook（`scripts/session-start.sh`）が、ほかの mise のツールや Neo4j イメージの pull より先に bin をビルドする。2 つのスクリプトは同じロック `bin/.build.lock` を取るので、`mcp.sh` は二重にビルドせずそのビルドを待つ。新しいコンテナの最初のビルド（Go のインストールとコンパイルで 20〜40 秒ほど）は既定の 30 秒を超えうるので、`.claude/settings.json` の `env` で `MCP_TIMEOUT` を 120 秒にしている
+- `.mcp.json` は `scripts/mcp.sh` を起動する。`bin/spec-gate.real`（本物のバイナリ。`bin/spec-gate` はそれを呼ぶ、コミットした入口のスクリプト）を使い回し、Go のソースか画面の HTML のほうが新しいときだけビルドし直す（起動のたびに `go run` すると MCP の起動タイムアウト 30 秒を超えた）。cloud セッションでは SessionStart hook（`scripts/session-start.sh`）が、ほかの mise のツールや Neo4j イメージの pull より先に bin をビルドする。2 つのスクリプトは同じロック `bin/.build.lock` を取るので、`mcp.sh` は二重にビルドせずそのビルドを待つ。新しいコンテナの最初のビルド（Go のインストールとコンパイルで 20〜40 秒ほど）は既定の 30 秒を超えうるので、`.claude/settings.json` の `env` で `MCP_TIMEOUT` を 120 秒にしている
 
 ### リモート承認（Claude Code の質問ダイアログ）
 
