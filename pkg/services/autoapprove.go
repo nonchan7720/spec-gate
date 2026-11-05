@@ -148,9 +148,9 @@ func (s *AutoApproveService) judge(ctx context.Context, p domain.AutoPolicy, pau
 		o.Verdict = domain.AutoLint
 	}
 
-	// exists のときは、既にある claim の証拠を上書きしないよう証拠を書かない
+	// 既にある ID の候補は、判定にかかわらず証拠を書かない（既にある claim の証拠を上書きすると、その claim が unapproved になる）
 	var sha string
-	if o.Verdict != domain.AutoExists {
+	if !have[c.ID] {
 		ev := domain.Evidence{ID: c.ID, Ref: c.Source.Ref, SourceHash: snap.Hash, PolicySHA256: domain.SHA256Ref(policyRaw), Runs: runs,
 			Confidence: o.Confidence, Reverse: o.Reverse, Differences: diffs, DryRun: o.DryRun, Verdict: o.Verdict, At: s.Clock.Now()}
 		var err error

@@ -3,7 +3,13 @@ package domain
 import (
 	"slices"
 	"strings"
+	"time"
 )
+
+func isRFC3339(s string) bool {
+	_, err := time.Parse(time.RFC3339, s)
+	return err == nil
+}
 
 // 承認の自動化（docs/spec/auto-approval.md）の、決定的に確かめられる部分。
 
@@ -103,6 +109,11 @@ func ResolveAutoPolicy(f *AutoPolicyFile) (AutoPolicy, error) {
 			return AutoPolicy{}, &AutoPolicyError{"kinds"}
 		}
 	}
+	// breaker は仕様の誤りの一覧（llm_commands → runs → min_agree → kinds）の後に調べる。window と max_revoked が 1 未満、
+	// reset_at が RFC 3339 でないと、ブレーカーが働かない（負の window で落ちる・max_revoked 0 で止まりっぱなし）
+	if b := p.Breaker; b.Window < 1 || b.MaxRevoked < 1 || (b.ResetAt != "" && !isRFC3339(b.ResetAt)) {
+		return AutoPolicy{}, &AutoPolicyError{"breaker"}
+	}
 	return p, nil
 }
 
@@ -191,7 +202,10 @@ func AutoEvidenceCheck(by string, ev *AutoEvidenceState) (approved bool, detail 
 // AutoBreakerTripped は、古い順に並べた自動承認の差し戻し（reset_at より前の差し戻しは false にしたもの）のうち、
 // 新しい window 件の差し戻しが max_revoked 以上かを返す。
 func AutoBreakerTripped(window, maxRevoked int, revoked []bool) bool {
-	recent := revoked[max(len(revoked)-window, 0):]
+	recent := revoked
+	if window >= 1 && window < len(revoked) { // 1 未満の window（方針で弾くが念のため）は全件を数える
+		recent = revoked[len(revoked)-window:]
+	}
 	n := 0
 	for _, r := range recent {
 		if r {

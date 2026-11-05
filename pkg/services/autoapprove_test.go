@@ -215,3 +215,17 @@ func TestAutoApprove_DisabledAndPaused(t *testing.T) {
 		t.Errorf("止まっているときは逆変換を呼ばない: %v", llm.commands)
 	}
 }
+
+// 既にある ID の候補は、判定が ok でなくても既存の証拠を上書きしない（上書きすると既存の自動承認が unapproved になる）。
+func TestAutoApprove_KeepsExistingEvidence(t *testing.T) {
+	policy := policyOf(t, `{"auto_approve": {"enabled": true, "llm_commands": ["m"], "runs": 2, "kinds": ["manual"]}}`)
+	cand := mdClaim("EX", "s.md#a", domain.KindExample, nil)
+	s, _, placer, ev, _ := newAuto(t, policy, []domain.Claim{cand}, []domain.Claim{mdClaim("EX", "s.md#a", domain.KindExample, approved("h1"))})
+	ev["EX"] = []byte(`{"id": "EX", "verdict": "ok"}`)
+	if _, err := s.Run(context.Background(), domain.SourceMarkdown, "s.md#a", "spec"); err != nil {
+		t.Fatal(err)
+	}
+	if placer.pending["EX"] != domain.AutoKind || string(ev["EX"]) != `{"id": "EX", "verdict": "ok"}` {
+		t.Fatalf("既にある ID の証拠は書き換えない: %q %s", placer.pending["EX"], ev["EX"])
+	}
+}
