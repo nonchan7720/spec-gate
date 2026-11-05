@@ -1,0 +1,9 @@
+# confidence: 3/3
+# 承認するには内容を確認して claims/<領域>/ に移し、`spec-gate approve AUDIT-009` を実行する
+id: AUDIT-009
+kind: manual
+title: check --json の metrics に auto_approved（approved.by が auto の claim の数）を加える
+source:
+    type: markdown
+    ref: docs/spec/auto-approval.md#見張りと差し戻し
+hint: claim 群を入力に check --json の metrics.auto_approved を返す binding があれば example にできる

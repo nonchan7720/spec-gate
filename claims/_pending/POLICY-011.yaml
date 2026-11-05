@@ -1,0 +1,9 @@
+# confidence: 1/3
+# 承認するには内容を確認して claims/<領域>/ に移し、`spec-gate approve POLICY-011` を実行する
+id: POLICY-011
+kind: manual
+title: llm_commands の各コマンドは stdin で prompt を受け取り stdout に応答を返すものとして呼ばれる
+source:
+    type: markdown
+    ref: docs/spec/auto-approval.md#承認方針
+hint: スタブコマンドを llm_commands に指定し、受け取った stdin と使われた stdout を記録する結合テストが要る

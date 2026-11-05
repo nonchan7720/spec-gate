@@ -1,0 +1,9 @@
+# confidence: 3/3
+# 承認するには内容を確認して claims/<領域>/ に移し、`spec-gate approve APPROVER-001` を実行する
+id: APPROVER-001
+kind: manual
+title: 承認役はサブエージェント spec-gate-approver として .claude/agents/spec-gate-approver.md に定義され、使えるツールは Bash だけである
+source:
+    type: markdown
+    ref: docs/spec/auto-approval.md#承認役のエージェント
+hint: '定義ファイルの存在と frontmatter の tools が Bash のみであることを返す binding（入力: ファイルパス、出力: tools の一覧）があれば example にできる'

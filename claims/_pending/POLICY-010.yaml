@@ -1,0 +1,9 @@
+# confidence: 1/3
+# 承認するには内容を確認して claims/<領域>/ に移し、`spec-gate approve POLICY-010` を実行する
+id: POLICY-010
+kind: manual
+title: enabled が true で検証に失敗したとき、自動承認せず理由を出して exit 1 で終わる
+source:
+    type: markdown
+    ref: docs/spec/auto-approval.md#承認方針
+hint: policy.yaml を置いて自動承認コマンドを実行し、exit code と stderr の理由を確かめる binding（ファイル内容 → exit code と出力）が要る

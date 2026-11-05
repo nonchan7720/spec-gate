@@ -1,0 +1,11 @@
+id: AUDIT-007
+kind: manual
+title: revoke の --reason（理由）は必須で、無いときは取り消さない
+source:
+    type: markdown
+    ref: docs/spec/auto-approval.md#見張りと差し戻し
+approved:
+    by: nonchan7720
+    at: "2026-11-04T17:52:39Z"
+    source_hash: sha256:81efbdba1ca3f960d57fbdfa7fb76af1da442dfabc1154a336376f646ce9198a
+hint: 理由なしで revoke を実行したときの exit code とファイルが変わらないことを確かめるテストが要る（エラー時の exit code は仕様に無い）

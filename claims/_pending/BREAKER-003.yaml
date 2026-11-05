@@ -1,0 +1,9 @@
+# confidence: 3/3
+# 承認するには内容を確認して claims/<領域>/ に移し、`spec-gate approve BREAKER-003` を実行する
+id: BREAKER-003
+kind: manual
+title: 止まっている（paused）あいだも抽出と証拠の記録は行い、候補は _pending/ に置く
+source:
+    type: markdown
+    ref: docs/spec/auto-approval.md#ブレーカー
+hint: paused 状態で抽出を実行し、証拠が記録され候補が claims/_pending/ に置かれる（承認されない）ことを確かめる統合テストが必要

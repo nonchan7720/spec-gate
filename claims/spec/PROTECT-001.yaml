@@ -1,0 +1,54 @@
+id: PROTECT-001
+kind: example
+title: spec-gate guard は保護パス（.spec-gate/**、.claude/feedback/**、.claude/gate.yaml、.claude/agents/spec-gate-approver.md、.claude/settings.json）への Edit / Write とシェル経由の書き換えを deny し、それ以外を allow する
+source:
+    type: markdown
+    ref: docs/spec/auto-approval.md#保護の範囲
+approved:
+    by: nonchan7720
+    at: "2026-11-04T17:12:51Z"
+    source_hash: sha256:0db99f434319dab6a0275efa87ae254f85af8208667a1a4b01b78c871ae8ffd3
+binding: go run ./tools/bind guard
+examples:
+    - in:
+        command: go test ./...
+        tool: Bash
+      out: allow
+    - in:
+        path: .claude/gate.yaml
+        tool: Edit
+      out: deny
+    - in:
+        path: .claude/feedback/protect_spec_claims.md
+        tool: Write
+      out: deny
+    - in:
+        path: .claude/agents/spec-gate-approver.md
+        tool: Edit
+      out: deny
+    - in:
+        path: .claude/agents/spec-gate-llm-worker.md
+        tool: Edit
+      out: allow
+    - in:
+        path: .claude/settings.json
+        tool: Edit
+      out: deny
+    - in:
+        path: .spec-gate/policy.yaml
+        tool: Write
+      out: deny
+    - in:
+        path: pkg/domain/claim.go
+        tool: Edit
+      out: allow
+    - in:
+        command: echo x > .claude/gate.yaml
+        tool: Bash
+      out: deny
+    - in:
+        command: cat .claude/gate.yaml
+        tool: Bash
+      out: allow
+properties:
+    - output == 'allow' || output == 'deny'

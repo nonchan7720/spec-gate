@@ -1,0 +1,42 @@
+id: AUTO-001
+kind: example
+title: auto-run-commands は commands を先頭から順に巡回して runs 個のコマンド配列を返す
+source:
+    type: markdown
+    ref: docs/spec/auto-approval.md#自動承認
+approved:
+    by: nonchan7720
+    at: "2026-11-04T16:51:10Z"
+    source_hash: sha256:f6cadb91d2716a7b738a97397bdbc96b44c79058e55eadca01bc68f66d662a10
+binding: go run ./tools/bind auto-run-commands
+examples:
+    - in:
+        commands:
+            - a
+        runs: 3
+      out:
+        - a
+        - a
+        - a
+    - in:
+        commands:
+            - a
+            - b
+        runs: 3
+      out:
+        - a
+        - b
+        - a
+    - in:
+        commands:
+            - a
+            - b
+            - c
+            - d
+        runs: 2
+      out:
+        - a
+        - b
+properties:
+    - len(output) == input.runs
+    - all(output, {# in input.commands})

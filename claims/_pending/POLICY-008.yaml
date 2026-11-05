@@ -1,0 +1,9 @@
+# confidence: 2/3
+# 承認するには内容を確認して claims/<領域>/ に移し、`spec-gate approve POLICY-008` を実行する
+id: POLICY-008
+kind: manual
+title: require_reverse が true のときは逆変換の比較が一致したものだけを自動承認する
+source:
+    type: markdown
+    ref: docs/spec/auto-approval.md#承認方針
+hint: require_reverse と逆変換の比較結果を入力に、自動承認可否を返す binding と仕様側の例があれば example にできる

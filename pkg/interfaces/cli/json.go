@@ -129,6 +129,6 @@ func writeMetrics(w io.Writer, m services.Metrics, asJSON bool) error {
 			return err
 		}
 	}
-	_, err := fmt.Fprintf(w, "\nunverified: %d / %d (%.1f%%)\n", m.Unverified, m.Total, m.UnverifiedRate*100)
+	_, err := fmt.Fprintf(w, "\nunverified: %d / %d (%.1f%%)\nauto approved: %d  revoked: %d\n", m.Unverified, m.Total, m.UnverifiedRate*100, m.AutoApproved, m.Revoked)
 	return err
 }

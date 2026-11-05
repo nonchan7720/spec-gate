@@ -1,0 +1,9 @@
+# confidence: 3/3
+# 承認するには内容を確認して claims/<領域>/ に移し、`spec-gate approve AUTO-006` を実行する
+id: AUTO-006
+kind: manual
+title: 判定のたびに証拠を .spec-gate/evidence/<ID>.json に書く
+source:
+    type: markdown
+    ref: docs/spec/auto-approval.md#自動承認
+hint: auto-approve 実行後のファイルシステムを検査する統合テストが必要

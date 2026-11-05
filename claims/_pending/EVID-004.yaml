@@ -1,0 +1,9 @@
+# confidence: 3/3
+# 承認するには内容を確認して claims/<領域>/ に移し、`spec-gate approve EVID-004` を実行する
+id: EVID-004
+kind: manual
+title: 自動承認した claim の再承認は人間か auto-approve が行う
+source:
+    type: markdown
+    ref: docs/spec/auto-approval.md#証拠の照合
+hint: '再承認の操作主体を入力とし、再承認が受理されるかを出力とする binding（例: 承認者が人間 / auto-approve / その他のときの結果）があれば example にできる'

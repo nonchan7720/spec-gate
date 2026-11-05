@@ -1,0 +1,47 @@
+id: BREAKER-001
+kind: example
+title: 直近 window 件の自動承認のうち差し戻された数が max_revoked 以上なら止める（paused）
+source:
+    type: markdown
+    ref: docs/spec/auto-approval.md#ブレーカー
+approved:
+    by: nonchan7720
+    at: "2026-11-04T17:12:50Z"
+    source_hash: sha256:aebc2cee49d505ee7df09caa9dcad87c8ed340ad2d34d1bced79d3446958b129
+binding: go run ./tools/bind auto-breaker
+examples:
+    - in:
+        history: []
+        max_revoked: 2
+        window: 20
+      out: false
+    - in:
+        history:
+            - revoked: true
+            - revoked: false
+        max_revoked: 2
+        window: 20
+      out: false
+    - in:
+        history:
+            - revoked: true
+            - revoked: true
+        max_revoked: 2
+        window: 20
+      out: true
+    - in:
+        history:
+            - revoked: true
+            - revoked: true
+            - revoked: false
+        max_revoked: 2
+        window: 2
+      out: false
+    - in:
+        history:
+            - revoked: true
+            - revoked: true
+            - revoked: false
+        max_revoked: 2
+        window: 3
+      out: true

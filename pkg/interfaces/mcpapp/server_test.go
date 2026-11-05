@@ -106,9 +106,16 @@ func TestServer_ReviewReturnsSummaryAndItems(t *testing.T) {
 		t.Fatalf("画面を出せないホスト向けの要約: %s", text)
 	}
 	b, _ := json.Marshal(res.StructuredContent)
-	var items Items
-	if err := json.Unmarshal(b, &items); err != nil || len(items.Items) != 2 || items.Counts["eligible"] != 1 || items.Counts["kind:manual"] != 1 {
-		t.Fatalf("structuredContent に候補と内訳: %s", b)
+	var ov map[string]json.RawMessage
+	if err := json.Unmarshal(b, &ov); err != nil {
+		t.Fatal(err)
+	}
+	if _, has := ov["items"]; has {
+		t.Fatalf("review の structuredContent に候補の一覧を入れない（画面は review_list で読む）: %s", b)
+	}
+	var o Overview
+	if err := json.Unmarshal(b, &o); err != nil || o.Counts["total"] != 2 || o.Counts["eligible"] != 1 || o.Counts["kind:manual"] != 1 {
+		t.Fatalf("structuredContent に件数の内訳: %s", b)
 	}
 }
 

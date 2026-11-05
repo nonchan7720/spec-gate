@@ -1,0 +1,9 @@
+# confidence: 2/3
+# 承認するには内容を確認して claims/<領域>/ に移し、`spec-gate approve POLICY-007` を実行する
+id: POLICY-007
+kind: manual
+title: min_agree は合意数の下限で、0 は全員一致を意味する
+source:
+    type: markdown
+    ref: docs/spec/auto-approval.md#承認方針
+hint: runs・min_agree・合意数を入力に、合意条件を満たすかを返す binding と仕様側の例があれば example にできる

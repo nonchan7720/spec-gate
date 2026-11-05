@@ -1,0 +1,9 @@
+# confidence: 3/3
+# 承認するには内容を確認して claims/<領域>/ に移し、`spec-gate approve PROTECT-002` を実行する
+id: PROTECT-002
+kind: manual
+title: 保護パスへのシェル経由の書き換えは claims/** と同じ規則（リダイレクトの書き込み先、sed -i・tee・mv・cp・rm・truncate・git checkout・git restore の同じ行の引数）で拒否する
+source:
+    type: markdown
+    ref: docs/spec/auto-approval.md#保護の範囲
+hint: 仕様の例はリダイレクトのみ。sed -i・tee・mv・cp・rm・truncate・git checkout・git restore それぞれについて保護パスを引数に取る Bash コマンドと deny の例が仕様にあれば guard binding で example にできる

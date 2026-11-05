@@ -10,6 +10,7 @@ import (
 	"github.com/nonchan7720/spec-gate/pkg/infrastructure/adapter"
 	"github.com/nonchan7720/spec-gate/pkg/infrastructure/checker"
 	"github.com/nonchan7720/spec-gate/pkg/infrastructure/claimrepo"
+	"github.com/nonchan7720/spec-gate/pkg/infrastructure/evidence"
 	"github.com/nonchan7720/spec-gate/pkg/infrastructure/extractor"
 	"github.com/nonchan7720/spec-gate/pkg/infrastructure/llmwork"
 	"github.com/nonchan7720/spec-gate/pkg/infrastructure/planfile"
@@ -104,7 +105,7 @@ func newApp(root string) *app {
 		adapters: adapters,
 		check: &services.CheckService{
 			Claims: claims, Plans: plans, Adapters: adapters, Checkers: checkers,
-			Runner: runner, Changes: vcs.Git{Dir: root}, Paths: workspace.Paths{Root: root}, Deps: workspace.NewGoDeps(root), Holdout: holdout, DiagramEdges: diagramEdges,
+			Runner: runner, Changes: vcs.Git{Dir: root}, Paths: workspace.Paths{Root: root}, Deps: workspace.NewGoDeps(root), Holdout: holdout, DiagramEdges: diagramEdges, Evidence: evidence.New(root),
 		},
 		lint:       &services.LintService{Claims: claims, Holdout: holdout},
 		holdoutAdd: &services.HoldoutService{Claims: claims, Writer: holdout},
@@ -171,6 +172,10 @@ func Execute() {
 		newExtractCmd(&a),
 		newReverseCmd(&a),
 		newLeakCmd(&a),
+		newGuardCmd(&a),
+		newAutoApproveCmd(&a),
+		newAuditCmd(&a),
+		newRevokeCmd(&a),
 		newHoldoutCmd(&a),
 		newPlanCmd(&a),
 		newVersionCmd(),

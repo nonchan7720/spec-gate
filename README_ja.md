@@ -56,6 +56,9 @@ flowchart LR
 | 判定 | `spec-gate check` | 機械 | 承認 → 仕様ドリフト → 種類別チェック（examples・holdout・fuzz）→ プランの verify |
 | 漏れ | `spec-gate coverage` | 機械 | 仕様のうち claim に紐づかない箇所と、曖昧と記録された箇所（要確認）を列挙 |
 | 逆変換 | `spec-gate reverse [<id>...] --emit` / `--collect` | AI（サブエージェント） | 仕様を見せずに claim だけから仕様文を書き起こし、原文の該当箇所と比べて、claim にだけある主張・抜けている規範・矛盾を列挙（レビュー補助。`--strict` で食い違いがあれば exit 1） |
+| 自動承認 | `spec-gate auto-approve <ref> --area <領域>` | 承認役のサブエージェント | 人間が書いた方針（`.spec-gate/policy.yaml`）のコマンドだけで抽出・逆変換・試し実行をし、方針と証拠が認めた候補だけを承認する（承認者 `auto`、証拠は `.spec-gate/evidence/`）。`docs/spec/auto-approval.md` |
+| 見張り | `spec-gate audit [--since 24h]` | 誰でも | 自動承認を新しい順に一覧する（合意数・逆変換・試し実行・証拠・差し戻し済みか） |
+| 差し戻し | `spec-gate revoke <ID> --reason <理由>` | **人間** | 承認を取り消して `claims/_pending/` に戻す。差し戻しが続くと自動承認はブレーカーで止まる |
 
 ### 判定の順序と状態
 
@@ -111,6 +114,10 @@ Markdown の claim が参照する見出しが仕様から消えたとき（`sou
   `spec-gate plan check` を走らせ、凍結済みの verify が変わっていればその場で止める
   （`.claude/feedback/protect_plan_verify.md`）。プランによっては、壊したコードを verify が検出できることを
   凍結の条件にできる（[mutation score](#plan-mutate-と-mutation-の閾値)）
+- **自動承認まわりも書き換えさせない**。`.claude/settings.json` の PreToolUse hook が `spec-gate guard` を呼び、
+  `spec-gate auto-approve` を承認役のサブエージェント（`spec-gate-approver`）以外から実行すること、`spec-gate revoke` の実行、
+  hook-gate の規則（`.claude/feedback/**`・`.claude/gate.yaml`）・承認役の定義・hook の設定・`.spec-gate/` の書き換え（シェル経由も）を拒否する
+  （`docs/spec/auto-approval.md`）
 - **仕様が変わったら自動で stale**。仕様側を書き換えて辻褄を合わせることもできない
 - **検証手段のない claim は fail ではなく unverified**。「検証していないのに通った」を作らない代わりに、
   人間が見るべきものとして可視化する
@@ -541,8 +548,8 @@ Claude Code をリモートセッション（スマホなど）だけで操作�
    }
    ```
 
-2. エージェントに「`spec-gate review ask` の結果で AskUserQuestion を出して」と頼む。`review ask [--limit N]` は
-   `claims/_pending/` の候補を最大 4 件、ダイアログに渡す `questions` の JSON にして出す（候補が無ければ空配列と stderr の案内）。
+2. エージェントに「`spec-gate review ask` の結果で AskUserQuestion を出して」と頼む。`review ask [--limit N] [--ref <前方一致>] [--id <ID>]` は
+   `claims/_pending/` の候補を最大 4 件（`--ref` / `--id` で絞れる）、ダイアログに渡す `questions` の JSON にして出す（候補が無ければ空配列と stderr の案内）。
 3. 候補ごとにボタンを選ぶ。仕様が決まっていない理由を残したいときは「Other」に書く。自由入力は、その文を理由にした「曖昧」として記録される
    （[曖昧の記録](#曖昧の記録)）。
 

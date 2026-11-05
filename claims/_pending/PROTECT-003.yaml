@@ -1,0 +1,9 @@
+# confidence: 3/3
+# 承認するには内容を確認して claims/<領域>/ に移し、`spec-gate approve PROTECT-003` を実行する
+id: PROTECT-003
+kind: manual
+title: hook-gate の既存の規則（claims/** など）は guard 導入後もそのまま残す
+source:
+    type: markdown
+    ref: docs/spec/auto-approval.md#保護の範囲
+hint: hook-gate の規則一覧を返す binding か、claims/** への Edit / Write / Bash 書き換えが hook-gate で拒否される入出力例があれば機械で確かめられる

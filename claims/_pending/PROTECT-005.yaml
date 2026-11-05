@@ -1,0 +1,9 @@
+# confidence: 2/3
+# 承認するには内容を確認して claims/<領域>/ に移し、`spec-gate approve PROTECT-005` を実行する
+id: PROTECT-005
+kind: manual
+title: spec-gate guard は stdin から hook の入力（tool_name・tool_input・agent_type）を読み、拒否なら理由を stderr に出して exit 2、許可なら何も出力せず exit 0 で終わる
+source:
+    type: markdown
+    ref: docs/spec/auto-approval.md#保護の範囲
+hint: binding の出力は allow/deny のみで exit code・stderr・stdout を観測できない。hook 入力 JSON を stdin に渡し exit code と stderr/stdout の有無を返す binding があれば example にできる

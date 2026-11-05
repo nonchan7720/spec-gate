@@ -34,6 +34,30 @@
         ]
       }
     ],
+    "PreToolUse": [
+      {
+        "matcher": "Bash|Edit|Write|MultiEdit|NotebookEdit",
+        "hooks": [
+          {
+            "type": "command",
+            "timeout": 10,
+            "command": "\"$CLAUDE_PROJECT_DIR/bin/spec-gate\" -C \"$CLAUDE_PROJECT_DIR\" guard"
+          }
+        ]
+      }
+    ],
+    "PostToolUse": [
+      {
+        "matcher": "AskUserQuestion",
+        "hooks": [
+          {
+            "type": "command",
+            "timeout": 60,
+            "command": "\"$CLAUDE_PROJECT_DIR/bin/spec-gate\" -C \"$CLAUDE_PROJECT_DIR\" review record --by nonchan7720"
+          }
+        ]
+      }
+    ],
     "UserPromptSubmit": [
       {
         "hooks": [

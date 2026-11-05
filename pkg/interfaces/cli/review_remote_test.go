@@ -10,6 +10,7 @@ import (
 	"testing"
 
 	"github.com/nonchan7720/spec-gate/pkg/domain"
+	"github.com/nonchan7720/spec-gate/pkg/services"
 )
 
 // remoteProject は仕様 1 つと承認待ち候補 2 つを置いた一時プロジェクト。
@@ -36,7 +37,7 @@ func remoteProject(t *testing.T) string {
 func TestReviewAsk_PrintsQuestionsJSON(t *testing.T) {
 	a := newApp(remoteProject(t))
 	var out, errw bytes.Buffer
-	if err := runReviewAsk(newRemoteReview(a), 4, &out, &errw); err != nil {
+	if err := runReviewAsk(newRemoteReview(a), 4, services.AskFilter{}, &out, &errw); err != nil {
 		t.Fatal(err)
 	}
 	var qs []domain.AskQuestion
@@ -50,7 +51,7 @@ func TestReviewAsk_PrintsQuestionsJSON(t *testing.T) {
 	empty := newApp(t.TempDir())
 	out.Reset()
 	errw.Reset()
-	if err := runReviewAsk(newRemoteReview(empty), 4, &out, &errw); err != nil {
+	if err := runReviewAsk(newRemoteReview(empty), 4, services.AskFilter{}, &out, &errw); err != nil {
 		t.Fatal(err)
 	}
 	if strings.TrimSpace(out.String()) != "[]" || !strings.Contains(errw.String(), "ありません") {
@@ -62,7 +63,7 @@ func TestReviewRecord_AppliesAndReportsToClaude(t *testing.T) {
 	root := remoteProject(t)
 	a := newApp(root)
 	var askOut bytes.Buffer
-	if err := runReviewAsk(newRemoteReview(a), 4, &askOut, &bytes.Buffer{}); err != nil {
+	if err := runReviewAsk(newRemoteReview(a), 4, services.AskFilter{}, &askOut, &bytes.Buffer{}); err != nil {
 		t.Fatal(err)
 	}
 	var qs []domain.AskQuestion
@@ -134,7 +135,7 @@ func TestReviewRecord_RefusesAnswersOnlyInToolInput(t *testing.T) {
 	root := remoteProject(t)
 	a := newApp(root)
 	var askOut bytes.Buffer
-	if err := runReviewAsk(newRemoteReview(a), 1, &askOut, &bytes.Buffer{}); err != nil {
+	if err := runReviewAsk(newRemoteReview(a), 1, services.AskFilter{}, &askOut, &bytes.Buffer{}); err != nil {
 		t.Fatal(err)
 	}
 	var qs []domain.AskQuestion

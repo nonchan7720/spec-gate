@@ -45,6 +45,39 @@ func hookJSON(t *testing.T, questions []domain.AskQuestion, answers map[string]s
 	return b
 }
 
+func TestRemoteAskWhere(t *testing.T) {
+	ps := []domain.PendingClaim{
+		pending(mdClaim("A", "s.md#a", domain.KindExample, nil), "3/3"),
+		pending(mdClaim("B", "t.md#b", domain.KindExample, nil), "3/3"),
+		pending(mdClaim("C", "t.md#c", domain.KindExample, nil), "3/3"),
+	}
+	s, _, _ := newRemote(ps)
+	headers := func(f AskFilter) string {
+		t.Helper()
+		qs, _, err := s.AskWhere(4, f)
+		if err != nil {
+			t.Fatal(err)
+		}
+		var hs []string
+		for _, q := range qs {
+			hs = append(hs, q.Header)
+		}
+		return strings.Join(hs, ",")
+	}
+	if got := headers(AskFilter{}); got != "A,B,C" {
+		t.Fatalf("絞らなければ全部: %s", got)
+	}
+	if got := headers(AskFilter{RefPrefix: "t.md"}); got != "B,C" {
+		t.Fatalf("ref の前方一致で絞る: %s", got)
+	}
+	if got := headers(AskFilter{IDs: []string{"C", "A"}}); got != "A,C" {
+		t.Fatalf("ID で絞り、並びは承認しやすい順のまま: %s", got)
+	}
+	if got := headers(AskFilter{RefPrefix: "t.md", IDs: []string{"A", "C"}}); got != "C" {
+		t.Fatalf("両方の条件を満たすものだけ: %s", got)
+	}
+}
+
 func TestRemoteAsk(t *testing.T) {
 	var ps []domain.PendingClaim
 	for _, id := range []string{"A", "B", "C", "D", "E"} {

@@ -3,6 +3,7 @@ package cli
 import (
 	"os"
 
+	"github.com/nonchan7720/spec-gate/pkg/infrastructure/tracelog"
 	"github.com/nonchan7720/spec-gate/pkg/services"
 	"github.com/spf13/cobra"
 )
@@ -16,6 +17,7 @@ func newMetricsCmd(a **app) *cobra.Command {
 
   - kind（example / structure / ui / manual）別の件数と、総数に対する割合
   - unverified 率 = unverified の件数 / claim の総数（claim が 0 件なら 0）
+  - 自動承認（approved.by が auto）の claim の数と、判定の記録にある差し戻し（revoke）の数
 
 判定の失敗では exit 1 にしない（指標を出すだけ）。失敗で止めたいときは check を使う。`,
 		Args: cobra.NoArgs,
@@ -24,7 +26,15 @@ func newMetricsCmd(a **app) *cobra.Command {
 			if err != nil {
 				return err
 			}
-			return writeMetrics(os.Stdout, services.ComputeMetrics(rep.Claims), asJSON)
+			claims, err := (*a).claims.All()
+			if err != nil {
+				return err
+			}
+			ds, err := tracelog.NewDecisions((*a).root).All()
+			if err != nil {
+				return err
+			}
+			return writeMetrics(os.Stdout, services.ComputeMetrics(rep.Claims).WithApprovals(claims, ds), asJSON)
 		},
 	}
 	cmd.Flags().BoolVar(&asJSON, "json", false, "JSON で出す")

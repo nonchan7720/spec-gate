@@ -145,3 +145,44 @@ HANDOFF.md は人間の引き継ぎ文書なので触らず、エージェント
 - [x] それでも新しいコンテナの最初のビルドは 20〜40 秒かかり、30 秒を超えうるので、`.claude/settings.json` の `env` に
       `"MCP_TIMEOUT": "120000"` を足した（利用者の指示による）
 - gh stack: このセッションの環境では GraphQL が使えないので `gh stack` のコマンドは動かない。stack の REST（`/repos/{o}/{r}/stacks`、`/pulls/{n}/merge-async`）は動く
+
+## 承認の自動化（HOTL 承認）— 環境づくり済み（2026-11-04）
+
+README「人間の関わり方 — HITL と HOTL」の「この先」を spec-gate 自身で開発する。
+
+- [x] 仕様の草案 `docs/spec/auto-approval.md`（sources.yaml に登録。coverage で未カバーの節が見える）
+- [x] プランの草案 `plans/2026-11-auto-approval.md`（verify 8 項目。claims は承認後に入れる）
+- [x] 開発の手順のスキル `.claude/skills/spec-gate-develop/`
+- [x] 人間: 仕様の未決事項 6 件を決めた（承認役は独立したエージェント、ほかはおすすめどおり）
+- [x] エージェント: 節ごとに抽出（79 候補）。人間: 中心の 7 件を承認（質問ダイアログ）。プランの claims に 7 件を入れた
+- [ ] 人間: plan freeze・active（スマホからはコマンドを打てないので PC で）
+- [ ] 人間: 残りの候補（約 70 件、多くは manual）の承認か却下
+- [x] 判定の binding 6 つ（auto-policy・auto-run-commands・auto-eligible・auto-evidence・auto-breaker・guard）を実装。承認済み 7 件は pass
+- [x] `spec-gate guard`（PreToolUse hook）と承認役 `.claude/agents/spec-gate-approver.md`。settings.json に hook を追加し、今のセッションで revoke が拒否されることを確認
+- [x] 実機で確認（2026-11-04、同じセッションで承認役が使えるようになった）: hook の入力に agent_type が入る。
+      承認役からの auto-approve は承認役の規則で判定され（`cd … ;` を足したものは「1 つだけ」として拒否）、メインからの auto-approve は拒否された。
+      仕様の「実機で確かめること」の段落は承認済み claim（APPROVER-013）の節にあるので、仕様は書き換えずここに記録する
+- [x] 残りの実装（2026-11-04、利用者の指示で PdM として判断して進めた）: check での証拠の照合、`revoke` / `audit`、全経路の判定の記録、
+      `spec-gate auto-approve`、metrics の auto_approved / revoked。プランの verify 9 項目はすべて通る（凍結はまだ）
+  - スクラッチのプロジェクトで承認役から auto-approve を実行し、自動承認 → check pass → audit に出る → 証拠を書き換えると unapproved、を確認
+  - PdM として決めたこと: 方針が無効なら auto-approve は実行しない（エラー）／逆変換は ok になりうる候補だけ（既にある ID はその前に exists）／
+    exists のときは既存の証拠を上書きしないよう証拠を書かない／読めない抽出の回答は、その run が何も主張しなかったものとして数える
+  - 仕様とのずれ: 仕様は「check --json の metrics」に足すと書くが、manual_rate などの指標は `spec-gate metrics` にあるので、そちらに足した
+- [ ] 人間: 残りの候補の承認か却下（自動承認の仕様は約 60 件。AUDIT-001・002・004・005・009 は実装済みの規則なので承認してよい）
+- [ ] 実プロジェクトで `.spec-gate/policy.yaml` を書き、本物の LLM（別モデルを並べる）で auto-approve を試す
+
+## 自己レビュー（2026-11-05、/code-review）の対応
+
+- [x] 判定の記録（`.spec-gate/review-decisions.jsonl`）をコミットする（.gitignore から外した）。clone ごとにブレーカーと audit が白紙に戻っていた
+- [x] 既にある ID の候補は、判定にかかわらず証拠を書かない（ok 以外で既存の証拠を上書きし、正しい自動承認を unapproved にしていた）
+- [x] ブレーカーの window / max_revoked が 1 未満・reset_at が RFC 3339 でない方針をエラーにする（仕様の誤りの一覧には無い。仕様に足すかは人間が判断）
+- [x] reset_at を時刻として比べる。人間が承認し直した claim の差し戻しを、前の自動承認に付けない
+- [x] guard の抜け道: 承認役は spec-gate のバイナリだけ（go run・環境変数の前置き・別の場所の spec-gate を拒否）。
+      ほかのエージェントは $(…)・バッククォート・sh -c・eval の中身と sudo・env・timeout などの前置きの後ろも見る。go run のフラグの値を読み飛ばす
+- [x] guard が動かないと素通りになる → `scripts/guard-hook.sh`（bin → go run → だめなら exit 2）
+- [ ] 人間: `.claude/settings.json` の PreToolUse と `.claude/agents/spec-gate-approver.md` の hooks の command を
+      `bash "$CLAUDE_PROJECT_DIR/scripts/guard-hook.sh"` に差し替える（どちらも保護済みでエージェントは書き換えられない）
+- [ ] 直さないと決めた: スマホ（preview が落ちる端末）のリモート承認は、question 文で省略された例を照合できない。
+      ダイアログの間エージェントは動けないので、表示から反映までに書き換える隙はほぼ無い。省略は「ほか n 件」「長いので省略」で人間に見える
+- 手順のずれ（事実として記録）: 自動承認はプランを凍結する前に実装した（利用者の「PdM として判断して進めて」による）。
+  guard の hook も利用者の指示で私が settings.json に入れた。凍結は人間の作業として残っている

@@ -1,0 +1,9 @@
+# confidence: 3/3
+# 承認するには内容を確認して claims/<領域>/ に移し、`spec-gate approve AUDIT-005` を実行する
+id: AUDIT-005
+kind: manual
+title: audit の --since は RFC 3339 の時刻か 24h のような期間を受け付け、それ以降の自動承認に絞る
+source:
+    type: markdown
+    ref: docs/spec/auto-approval.md#見張りと差し戻し
+hint: --since の文字列を入力に解釈結果（時刻）を返す binding と、仕様に具体的な入出力の例（現在時刻と期待される境界時刻）があれば example にできる

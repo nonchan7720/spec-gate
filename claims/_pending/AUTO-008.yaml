@@ -1,0 +1,9 @@
+# confidence: 3/3
+# 承認するには内容を確認して claims/<領域>/ に移し、`spec-gate approve AUTO-008` を実行する
+id: AUTO-008
+kind: manual
+title: '自動承認の approved には by: auto、at、source_hash、evidence: sha256:<証拠ファイルの sha256> を書く'
+source:
+    type: markdown
+    ref: docs/spec/auto-approval.md#自動承認
+hint: 証拠ファイル内容・時刻・仕様ハッシュを入力に、approved ブロックを出力する binding があれば example にできる

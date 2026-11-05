@@ -1,0 +1,9 @@
+# confidence: 3/3
+# 承認するには内容を確認して claims/<領域>/ に移し、`spec-gate approve POLICY-005` を実行する
+id: POLICY-005
+kind: manual
+title: 自動承認では環境変数（SPEC_GATE_EXTRACT_CMD など）を使ってはならない
+source:
+    type: markdown
+    ref: docs/spec/auto-approval.md#承認方針
+hint: 環境変数を設定した場合と未設定の場合で自動承認の挙動（使われるコマンド）が変わらないことを確かめるテスト、または自動承認のコードが os.Getenv を呼ばないことの静的検査が要る

@@ -1,0 +1,34 @@
+# confidence: 1/3
+# dry-run: fail: 4 件中 4 件が期待と違う
+# 承認するには内容を確認して claims/<領域>/ に移し、`spec-gate approve APPROVER-011` を実行する
+id: APPROVER-011
+kind: example
+title: 承認役（agent_type が spec-gate-approver）は Bash でしか動けず、実行してよいのは spec-gate auto-approve と spec-gate audit だけで、ほかのコマンドをつないだものも拒否する
+source:
+    type: markdown
+    ref: docs/spec/auto-approval.md#承認役のエージェント
+binding: go run ./tools/bind guard
+examples:
+    - in:
+        agent_type: spec-gate-approver
+        command: spec-gate audit --since 24h
+        tool: Bash
+      out: allow
+    - in:
+        agent_type: spec-gate-approver
+        command: spec-gate audit; rm -rf claims
+        tool: Bash
+      out: deny
+    - in:
+        agent_type: spec-gate-approver
+        command: ls
+        tool: Bash
+      out: deny
+    - in:
+        agent_type: spec-gate-approver
+        path: pkg/domain/claim.go
+        tool: Edit
+      out: deny
+properties:
+    - '!(has(input.agent_type) && input.agent_type == ''spec-gate-approver'' && input.tool != ''Bash'') || output == ''deny'''
+    - '!(has(input.agent_type) && input.agent_type == ''spec-gate-approver'' && input.tool == ''Bash'' && (input.command.contains('';'') || input.command.contains(''&'') || input.command.contains(''|''))) || output == ''deny'''

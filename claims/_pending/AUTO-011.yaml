@@ -1,0 +1,9 @@
+# confidence: 2/3
+# 承認するには内容を確認して claims/<領域>/ に移し、`spec-gate approve AUTO-011` を実行する
+id: AUTO-011
+kind: manual
+title: 逆変換の再生成プロンプトに仕様を入れない
+source:
+    type: markdown
+    ref: docs/spec/auto-approval.md#自動承認
+hint: 候補と仕様を入力に再生成プロンプトを出力する binding があれば、出力に仕様本文が含まれないことを property で確かめられる

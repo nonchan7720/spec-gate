@@ -5,7 +5,6 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
-	"reflect"
 	"regexp"
 	"sort"
 	"strconv"
@@ -54,6 +53,8 @@ const (
 	VerdictApprove   RemoteVerdict = "approve"
 	VerdictReject    RemoteVerdict = "reject"
 	VerdictAmbiguous RemoteVerdict = "ambiguous"
+	// VerdictRevoke は承認の取り消し（spec-gate revoke。docs/spec/auto-approval.md「見張りと差し戻し」）
+	VerdictRevoke RemoteVerdict = "revoke"
 )
 
 // RemoteDecision は候補 1 つへの判定。Reason は曖昧のときだけ入る。
@@ -70,8 +71,10 @@ type ReviewDecision struct {
 	Verdict RemoteVerdict `json:"verdict"`
 	Reason  string        `json:"reason,omitempty"`
 	By      string        `json:"by"`
-	// ContentSHA256 は人間に見せた候補の内容（preview）の sha256（16 進）
+	// ContentSHA256 は人間に見せた候補の内容（preview）の sha256（16 進）。見せた内容が無い経路（CLI の approve など）では空
 	ContentSHA256 string `json:"content_sha256"`
+	// Evidence は自動承認の証拠ファイルのパス（承認者が auto のときだけ）
+	Evidence string `json:"evidence,omitempty"`
 }
 
 // RemoteHookInput は PostToolUse hook の stdin のうち使う部分。
@@ -321,11 +324,14 @@ func FormatExampleValue(v any) string {
 	if v == nil {
 		return "なし"
 	}
-	b, err := json.Marshal(v)
-	if err != nil {
+	// 人が読むので、< > & を \u003c などにしない（json.Marshal の既定は HTML 向けにエスケープする）
+	var buf bytes.Buffer
+	enc := json.NewEncoder(&buf)
+	enc.SetEscapeHTML(false)
+	if err := enc.Encode(v); err != nil {
 		return fmt.Sprint(v)
 	}
-	return string(b)
+	return strings.TrimSuffix(buf.String(), "\n")
 }
 
 // responseAnswerRE は文字列の tool_response に並ぶ "質問"="回答" の 1 組。
@@ -417,13 +423,37 @@ func DecideRemote(in RemoteHookInput, current map[string]AskQuestion) (decisions
 			notes = append(notes, id+": 承認待ちの候補に無い")
 			continue
 		}
-		if !reflect.DeepEqual(q, want) {
+		if !sameShown(q, want) {
 			notes = append(notes, id+": 表示された内容が今の候補と一致しないので反映しない")
 			continue
 		}
 		decisions = append(decisions, verdictFor(id, ans))
 	}
 	return decisions, notes
+}
+
+// sameShown は、表示された質問 shown が spec-gate が今作る質問 want と同じかを確かめる。
+// 質問文・見出し・選択肢のラベルと説明は完全一致を求める。preview は、shown の選択肢のどれかに preview があれば完全一致を求め、
+// どれにも無ければ比べない（preview を表示しない端末では、回答の質問から preview と multiSelect が落ちる。2026-11-04 実機）。
+// 候補の内容は質問文にも入れてあるので、質問文の一致で、表示された内容が今の候補と同じことを確かめられる。
+func sameShown(shown, want AskQuestion) bool {
+	if shown.Question != want.Question || shown.Header != want.Header || len(shown.Options) != len(want.Options) {
+		return false
+	}
+	hasPreview := false
+	for _, o := range shown.Options {
+		hasPreview = hasPreview || o.Preview != ""
+	}
+	if hasPreview && shown.MultiSelect != want.MultiSelect {
+		return false
+	}
+	for i, o := range shown.Options {
+		w := want.Options[i]
+		if o.Label != w.Label || o.Description != w.Description || (hasPreview && o.Preview != w.Preview) {
+			return false
+		}
+	}
+	return true
 }
 
 func verdictFor(id, answer string) RemoteDecision {

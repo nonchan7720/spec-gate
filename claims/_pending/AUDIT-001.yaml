@@ -1,0 +1,9 @@
+# confidence: 3/3
+# 承認するには内容を確認して claims/<領域>/ に移し、`spec-gate approve AUDIT-001` を実行する
+id: AUDIT-001
+kind: manual
+title: 承認の経路（approve・承認画面・リモート承認・MCP Apps・まとめ承認・自動承認）にかかわらず、承認・却下・曖昧・差し戻しを .spec-gate/review-decisions.jsonl に 1 件 1 行で記録する
+source:
+    type: markdown
+    ref: docs/spec/auto-approval.md#見張りと差し戻し
+hint: 経路ごとに 1 件の判定を行った後の review-decisions.jsonl の行数と各行の判定値を比べる binding（経路名と判定を入力、追記された行を出力）があれば example にできる

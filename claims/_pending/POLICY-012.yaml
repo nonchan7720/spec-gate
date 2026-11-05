@@ -1,0 +1,9 @@
+# confidence: 1/3
+# 承認するには内容を確認して claims/<領域>/ に移し、`spec-gate approve POLICY-012` を実行する
+id: POLICY-012
+kind: manual
+title: kinds に含まれる kind の claim だけを自動承認する
+source:
+    type: markdown
+    ref: docs/spec/auto-approval.md#承認方針
+hint: 方針と claim の kind を入力に、自動承認するかを返す binding と仕様側の例があれば example にできる

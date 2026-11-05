@@ -13,8 +13,7 @@ bin/
 .spec-gate-llm/
 # 通り方のログ（check --hook が追記する。spec-gate trace で要約）
 .spec-gate/trace.jsonl
-# リモート承認で反映した判定の記録（review record が追記する）
-.spec-gate/review-decisions.jsonl
+# 判定の記録（.spec-gate/review-decisions.jsonl）はコミットする。ブレーカーと audit が読むので、clone ごとに消えてはいけない
 test-results/
 
 # 人間の引き継ぎメモ（リポジトリには入れない）

@@ -157,6 +157,45 @@ type ReviewDecisionLog interface {
 	Append(ReviewDecision) error
 }
 
+// AutoPolicySource は自動承認の方針（.spec-gate/policy.yaml）を読む。
+type AutoPolicySource interface {
+	// Load はファイルの中身とそれを読んだ値を返す。ファイルが無ければ (nil, nil, nil)。YAML として読めなければ error
+	Load() (f *AutoPolicyFile, raw []byte, err error)
+}
+
+// LLMRunner は方針で決めたコマンドに prompt を stdin で渡し、stdout の応答を返す（auto-approve 用。環境変数は使わない）。
+type LLMRunner interface {
+	Run(ctx context.Context, command, prompt string) (string, error)
+}
+
+// AutoPlacer は自動承認の結果の claim を置く。
+type AutoPlacer interface {
+	// PlaceApproved は承認済みの claim を claims/<area>/<ID>.yaml に置く（同名があれば上書きせずエラー）
+	PlaceApproved(c Claim, area string) (path string, err error)
+	// SavePendingAuto は自動承認しなかった候補を claims/_pending/ に置き、先頭に合意数・試し実行・判定（`# auto: <判定>`）を書く
+	SavePendingAuto(c Claim, confidence, dryRun, verdict string) (path string, err error)
+}
+
+// RevokeRepository は承認の取り消し（spec-gate revoke）で claim を _pending に戻す。
+type RevokeRepository interface {
+	// Revoke は承認済みの claim の承認を取り消して claims/_pending/<ID>.yaml に戻し、戻したファイルの相対パスを返す
+	Revoke(c Claim, reason string) (path string, err error)
+}
+
+// ReviewDecisionReader は判定の記録を読む（audit・ブレーカー用）。
+type ReviewDecisionReader interface {
+	// All は記録を古い順に返す。記録が無ければ空
+	All() ([]ReviewDecision, error)
+}
+
+// EvidenceStore は自動承認の証拠（.spec-gate/evidence/<ID>.json）を読み書きする。
+type EvidenceStore interface {
+	// Load は証拠ファイルの中身を返す。無ければ ok=false
+	Load(id string) (raw []byte, ok bool, err error)
+	// Save は証拠を書き、書いた中身の sha256（`sha256:<16 進>`）を返す
+	Save(e Evidence) (sha string, err error)
+}
+
 // Extractor は仕様テキストから claim 候補を抽出する（LLM）。
 type Extractor interface {
 	Extract(ctx context.Context, ref, excerpt string) ([]Claim, error)

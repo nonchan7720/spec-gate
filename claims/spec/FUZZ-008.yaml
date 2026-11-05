@@ -1,12 +1,13 @@
-# confidence: 3/3
-# dry-run: pass
-# 承認するには内容を確認して claims/<領域>/ に移し、`spec-gate approve FUZZ-008` を実行する
 id: FUZZ-008
 kind: example
 title: relation 式を、x と f の呼び出し結果（values）を与えて評価し真偽を返す
 source:
     type: markdown
     ref: docs/spec/harness.md#ランダム入力による検証
+approved:
+    by: root
+    at: "2026-11-04T16:47:48Z"
+    source_hash: sha256:e1321f04a3cdcc102aa0fb6fa68a15b8bfbdf152cff60a652939e854849e28ab
 binding: go run ./tools/bind relation
 examples:
     - in:

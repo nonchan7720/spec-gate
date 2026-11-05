@@ -323,10 +323,12 @@ spec-gate が受け取って反映する。回答はハーネスが作り、hook
 
 **実機で確かめたこと（2026-11-04、Android の Claude アプリ）**: 選択肢の preview はダイアログに表示されない。候補の内容は question 文に入れないと見えない。
 AskUserQuestion の hook に渡る回答の形は、まだ実機で確かめていない。
+**実機で確かめたこと（2026-11-04、cloud セッション）**: hook は tool_response の answers（{質問文: 回答}）で回答を受け取れた。ただし preview を表示しない端末で答えると、hook に渡る質問から各選択肢の preview と multiSelect が落ちる。
 
 - `spec-gate review ask [--limit N]` は `claims/_pending/` の候補から、AskUserQuestion の `questions` にそのまま渡せる JSON 配列を stdout に出す。N は 1〜4（既定 4）で、範囲外はエラー
+  - `--ref <前方一致>` は `source.ref` がそれで始まる候補だけ、`--id <ID>`（カンマ区切り・繰り返し可）はその ID の候補だけを出す。並び順は変えない。反映（`review record`）は絞り込みと関係なく、表示された質問を照合する
   - 質問 1 つが候補 1 つ。question は「候補 <ID> をどうしますか？」の後に空行を挟んで、preview を平文にした内容を続けたもの。header は候補 ID（12 文字を超えたら先頭 12 文字）、multiSelect は false
-  - 平文にした内容: 見出しの `#` を外し（`##` は【】で囲む）、例の表は 1 行 1 例の「・<入力> → <出力>（<メモ>）」にする。例は 6 件まで（残りは「・ほか n 件」）、1 行は 140 文字まで、全体は 1500 文字まで（超えたら「…（長いので省略。全文は承認画面で確認する）」）。回答が文字列で返っても読めるよう、`"` と `\` は全角（`”` `＼`）にする
+  - 平文にした内容: 見出しの `#` を外し（`##` は【】で囲む）、例の表は 1 行 1 例の「・<入力> → <出力>（<メモ>）」にする。例は 6 件まで（残りは「・ほか n 件」）、1 行は 140 文字まで、全体は 1500 文字まで（超えたら「…（長いので省略。全文は承認画面で確認する）」）。回答が文字列で返っても読めるよう、`"` と `\` は全角（`”` `＼`）にする。例の値の JSON は `<` `>` `&` をエスケープしない（`\u003e` のように表示しない）
   - 選択肢は「承認」「却下」「曖昧」の 3 つ。各選択肢の description に操作の意味を平易に書き、preview に候補の内容（タイトル・仕様の場所・種類・例の入出力の表・確かめるコマンドなど）を Markdown で書く。3 つとも同じ preview
   - 読めない候補と、同じ ID が複数のファイルにある候補は出さない（stderr に案内）。候補が無ければ `[]` を出し、stderr に案内する
 - `spec-gate review record` は PostToolUse hook（matcher `AskUserQuestion`）から呼ぶ。stdin の hook の JSON（`tool_name`・`tool_input.questions`・`tool_response`）を読む
@@ -334,6 +336,7 @@ AskUserQuestion の hook に渡る回答の形は、まだ実機で確かめて�
   - 回答は `tool_response` だけから読む: `tool_response.answers`（{質問文: 回答} の map。配列の回答は `, ` でつなぐ）→ 文字列の `tool_response`（`"質問文"="回答"` の並び）。どれでも読めなければ何もしない（stderr に理由）
   - `tool_input.answers` は使わない。tool_input はエージェントが呼び出し時に埋められる欄で、承認の偽造経路になるため。回答が tool_input にだけあるときは何も反映せず、stderr と additionalContext に「回答が tool_response に無いため反映しない（tool_input の回答は偽造できるので使わない）」と出す
   - 各質問について question 文から候補 ID を取り、spec-gate がその候補から今作る質問（question・header・multiSelect・選択肢のラベル・description・preview）と、表示された質問が完全に一致するときだけ反映する。一致しない・候補が無い・回答が空の質問は反映しない（エージェントが内容をすり替えた質問を出しても通らない）
+  - ただし表示された質問のどの選択肢にも preview が無いとき（preview を表示しない端末）は、preview と multiSelect を比べない。question・header・選択肢のラベルと description は完全一致を求める（候補の内容は question 文に入っているので、表示された内容が今の候補と同じことは question 文で確かめられる）
   - 回答が「承認」なら承認画面の承認と同じ処理（`claims/<領域>/` へ移して approve）、「却下」なら却下、「曖昧」なら理由「リモート承認で曖昧と判断（理由未記入）」で曖昧の記録、それ以外（Other の自由入力）ならその文を理由にした曖昧の記録
   - 反映した判定は `.spec-gate/review-decisions.jsonl` に 1 件 1 行で追記する（時刻・候補 ID・判定・理由・承認者・表示した preview の sha256）。リポジトリには入れない（.gitignore）
   - 反映結果と反映しなかった理由を、Claude に伝える JSON（`hookSpecificOutput.additionalContext`）として stdout に出す。hook はダイアログの操作を壊さないよう、何があっても exit 0
@@ -345,6 +348,7 @@ binding: `go run ./tools/bind remote-decisions`（入力は `{"hook": hook の s
 | 入力 | 出力 |
 |---|---|
 | `{"hook": {"tool_name": "AskUserQuestion", "tool_input": {"questions": [{"question": "候補 R-1 をどうしますか？\n\nP", "header": "R-1", "multiSelect": false, "options": [{"label": "承認", "description": "内容は正しい。このまま仕様として確定する", "preview": "P"}, {"label": "却下", "description": "内容が間違っている。この候補を捨てる", "preview": "P"}, {"label": "曖昧", "description": "仕様がまだ決まっていない。保留として記録する（理由は Other に書ける）", "preview": "P"}]}]}, "tool_response": {"answers": {"候補 R-1 をどうしますか？\n\nP": "承認"}}}, "previews": {"R-1": "P"}}` | `[{"id": "R-1", "verdict": "approve"}]` |
+| `{"hook": {"tool_name": "AskUserQuestion", "tool_input": {"questions": [{"question": "候補 R-1 をどうしますか？\n\nP", "header": "R-1", "options": [{"label": "承認", "description": "内容は正しい。このまま仕様として確定する"}, {"label": "却下", "description": "内容が間違っている。この候補を捨てる"}, {"label": "曖昧", "description": "仕様がまだ決まっていない。保留として記録する（理由は Other に書ける）"}]}]}, "tool_response": {"answers": {"候補 R-1 をどうしますか？\n\nP": "承認"}}}, "previews": {"R-1": "P"}}` | `[{"id": "R-1", "verdict": "approve"}]` |
 | `{"hook": {"tool_name": "AskUserQuestion", "tool_input": {"questions": [{"question": "候補 R-1 をどうしますか？\n\nP", "header": "R-1", "multiSelect": false, "options": [{"label": "承認", "description": "内容は正しい。このまま仕様として確定する", "preview": "P"}, {"label": "却下", "description": "内容が間違っている。この候補を捨てる", "preview": "P"}, {"label": "曖昧", "description": "仕様がまだ決まっていない。保留として記録する（理由は Other に書ける）", "preview": "P"}]}]}, "tool_response": "User has answered your questions: \"候補 R-1 をどうしますか？\n\nP\"=\"却下\". You can now continue with the user's answers in mind."}, "previews": {"R-1": "P"}}` | `[{"id": "R-1", "verdict": "reject"}]` |
 | `{"hook": {"tool_name": "AskUserQuestion", "tool_input": {"questions": [{"question": "候補 R-1 をどうしますか？\n\nP", "header": "R-1", "multiSelect": false, "options": [{"label": "承認", "description": "内容は正しい。このまま仕様として確定する", "preview": "P"}, {"label": "却下", "description": "内容が間違っている。この候補を捨てる", "preview": "P"}, {"label": "曖昧", "description": "仕様がまだ決まっていない。保留として記録する（理由は Other に書ける）", "preview": "P"}]}], "answers": {"候補 R-1 をどうしますか？\n\nP": "曖昧"}}}, "previews": {"R-1": "P"}}` | `[]` |
 | `{"hook": {"tool_name": "AskUserQuestion", "tool_input": {"questions": [{"question": "候補 R-1 をどうしますか？\n\nP", "header": "R-1", "multiSelect": false, "options": [{"label": "承認", "description": "内容は正しい。このまま仕様として確定する", "preview": "P"}, {"label": "却下", "description": "内容が間違っている。この候補を捨てる", "preview": "P"}, {"label": "曖昧", "description": "仕様がまだ決まっていない。保留として記録する（理由は Other に書ける）", "preview": "P"}]}]}, "tool_response": "User has answered your questions: \"候補 R-1 をどうしますか？\n\nP\"=\"曖昧\". You can now continue with the user's answers in mind."}, "previews": {"R-1": "P"}}` | `[{"id": "R-1", "verdict": "ambiguous", "reason": "リモート承認で曖昧と判断（理由未記入）"}]` |
@@ -416,7 +420,7 @@ binding: `go run ./tools/bind manual-rate`（入力は claim の kind の配列�
 - `spec-gate mcp` は stdio の MCP サーバ。リポジトリの `.mcp.json` から起動する（cloud セッションでもプロジェクトの `.mcp.json` は読まれる）
 - 画面は resource `ui://spec-gate/review`（mimeType `text/html;profile=mcp-app`）。外部のスクリプト・通信を使わない 1 つの HTML
 - ツール
-  - `review`（`_meta.ui.visibility: ["model", "app"]`、読み取りのみ）: エージェントが呼んで画面を開く。結果は、候補の要約のテキストと、候補の一覧（structuredContent）
+  - `review`（`_meta.ui.visibility: ["model", "app"]`、読み取りのみ）: エージェントが呼んで画面を開く。結果は、候補の要約のテキストと、件数の内訳（structuredContent の `counts`）。候補の一覧は入れない（候補が多いと結果の上限を超える。画面は `review_list` で読む）
   - `review_list`（`["app"]`、読み取りのみ）: 候補の一覧。候補ごとに、名前・ID・title・kind・合意数・試し実行・hint・まとめ承認の対象か・内容（preview）とその sha256・仕様の抜粋・承認できない理由
   - `review_decide`（`["app"]`）: 候補 1 件への判断（approve / reject / ambiguous と理由、見せた内容の sha256）を反映する
   - `review_bulk_approve`（`["app"]`）: 候補の名前と見せた内容の sha256 の配列をまとめて承認する
@@ -442,3 +446,6 @@ binding: `go run ./tools/bind manual-rate`（入力は claim の kind の配列�
 - 2026-11-04 mutation score の変異の対象に、触る Go パッケージが import するモジュール内のパッケージ（binding の依存先の実装）を追加
 - 2026-11-04 manual と例のある claim の同定・抽出結果の試し実行・まとめ承認・manual の手がかりを追加（自己適用で manual が 76%、候補が 149 件、example 候補 28 件中 9 件が入力を JSON 文字列で書いていたため）
 - 2026-11-04 MCP Apps の承認 UI を追加（リモートセッションでも承認できるように）。質問ダイアログでのまとめ承認はやめた（preview が表示されないため）
+- 2026-11-04 リモート承認: preview が落ちた回答は question 文で照合する。例の値の `<` `>` `&` をエスケープしない（実機で preview が落ち、`>` を含む候補が照合できなかったため）
+- 2026-11-04 `review ask` に `--ref` / `--id` を追加（候補が 199 件あり、見たい仕様の候補にたどり着くまでのダイアログが多すぎたため）
+- 2026-11-04 MCP Apps の `review` の結果から候補の一覧を外した（199 件で約 600 KB になり、結果の上限を超えて画面が開かなかった）

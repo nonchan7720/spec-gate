@@ -143,3 +143,44 @@ func TestDiscardPending(t *testing.T) {
 		t.Fatal("無い候補はエラー")
 	}
 }
+
+func TestRepo_Revoke(t *testing.T) {
+	root := t.TempDir()
+	r := New(root)
+	src := filepath.Join(root, "claims", "spec", "A-1.yaml")
+	c := domain.Claim{ID: "A-1", Kind: domain.KindManual, Title: "t", Source: domain.Source{Type: domain.SourceMarkdown, Ref: "s.md#a"},
+		Approved: &domain.Approval{By: "auto", At: "2026-11-04T00:00:00Z", SourceHash: "h", Evidence: "sha256:x"}, File: src}
+	if err := os.MkdirAll(filepath.Dir(src), 0o755); err != nil {
+		t.Fatal(err)
+	}
+	if err := r.Save(c); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := r.Revoke(c, "  "); err == nil {
+		t.Fatal("理由が空なら取り消さない")
+	}
+	got, err := r.Revoke(c, "例が\n間違っている")
+	if err != nil || got != filepath.Join("claims", "_pending", "A-1.yaml") {
+		t.Fatalf("_pending に戻す: %q %v", got, err)
+	}
+	if _, err := os.Stat(src); !os.IsNotExist(err) {
+		t.Fatal("元のファイルは消す")
+	}
+	b, _ := os.ReadFile(filepath.Join(root, got))
+	if !strings.HasPrefix(string(b), "# revoked: 例が 間違っている\n") || strings.Contains(string(b), "approved") {
+		t.Fatalf("先頭に理由を 1 行で書き、approved を消す: %s", b)
+	}
+	ps, _ := r.Pending()
+	if len(ps) != 1 || ps[0].Error != "" || ps[0].Claim.ID != "A-1" {
+		t.Fatalf("戻した候補は読める: %+v", ps)
+	}
+	if err := r.Save(c); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := r.Revoke(c, "もう一度"); err == nil {
+		t.Fatal("_pending に同名のファイルがあれば上書きしない")
+	}
+	if _, err := os.Stat(src); err != nil {
+		t.Fatal("戻せなければ承認済みのまま残す")
+	}
+}

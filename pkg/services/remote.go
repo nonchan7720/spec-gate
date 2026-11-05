@@ -6,6 +6,8 @@ import (
 	"encoding/hex"
 	"encoding/json"
 	"fmt"
+	"slices"
+	"strings"
 
 	"github.com/nonchan7720/spec-gate/pkg/domain"
 )
@@ -70,15 +72,39 @@ func (s *RemoteReviewService) candidates() (byID map[string]domain.PendingClaim,
 	return byID, kept, notes, nil
 }
 
+// AskFilter は review ask で出す候補を絞る条件。空なら絞らない。
+type AskFilter struct {
+	RefPrefix string   // source.ref がこれで始まる候補だけ
+	IDs       []string // この ID の候補だけ（並び順は承認しやすい順のまま）
+}
+
+func (f AskFilter) keep(p domain.PendingClaim) bool {
+	if f.RefPrefix != "" && !strings.HasPrefix(p.Claim.Source.Ref, f.RefPrefix) {
+		return false
+	}
+	return len(f.IDs) == 0 || slices.Contains(f.IDs, p.Claim.ID)
+}
+
 // Ask は承認待ち候補から、質問ダイアログに渡す質問を最大 limit 個（1〜4）作る。
 // 候補が無ければ空の配列。notes は人間向けの案内（出さなかった候補・残りの件数）。
 func (s *RemoteReviewService) Ask(limit int) ([]domain.AskQuestion, []string, error) {
+	return s.AskWhere(limit, AskFilter{})
+}
+
+// AskWhere は Ask と同じだが、f に合う候補だけを出す。反映（Record）は絞り込みと関係なく、表示された質問を照合する。
+func (s *RemoteReviewService) AskWhere(limit int, f AskFilter) ([]domain.AskQuestion, []string, error) {
 	if limit < 1 || limit > RemoteAskMax {
 		return nil, nil, fmt.Errorf("--limit は 1〜%d（質問ダイアログに 1 回で出せる数）: %d", RemoteAskMax, limit)
 	}
-	byID, order, notes, err := s.candidates()
+	byID, all, notes, err := s.candidates()
 	if err != nil {
 		return nil, nil, err
+	}
+	order := make([]string, 0, len(all))
+	for _, id := range all {
+		if f.keep(byID[id]) {
+			order = append(order, id)
+		}
 	}
 	qs := []domain.AskQuestion{}
 	for _, id := range order {

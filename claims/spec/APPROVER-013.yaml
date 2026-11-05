@@ -1,0 +1,54 @@
+id: APPROVER-013
+kind: example
+title: spec-gate guard は auto-approve を agent_type が spec-gate-approver のときだけ許し、承認役には auto-approve と audit 以外（連結コマンド・Edit を含む）を拒否し、audit は誰にでも許し、revoke は拒否する
+source:
+    type: markdown
+    ref: docs/spec/auto-approval.md#承認役のエージェント
+approved:
+    by: nonchan7720
+    at: "2026-11-04T17:12:51Z"
+    source_hash: sha256:2517d59e985bb0765f5434bdd8f2b33381cf0ad0e779caf6fd2d9ea56f8dab16
+binding: go run ./tools/bind guard
+examples:
+    - in:
+        agent_type: spec-gate-approver
+        command: spec-gate auto-approve docs/spec/a.md#x --area auto
+        tool: Bash
+      out: allow
+    - in:
+        command: spec-gate auto-approve docs/spec/a.md#x --area auto
+        tool: Bash
+      out: deny
+    - in:
+        agent_type: general-purpose
+        command: go run . auto-approve docs/spec/a.md#x --area auto
+        tool: Bash
+      out: deny
+    - in:
+        agent_type: spec-gate-approver
+        command: spec-gate audit --since 24h
+        tool: Bash
+      out: allow
+    - in:
+        command: spec-gate audit --since 24h
+        tool: Bash
+      out: allow
+    - in:
+        agent_type: spec-gate-approver
+        command: spec-gate audit; rm -rf claims
+        tool: Bash
+      out: deny
+    - in:
+        agent_type: spec-gate-approver
+        command: ls
+        tool: Bash
+      out: deny
+    - in:
+        agent_type: spec-gate-approver
+        path: pkg/domain/claim.go
+        tool: Edit
+      out: deny
+    - in:
+        command: spec-gate revoke AUTO-001 --reason x
+        tool: Bash
+      out: deny

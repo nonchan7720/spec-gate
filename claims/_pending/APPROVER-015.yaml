@@ -1,0 +1,9 @@
+# confidence: 1/3
+# 承認するには内容を確認して claims/<領域>/ に移し、`spec-gate approve APPROVER-015` を実行する
+id: APPROVER-015
+kind: manual
+title: PreToolUse hook に spec-gate guard が設定されている
+source:
+    type: markdown
+    ref: docs/spec/auto-approval.md#承認役のエージェント
+hint: プロジェクトの hook 設定から PreToolUse のコマンドを読み出して返す binding があれば example（spec-gate guard を含む）にできる

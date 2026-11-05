@@ -1,0 +1,9 @@
+# confidence: 3/3
+# 承認するには内容を確認して claims/<領域>/ に移し、`spec-gate approve POLICY-002` を実行する
+id: POLICY-002
+kind: manual
+title: policy.yaml が不正（項目の値が範囲外、または YAML として読めない）なとき、理由を出して exit 1 で終わり自動承認しない
+source:
+    type: markdown
+    ref: docs/spec/auto-approval.md#承認方針
+hint: binding は読んだ後の値を入力にするため YAML 構文エラーと exit code を扱えない。policy.yaml の生テキストを入力に exit code と stderr を出力する binding があれば example にできる

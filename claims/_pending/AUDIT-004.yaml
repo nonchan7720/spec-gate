@@ -1,0 +1,9 @@
+# confidence: 3/3
+# 承認するには内容を確認して claims/<領域>/ に移し、`spec-gate approve AUDIT-004` を実行する
+id: AUDIT-004
+kind: manual
+title: spec-gate audit は読み取りだけで、ファイルを書き換えない
+source:
+    type: markdown
+    ref: docs/spec/auto-approval.md#見張りと差し戻し
+hint: audit 実行前後で claims/ と .spec-gate/ の内容が変わらないことを比べるテストが要る

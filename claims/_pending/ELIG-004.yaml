@@ -1,0 +1,9 @@
+# confidence: 2/3
+# 承認するには内容を確認して claims/<領域>/ に移し、`spec-gate approve ELIG-004` を実行する
+id: ELIG-004
+kind: manual
+title: 'require_reverse が true のとき、逆変換の食い違いが表現の違いだけでも reverse として通さない【要確認: 表現の違いだけの食い違いが reverse 入力のどの値で表されるか不明】'
+source:
+    type: markdown
+    ref: docs/spec/auto-approval.md#自動承認の判定
+hint: 表現の違いだけの食い違いを表す reverse の値（match / mismatch 以外か）と、そのときの出力 reverse の例が仕様にあれば auto-eligible binding で example にできる

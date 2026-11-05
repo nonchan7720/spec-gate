@@ -43,6 +43,13 @@ type Items struct {
 	Counts map[string]int `json:"counts"`
 }
 
+// Overview は review（エージェントが呼んで画面を開くツール）の structuredContent。件数の内訳だけで、候補の一覧は入れない。
+// 一覧は候補の数に比例して大きくなり（199 件で約 600 KB）、エージェントの文脈と結果の上限を食いつぶすため。
+// 画面は一覧が無ければ review_list で読み直す。
+type Overview struct {
+	Counts map[string]int `json:"counts"`
+}
+
 // DecideIn は review_decide の入力。
 type DecideIn struct {
 	Name          string `json:"name" jsonschema:"候補のファイル名"`
@@ -98,7 +105,7 @@ func NewServer(svc Service, by, version string) *mcp.Server {
 		return Items{Items: items, Counts: counts(items)}, nil
 	}
 
-	// エージェントが呼んで画面を開く。判断はしない（一覧の要約だけを返す）
+	// エージェントが呼んで画面を開く。判断はしない（要約のテキストと件数の内訳だけを返す）
 	mcp.AddTool(s, &mcp.Tool{
 		Name:  ToolReview,
 		Title: "spec-gate の承認画面を開く",
@@ -106,12 +113,12 @@ func NewServer(svc Service, by, version string) *mcp.Server {
 			"判断は利用者が画面で行い、エージェントは判断しない。",
 		Meta:        uiMeta("model", "app"),
 		Annotations: &mcp.ToolAnnotations{ReadOnlyHint: true},
-	}, func(ctx context.Context, _ *mcp.CallToolRequest, _ struct{}) (*mcp.CallToolResult, Items, error) {
+	}, func(ctx context.Context, _ *mcp.CallToolRequest, _ struct{}) (*mcp.CallToolResult, Overview, error) {
 		it, err := list(ctx)
 		if err != nil {
-			return nil, Items{}, err
+			return nil, Overview{}, err
 		}
-		return &mcp.CallToolResult{Content: []mcp.Content{&mcp.TextContent{Text: Summary(it)}}}, it, nil
+		return &mcp.CallToolResult{Content: []mcp.Content{&mcp.TextContent{Text: Summary(it)}}}, Overview{Counts: it.Counts}, nil
 	})
 
 	// 以下は画面からだけ呼べる（visibility: app）。エージェントには見えない

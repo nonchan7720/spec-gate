@@ -1,0 +1,9 @@
+# confidence: 3/3
+# 承認するには内容を確認して claims/<領域>/ に移し、`spec-gate approve AUTO-003` を実行する
+id: AUTO-003
+kind: manual
+title: require_reverse のとき、各候補を llm_commands の 1 番目で逆変換（再生成 → 比較）し、再生成のプロンプトに仕様を入れない
+source:
+    type: markdown
+    ref: docs/spec/auto-approval.md#自動承認
+hint: policy と候補を入力に、逆変換で呼ぶコマンドと再生成プロンプトの本文を出力する binding があれば検証できる

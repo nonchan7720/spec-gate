@@ -58,6 +58,9 @@ Natural language is never compared with code directly. A **claim (a verifiable s
 | Check | `spec-gate check` | machine | approval → spec drift → per-kind check (examples, holdout, fuzz) → plan verify |
 | Coverage | `spec-gate coverage` | machine | Lists the parts of the specs no claim covers, and the parts marked ambiguous ("to confirm") |
 | Reverse | `spec-gate reverse [<id>...] --emit` / `--collect` | AI (subagents) | Rewrites each claim as spec prose without seeing the spec, then compares it with the original excerpt and lists what the claim adds, misses or contradicts (review aid; `--strict` exits 1 on a mismatch) |
+| Auto-approve | `spec-gate auto-approve <ref> --area <area>` | approver subagent | Extracts, reverses and dry-runs with the commands in the human-written policy (`.spec-gate/policy.yaml`) only, and approves just the candidates the policy and the evidence accept (approver `auto`, evidence in `.spec-gate/evidence/`). See `docs/spec/auto-approval.md` |
+| Audit | `spec-gate audit [--since 24h]` | anyone | Lists auto approvals newest first (agreement, reverse, dry run, evidence, revoked or not) |
+| Revoke | `spec-gate revoke <ID> --reason <why>` | **human** | Takes an approval back to `claims/_pending/`. Repeated revokes trip the breaker and stop auto-approval |
 
 ### Order of the verdict and states
 
@@ -116,6 +119,10 @@ the harness.
   `post_edit` rule runs `spec-gate plan check` and stops the agent on the spot when a frozen verify line changed
   (`.claude/feedback/protect_plan_verify.md`). A plan can also demand that its verify lines catch broken code
   before it may be frozen ([mutation score](#plan-mutate-and-the-mutation-threshold))
+- **Auto-approval cannot be bypassed either.** A PreToolUse hook in `.claude/settings.json` runs `spec-gate guard`,
+  which denies `spec-gate auto-approve` from anyone but the approver subagent (`spec-gate-approver`), `spec-gate revoke`,
+  and writing the hook-gate rules (`.claude/feedback/**`, `.claude/gate.yaml`), the approver definition, the hook
+  settings or `.spec-gate/` (shell writes included) (`docs/spec/auto-approval.md`)
 - **A changed spec becomes stale automatically**, so the spec cannot be rewritten to make things fit
 - **A claim without a means of verification is unverified, not fail.** Nothing "passes without being checked";
   instead it is surfaced as something a human should look at
@@ -572,9 +579,10 @@ live Claude Code session. Check the result after your first real approval.
    }
    ```
 
-2. Ask the agent: "Run `spec-gate review ask` and show its output with AskUserQuestion." `review ask [--limit N]`
+2. Ask the agent: "Run `spec-gate review ask` and show its output with AskUserQuestion." `review ask [--limit N] [--ref <prefix>] [--id <ID>]`
    prints up to 4 candidates from `claims/_pending/` as the `questions` JSON for the dialog (an empty array, with a
-   note on stderr, when there are none).
+   note on stderr, when there are none). `--ref` keeps candidates whose `source.ref` starts with the prefix, and `--id`
+   keeps the given IDs.
 3. Pick a button for each candidate. To record the reason the spec is undecided, type it into "Other": free text is
    recorded as ambiguous with that text as the reason (see [Recording ambiguity](#recording-ambiguity)).
 

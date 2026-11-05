@@ -22,3 +22,10 @@ func NewDecisions(root string) *Decisions {
 func (l *Decisions) Append(d domain.ReviewDecision) error {
 	return appendJSONL(l.path, []domain.ReviewDecision{d})
 }
+
+var _ domain.ReviewDecisionReader = (*Decisions)(nil)
+
+// All は記録を古い順に返す。ファイルが無ければ空。
+func (l *Decisions) All() ([]domain.ReviewDecision, error) {
+	return readJSONL(l.path, func(d domain.ReviewDecision) bool { return d.ID != "" })
+}

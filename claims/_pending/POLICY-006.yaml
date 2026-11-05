@@ -1,0 +1,9 @@
+# confidence: 3/3
+# 承認するには内容を確認して claims/<領域>/ に移し、`spec-gate approve POLICY-006` を実行する
+id: POLICY-006
+kind: manual
+title: エージェントは .spec-gate/policy.yaml を書けない（.spec-gate/ の保護）
+source:
+    type: markdown
+    ref: docs/spec/auto-approval.md#承認方針
+hint: hook-gate に .spec-gate/policy.yaml への書き込みを渡し、拒否されることを確かめる binding が要る
