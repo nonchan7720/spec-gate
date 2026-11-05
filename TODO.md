@@ -179,9 +179,11 @@ README「人間の関わり方 — HITL と HOTL」の「この先」を spec-ga
 - [x] reset_at を時刻として比べる。人間が承認し直した claim の差し戻しを、前の自動承認に付けない
 - [x] guard の抜け道: 承認役は spec-gate のバイナリだけ（go run・環境変数の前置き・別の場所の spec-gate を拒否）。
       ほかのエージェントは $(…)・バッククォート・sh -c・eval の中身と sudo・env・timeout などの前置きの後ろも見る。go run のフラグの値を読み飛ばす
-- [x] guard が動かないと素通りになる → `scripts/guard-hook.sh`（bin → go run → だめなら exit 2）
-- [ ] 人間: `.claude/settings.json` の PreToolUse と `.claude/agents/spec-gate-approver.md` の hooks の command を
-      `bash "$CLAUDE_PROJECT_DIR/scripts/guard-hook.sh"` に差し替える（どちらも保護済みでエージェントは書き換えられない）
+- [x] guard が動かないと素通りになる → hook が呼ぶ `bin/spec-gate` を、コミットした入口のスクリプトにした（2026-11-05）。
+      本物のバイナリは `bin/spec-gate.real`。無ければビルドし、ビルドもできず guard として呼ばれたら exit 2。
+      保護済みの hook の設定は変えずに済む（利用者がスマホで設定を編集できないため、PdM として判断）
+- [ ] 残る危険: hook はリポジトリからビルドした spec-gate を実行するので、エージェントが guard のソースを書き換えてビルドし直せば
+      判定を弱められる。塞ぐには、hook がリリース済みの固定バージョン（mise で入れるなど）を呼ぶようにする
 - [ ] 直さないと決めた: スマホ（preview が落ちる端末）のリモート承認は、question 文で省略された例を照合できない。
       ダイアログの間エージェントは動けないので、表示から反映までに書き換える隙はほぼ無い。省略は「ほか n 件」「長いので省略」で人間に見える
 - 手順のずれ（事実として記録）: 自動承認はプランを凍結する前に実装した（利用者の「PdM として判断して進めて」による）。

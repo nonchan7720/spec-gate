@@ -7,7 +7,7 @@
 set -euo pipefail
 cd "$(dirname "$0")/.."
 
-bin=bin/spec-gate
+bin=bin/spec-gate.real
 stale() {
   [[ ! -x $bin ]] || [[ -n $(find . -path ./node_modules -prune -o -path ./.git -prune -o \
     \( -name '*.go' -o -name 'go.mod' -o -name 'go.sum' -o -path './pkg/interfaces/mcpapp/assets/*' \) \

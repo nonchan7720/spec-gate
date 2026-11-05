@@ -48,10 +48,10 @@ description = "go mod tidy"
 run = "go mod tidy"
 
 [tasks.build]
-description = "./bin/spec-gate をビルドする"
+description = "./bin/spec-gate.real をビルドする（bin/spec-gate はそれを呼ぶ入口のスクリプト）"
 sources = ["main.go", "pkg/**/*.go", "go.mod", "go.sum", "mise.toml"]
-outputs = ["bin/spec-gate"]
-run = "go build -o bin/spec-gate ."
+outputs = ["bin/spec-gate.real"]
+run = "go build -o bin/spec-gate.real ."
 
 [tasks.test]
 description = "ユニットテスト"
