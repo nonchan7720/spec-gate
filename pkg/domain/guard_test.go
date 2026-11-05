@@ -42,7 +42,9 @@ func TestGuard_DenyHasReason(t *testing.T) {
 // 自己レビューで見つかった抜け道（2026-11-04）。
 func TestGuard_Bypasses(t *testing.T) {
 	root := "/repo"
-	approver := func(cmd string) GuardInput { return GuardInput{Tool: "Bash", Command: cmd, AgentType: ApproverAgentType} }
+	approver := func(cmd string) GuardInput {
+		return GuardInput{Tool: "Bash", Command: cmd, AgentType: ApproverAgentType}
+	}
 	agent := func(cmd string) GuardInput { return GuardInput{Tool: "Bash", Command: cmd} }
 	cases := []struct {
 		name string

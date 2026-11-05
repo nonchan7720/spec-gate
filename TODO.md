@@ -170,3 +170,19 @@ README「人間の関わり方 — HITL と HOTL」の「この先」を spec-ga
   - 仕様とのずれ: 仕様は「check --json の metrics」に足すと書くが、manual_rate などの指標は `spec-gate metrics` にあるので、そちらに足した
 - [ ] 人間: 残りの候補の承認か却下（自動承認の仕様は約 60 件。AUDIT-001・002・004・005・009 は実装済みの規則なので承認してよい）
 - [ ] 実プロジェクトで `.spec-gate/policy.yaml` を書き、本物の LLM（別モデルを並べる）で auto-approve を試す
+
+## 自己レビュー（2026-11-05、/code-review）の対応
+
+- [x] 判定の記録（`.spec-gate/review-decisions.jsonl`）をコミットする（.gitignore から外した）。clone ごとにブレーカーと audit が白紙に戻っていた
+- [x] 既にある ID の候補は、判定にかかわらず証拠を書かない（ok 以外で既存の証拠を上書きし、正しい自動承認を unapproved にしていた）
+- [x] ブレーカーの window / max_revoked が 1 未満・reset_at が RFC 3339 でない方針をエラーにする（仕様の誤りの一覧には無い。仕様に足すかは人間が判断）
+- [x] reset_at を時刻として比べる。人間が承認し直した claim の差し戻しを、前の自動承認に付けない
+- [x] guard の抜け道: 承認役は spec-gate のバイナリだけ（go run・環境変数の前置き・別の場所の spec-gate を拒否）。
+      ほかのエージェントは $(…)・バッククォート・sh -c・eval の中身と sudo・env・timeout などの前置きの後ろも見る。go run のフラグの値を読み飛ばす
+- [x] guard が動かないと素通りになる → `scripts/guard-hook.sh`（bin → go run → だめなら exit 2）
+- [ ] 人間: `.claude/settings.json` の PreToolUse と `.claude/agents/spec-gate-approver.md` の hooks の command を
+      `bash "$CLAUDE_PROJECT_DIR/scripts/guard-hook.sh"` に差し替える（どちらも保護済みでエージェントは書き換えられない）
+- [ ] 直さないと決めた: スマホ（preview が落ちる端末）のリモート承認は、question 文で省略された例を照合できない。
+      ダイアログの間エージェントは動けないので、表示から反映までに書き換える隙はほぼ無い。省略は「ほか n 件」「長いので省略」で人間に見える
+- 手順のずれ（事実として記録）: 自動承認はプランを凍結する前に実装した（利用者の「PdM として判断して進めて」による）。
+  guard の hook も利用者の指示で私が settings.json に入れた。凍結は人間の作業として残っている
