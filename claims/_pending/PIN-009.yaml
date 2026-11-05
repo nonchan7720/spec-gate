@@ -1,0 +1,9 @@
+# confidence: 3/3
+# 承認するには内容を確認して claims/<領域>/ に移し、`spec-gate approve PIN-009` を実行する
+id: PIN-009
+kind: manual
+title: 'hook と承認の経路以外のサブコマンド（check・status・review ask など）は開発中のビルド bin/spec-gate.real で動かす【要確認: 「など」に含まれるサブコマンドの範囲が列挙されていない】'
+source:
+    type: markdown
+    ref: docs/spec/auto-approval.md#固定版で動かす
+hint: bin/spec-gate にサブコマンド名を渡し、実行されるバイナリ（固定版か bin/spec-gate.real か）を返す binding があれば example にできる

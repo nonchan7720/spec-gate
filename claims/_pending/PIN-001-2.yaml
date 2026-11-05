@@ -1,0 +1,31 @@
+# confidence: 1/3
+# dry-run: pass
+# 承認するには内容を確認して claims/<領域>/ に移し、`spec-gate approve PIN-001-2` を実行する
+id: PIN-001-2
+kind: example
+title: guard は固定版の入口と置き場所（bin/spec-gate・bin/.pinned/**・.mcp.json・scripts/mcp.sh）へのファイル編集を拒否し、scripts/pin-spec-gate.sh は許可する
+source:
+    type: markdown
+    ref: docs/spec/auto-approval.md#固定版で動かす
+binding: go run ./tools/bind guard
+examples:
+    - in:
+        path: bin/spec-gate
+        tool: Edit
+      out: deny
+    - in:
+        path: bin/.pinned/v0.0.0-dev.948bc6c/spec-gate
+        tool: Write
+      out: deny
+    - in:
+        path: .mcp.json
+        tool: Edit
+      out: deny
+    - in:
+        path: scripts/mcp.sh
+        tool: Write
+      out: deny
+    - in:
+        path: scripts/pin-spec-gate.sh
+        tool: Edit
+      out: allow

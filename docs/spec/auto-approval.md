@@ -227,6 +227,36 @@ binding: `go run ./tools/bind guard`（入力は `{"tool": "Bash" / "Edit" / "Wr
 | `{"tool": "Bash", "command": "echo x > .claude/gate.yaml"}` | `"deny"` |
 | `{"tool": "Bash", "command": "cat .claude/gate.yaml"}` | `"allow"` |
 
+## 固定版で動かす
+
+hook と承認の経路（`guard`・`review record`・`auto-approve`・承認 UI の `mcp`）は、リポジトリからビルドしたバイナリでなく、
+リリース済みの固定版のバイナリで動かす。リポジトリからビルドしたもので動かすと、エージェントがソースを書き換えてビルドし直すだけで
+guard を弱められる（「保護の範囲」の規則そのものを外せる）ため。
+
+- 入口は `bin/spec-gate`（コミットするスクリプト）。固定する版と、OS・CPU ごとのバイナリの sha256 を持つ。
+  バイナリは `bin/.pinned/<版>/` に置き、実行のたびに sha256 を照らす。無いか食い違えば配布物を取り直し、それでも合わなければ動かさない
+- 動かせないとき、`guard` は exit 2（止める側）で終わる。取得は hook の時間切れより前に諦める（時間切れは「止めない」扱いになるため）
+- ほかのサブコマンド（`check`・`status`・`review ask` など）は開発中のビルド `bin/spec-gate.real` で動かす
+- 版を上げるのは人間（`scripts/pin-spec-gate.sh <タグ>`）。上げるまで、ソースに足した保護は hook に効かない
+
+固定版の入口と置き場所も「保護の範囲」と同じ規則で保護する: `bin/spec-gate`・`bin/.pinned/**`・`.mcp.json`・`scripts/mcp.sh`
+（承認 UI のサーバの起動のしかた）。シェル経由の書き換えには、「保護の範囲」の顔ぶれに加えて `ln`・`install` と `go build`（`-o` の出力先）も含める。
+`go build -o` は「保護の範囲」のパスにも効く。
+
+binding: `go run ./tools/bind guard`（入力・出力は「保護の範囲」と同じ）
+
+| 入力 | 出力 |
+|---|---|
+| `{"tool": "Edit", "path": "bin/spec-gate"}` | `"deny"` |
+| `{"tool": "Write", "path": "bin/.pinned/v0.0.0-dev.948bc6c/spec-gate"}` | `"deny"` |
+| `{"tool": "Edit", "path": ".mcp.json"}` | `"deny"` |
+| `{"tool": "Write", "path": "scripts/mcp.sh"}` | `"deny"` |
+| `{"tool": "Edit", "path": "scripts/pin-spec-gate.sh"}` | `"allow"` |
+| `{"tool": "Bash", "command": "go build -o bin/spec-gate ."}` | `"deny"` |
+| `{"tool": "Bash", "command": "go build -o bin/spec-gate.real ."}` | `"allow"` |
+| `{"tool": "Bash", "command": "ln -sf /tmp/x bin/spec-gate"}` | `"deny"` |
+| `{"tool": "Bash", "command": "rm -rf bin/.pinned"}` | `"deny"` |
+
 ## 決定の記録
 
 2026-11-04 に利用者が決めた。
@@ -237,9 +267,11 @@ binding: `go run ./tools/bind guard`（入力は `{"tool": "Bash" / "Edit" / "Wr
 4. run の独立性のため、run ごとに別のモデル（コマンド）を使えるようにする。→「承認方針」の `llm_commands`
 5. hook-gate の規則・承認役の定義・hook の設定もエージェントから保護する。→「保護の範囲」
 6. 逆変換は `match` だけを通す。→「自動承認の判定」の 7
+7. hook と承認の経路は固定版の spec-gate で動かす（2026-11-05。ソースを書き換えてビルドし直すだけで guard を弱められたため）。→「固定版で動かす」
 
 ## 変更履歴
 
 - 2026-11-04 草案
 - 2026-11-04 承認方針・証拠の照合・保護の範囲に入出力例と binding を追加（抽出で例の形が run ごとに割れたため）。保護の判定は `spec-gate guard` で行う
 - 2026-11-04 未決事項を決定（承認役のエージェント、証拠のコミット、run ごとのコマンド、規則の保護、逆変換は match だけ）
+- 2026-11-05 「固定版で動かす」を追加（hook と承認の経路を固定版の spec-gate で動かし、その入口を保護する）

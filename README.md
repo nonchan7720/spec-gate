@@ -122,7 +122,11 @@ the harness.
 - **Auto-approval cannot be bypassed either.** A PreToolUse hook in `.claude/settings.json` runs `spec-gate guard`,
   which denies `spec-gate auto-approve` from anyone but the approver subagent (`spec-gate-approver`), `spec-gate revoke`,
   and writing the hook-gate rules (`.claude/feedback/**`, `.claude/gate.yaml`), the approver definition, the hook
-  settings or `.spec-gate/` (shell writes included) (`docs/spec/auto-approval.md`)
+  settings or `.spec-gate/` (shell writes included) (`docs/spec/auto-approval.md`).
+  The hooks and the approval paths (`guard`, `review record`, `auto-approve`, `mcp`) run a **pinned release binary**, not one built
+  from the repository, so rewriting guard's source and rebuilding does not weaken it. `bin/spec-gate` holds the pinned version and the
+  sha256 of each platform's binary, downloads it into `bin/.pinned/` on first use, checks the sha256 on every run and refuses to run on a
+  mismatch (guard then exits 2). Those files are protected too; a human bumps the pin with `scripts/pin-spec-gate.sh <tag>`
 - **A changed spec becomes stale automatically**, so the spec cannot be rewritten to make things fit
 - **A claim without a means of verification is unverified, not fail.** Nothing "passes without being checked";
   instead it is surfaced as something a human should look at
@@ -551,7 +555,7 @@ Remote sessions cannot open `review` (127.0.0.1), and the question dialog's prev
   Starting `spec-gate mcp` from a shell to call them directly is denied by hook-gate (`protect_spec_claims`)
 - A decision is applied only when the sha256 of the content shown matches the current candidate. Approval runs the same steps as the review page (lint, dry-run, spec hash) and is logged in `.spec-gate/review-decisions.jsonl`
 - **Not verified on a device**: whether Claude Code (especially the mobile app) renders MCP Apps is not documented. If it does not, `review` still returns a text summary of the candidates
-- `.mcp.json` starts `scripts/mcp.sh`, which reuses `bin/spec-gate.real` (the binary; `bin/spec-gate` is the committed entry script that runs it) and rebuilds it only when the Go sources or the screen HTML are newer (a `go run` on every start exceeded the 30 s MCP startup timeout). In a cloud session the SessionStart hook (`scripts/session-start.sh`) builds it first, before the other mise tools and the Neo4j image pull, and both scripts share the lock `bin/.build.lock`, so `mcp.sh` waits for that build instead of starting a second one. A fresh container's first build (installing Go and compiling, about 20–40 s) can exceed the default 30 s, so `.claude/settings.json` sets `MCP_TIMEOUT` to 120 s
+- `.mcp.json` starts `scripts/mcp.sh`, which runs the pinned spec-gate through `bin/spec-gate mcp` (the server applies decisions, so it must not run a build of the agent's working tree). In a cloud session the SessionStart hook (`scripts/session-start.sh`) fetches the pinned binary first (`bin/spec-gate --fetch-pinned`), then builds the development binary `bin/spec-gate.real` (used by every other subcommand) before the other mise tools and the Neo4j image pull. `.claude/settings.json` sets `MCP_TIMEOUT` to 120 s
 
 ### Remote approval (Claude Code's question dialog)
 

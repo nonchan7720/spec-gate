@@ -182,8 +182,40 @@ README「人間の関わり方 — HITL と HOTL」の「この先」を spec-ga
 - [x] guard が動かないと素通りになる → hook が呼ぶ `bin/spec-gate` を、コミットした入口のスクリプトにした（2026-11-05）。
       本物のバイナリは `bin/spec-gate.real`。無ければビルドし、ビルドもできず guard として呼ばれたら exit 2。
       保護済みの hook の設定は変えずに済む（利用者がスマホで設定を編集できないため、PdM として判断）
-- [ ] 残る危険: hook はリポジトリからビルドした spec-gate を実行するので、エージェントが guard のソースを書き換えてビルドし直せば
-      判定を弱められる。塞ぐには、hook がリリース済みの固定バージョン（mise で入れるなど）を呼ぶようにする
+- [x] 残る危険だった: hook はリポジトリからビルドした spec-gate を実行するので、guard のソースを書き換えてビルドし直せば判定を弱められた
+      → hook と承認の経路（guard・review record・auto-approve・mcp）を固定版のリリースのバイナリで動かす（2026-11-05、仕様「固定版で動かす」）。
+      `bin/spec-gate` が版と sha256 を持ち、`bin/.pinned/` に取得して毎回照らす。入口・置き場所・`.mcp.json`・`scripts/mcp.sh` を guard で保護し、
+      シェル経由の書き換えに `ln`・`install`・`go build -o` を足した
+- [ ] 固定版を、入口の保護を含む版に上げる（この PR の後の main のリリース）。今の固定版 v0.0.0-dev.948bc6c の guard は
+      `bin/spec-gate` などの新しい保護を知らないので、上げるまでは入口をエージェントが書き換えられる
+- [ ] 「固定版で動かす」の残りの候補（人間の判断待ち）: PIN-005・PIN-010 は承認してよい。PIN-001-2・PIN-002-2 は PIN-001 の一部、
+      PIN-002-3 は例が無く読めない、PIN-003-2 は PIN-002 と同じなので却下でよい。PIN-002・PIN-003（install・go build -o）は承認してよい。
+      PIN-008・PIN-009 は「要確認」（時間切れの秒数・「など」の範囲）
+- [x] 独立レビュー（2026-11-05、別のエージェント）で見つかった穴を直した:
+      - 保護するパスの親（`rm -rf bin`・`mv bin x`・`git checkout HEAD~1 -- bin`）と `go build -o bin/`・`go build -C bin -o spec-gate`・`GOBIN=bin` を拒否
+      - `chmod` で入口の実行権を外す（hook が exit 126 で素通り）のを拒否
+      - ロックの待ちを 1 秒までにした（握られたまま hook の時間切れ＝素通りにさせない）。wget は 1 回だけ・6 秒
+      - `review --by x record` のようにフラグを挟んでも固定版で動かす
+      - `bin/spec-gate.real auto-approve` を spec-gate とみなす（承認役以外の auto-approve を素通りしていた）
+      - 承認役は PATH 上の `spec-gate` を実行できるので、プロジェクトの外に `spec-gate` という名前のファイルを作る・写す・実行権を付ける操作と
+        `go install .` を拒否（`~/.local/bin/spec-gate` に組んだバイナリで承認させる経路）
+- [ ] 仕様に足す（人間の判断。足すと PIN-001 / 承認役の claim が stale になり、再承認に CLI が要る）: 上の拒否のうち表に無いもの。
+      承認役に許すコマンドを `bin/spec-gate` に絞るか（今は素の `spec-gate` も許すので、PATH の汚染を guard で止めている）
+- [x] 2 回目の独立レビューで直した: `chmod -R a-x bin`・`cp -rT x bin`（親ディレクトリへの chmod・cp・install）、`-o` 無しの `go build -C bin`、
+      ルートやその上を動かす・消す（`mv . ../x`・`rm -rf ../repo`）、版を指定してルートを戻す（`git checkout HEAD~1 -- .`・`git restore --source=`）、
+      `git -C <dir> …` の前置き、エージェントが `review … record` を直接実行する（フラグを挟む・`.real` 経由。hook-gate の規則は `review record` の並びしか見ない）。
+      `git restore --staged`（index だけ）は許す。wget は `timeout 6` で全体を区切る
+- [ ] 人間の判断: 承認役に許すコマンドを `bin/spec-gate` に絞る（仕様「承認役のエージェント」の表を変える）。今は素の `spec-gate` を PATH から
+      引くので、`cp ./spec-gate /usr/local/bin/`・`go install`（引数なし・パス指定）・`go build -o <PATH のディレクトリ>/` で組んだものを
+      承認役に実行させられる。文字列の判定では塞ぎきれないので、表を変えるのが根本の対策
+- [ ] 人間の判断: ブランチ・コミットの切り替え（`git checkout <古いコミット>`・`git reset --hard`・`git switch --detach`）で bin/spec-gate が
+      無くなると hook が素通りになる。切り替えは正当な操作なので、入口をリポジトリの外（mise で入れるなど）に置くかを決める
+- [ ] 残る抜け道（以前から）: `$PWD`・`~` を含むパス、シンボリックリンク経由、`cd bin && rm spec-gate` のようなカレントからの相対、
+      `perl -i`・`dd of=`・`rsync`・`tar -C`・`git clean -fdx`、名前を変えた spec-gate（`go build -o /tmp/sg . && /tmp/sg auto-approve`）。
+      シェルの文字列を見るだけの判定には限界がある
+- [ ] 残る危険（小）: sha256 を照らしてから exec するまでの間にバイナリを差し替えられる。差し替えるには Bash が要り、その Bash は guard を通る
+- [ ] 残る危険（小）: ロックは 1 秒・取得は 6 秒で諦めるが、hook の 10 秒の時間切れ（止めない扱い）に近い。cloud では SessionStart で先に取る。
+      固定版がまだ無いときに hook が並行すると、2 つ目以降はロックを待てず止める側（exit 2）になる
 - [ ] 直さないと決めた: スマホ（preview が落ちる端末）のリモート承認は、question 文で省略された例を照合できない。
       ダイアログの間エージェントは動けないので、表示から反映までに書き換える隙はほぼ無い。省略は「ほか n 件」「長いので省略」で人間に見える
 - 手順のずれ（事実として記録）: 自動承認はプランを凍結する前に実装した（利用者の「PdM として判断して進めて」による）。

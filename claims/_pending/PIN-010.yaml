@@ -1,0 +1,9 @@
+# confidence: 3/3
+# 承認するには内容を確認して claims/<領域>/ に移し、`spec-gate approve PIN-010` を実行する
+id: PIN-010
+kind: manual
+title: 固定する版を上げるのは人間で、scripts/pin-spec-gate.sh <タグ> で行う
+source:
+    type: markdown
+    ref: docs/spec/auto-approval.md#固定版で動かす
+hint: 実行主体が人間であることは機械で確かめられない。スクリプトがタグを受けて bin/spec-gate の版と sha256 を更新することは、タグを入力に更新後の内容を返す binding があれば検証できる

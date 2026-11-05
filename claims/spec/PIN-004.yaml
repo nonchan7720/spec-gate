@@ -1,0 +1,11 @@
+id: PIN-004
+kind: manual
+title: hook と承認の経路（guard・review record・auto-approve・mcp）はリポジトリからビルドしたバイナリでなくリリース済みの固定版バイナリで動かす
+source:
+    type: markdown
+    ref: docs/spec/auto-approval.md#固定版で動かす
+approved:
+    by: nonchan7720
+    at: "2026-11-05T16:24:28Z"
+    source_hash: sha256:c840bc4ef3334600bd982504af63e8f59cf8c5c264c9c160df423fc541c34ef3
+hint: 'hook 設定・.mcp.json・scripts/mcp.sh が起動するコマンドを返す binding（入力: 経路名、出力: 実行されるバイナリのパス）があれば example にできる'

@@ -117,7 +117,10 @@ Markdown の claim が参照する見出しが仕様から消えたとき（`sou
 - **自動承認まわりも書き換えさせない**。`.claude/settings.json` の PreToolUse hook が `spec-gate guard` を呼び、
   `spec-gate auto-approve` を承認役のサブエージェント（`spec-gate-approver`）以外から実行すること、`spec-gate revoke` の実行、
   hook-gate の規則（`.claude/feedback/**`・`.claude/gate.yaml`）・承認役の定義・hook の設定・`.spec-gate/` の書き換え（シェル経由も）を拒否する
-  （`docs/spec/auto-approval.md`）
+  （`docs/spec/auto-approval.md`）。hook と承認の経路（`guard`・`review record`・`auto-approve`・`mcp`）は、リポジトリからビルドしたものでなく
+  **固定版のリリースのバイナリ**で動かすので、guard のソースを書き換えてビルドし直しても弱められない。`bin/spec-gate` が固定する版と
+  OS・CPU ごとのバイナリの sha256 を持ち、初回に `bin/.pinned/` へ取得し、実行のたびに sha256 を照らして、食い違えば動かさない（guard なら exit 2）。
+  これらのファイルも保護する。版を上げるのは人間（`scripts/pin-spec-gate.sh <タグ>`）
 - **仕様が変わったら自動で stale**。仕様側を書き換えて辻褄を合わせることもできない
 - **検証手段のない claim は fail ではなく unverified**。「検証していないのに通った」を作らない代わりに、
   人間が見るべきものとして可視化する
@@ -522,7 +525,7 @@ lint や仕様の読み取りで拒否されたら `_pending/` に戻して理�
   シェルから `spec-gate mcp` を起動して直接呼ぶ経路は hook-gate（`protect_spec_claims`）が拒否する
 - 画面に見せた内容の sha256 が今の候補と違えば反映しない。承認は承認画面と同じ処理（lint・試し実行・仕様のハッシュ記録）で、`.spec-gate/review-decisions.jsonl` に記録する
 - **実機未検証**: Claude Code（とくにスマホのアプリ）が MCP Apps の画面を表示するかは公式に書かれていない。表示されなくても、`review` の結果に候補の要約が返る
-- `.mcp.json` は `scripts/mcp.sh` を起動する。`bin/spec-gate.real`（本物のバイナリ。`bin/spec-gate` はそれを呼ぶ、コミットした入口のスクリプト）を使い回し、Go のソースか画面の HTML のほうが新しいときだけビルドし直す（起動のたびに `go run` すると MCP の起動タイムアウト 30 秒を超えた）。cloud セッションでは SessionStart hook（`scripts/session-start.sh`）が、ほかの mise のツールや Neo4j イメージの pull より先に bin をビルドする。2 つのスクリプトは同じロック `bin/.build.lock` を取るので、`mcp.sh` は二重にビルドせずそのビルドを待つ。新しいコンテナの最初のビルド（Go のインストールとコンパイルで 20〜40 秒ほど）は既定の 30 秒を超えうるので、`.claude/settings.json` の `env` で `MCP_TIMEOUT` を 120 秒にしている
+- `.mcp.json` は `scripts/mcp.sh` を起動し、`bin/spec-gate mcp` で固定版の spec-gate を動かす（判断を反映するサーバなので、エージェントの作業中のソースからビルドしたもので動かさない）。cloud セッションでは SessionStart hook（`scripts/session-start.sh`）が最初に固定版を取得し（`bin/spec-gate --fetch-pinned`）、続けて開発用の `bin/spec-gate.real`（ほかのサブコマンドが使う）を、ほかの mise のツールや Neo4j イメージの pull より先にビルドする。`.claude/settings.json` の `env` で `MCP_TIMEOUT` を 120 秒にしている
 
 ### リモート承認（Claude Code の質問ダイアログ）
 

@@ -86,3 +86,18 @@ func TestGuard(t *testing.T) {
 		{`{"tool": "Bash", "command": "cat .claude/gate.yaml"}`, `"allow"`},
 	})
 }
+
+// 「固定版で動かす」の表。
+func TestGuardPinned(t *testing.T) {
+	assertRows(t, "guard", []bindRow{
+		{`{"tool": "Edit", "path": "bin/spec-gate"}`, `"deny"`},
+		{`{"tool": "Write", "path": "bin/.pinned/v0.0.0-dev.948bc6c/spec-gate"}`, `"deny"`},
+		{`{"tool": "Edit", "path": ".mcp.json"}`, `"deny"`},
+		{`{"tool": "Write", "path": "scripts/mcp.sh"}`, `"deny"`},
+		{`{"tool": "Edit", "path": "scripts/pin-spec-gate.sh"}`, `"allow"`},
+		{`{"tool": "Bash", "command": "go build -o bin/spec-gate ."}`, `"deny"`},
+		{`{"tool": "Bash", "command": "go build -o bin/spec-gate.real ."}`, `"allow"`},
+		{`{"tool": "Bash", "command": "ln -sf /tmp/x bin/spec-gate"}`, `"deny"`},
+		{`{"tool": "Bash", "command": "rm -rf bin/.pinned"}`, `"deny"`},
+	})
+}
