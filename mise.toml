@@ -5,14 +5,14 @@ golangci-lint = "go:github.com/golangci/golangci-lint/v2/cmd/golangci-lint"
 go = "1.27.3"
 golangci-lint = "2.15.0"
 node = "26.13.0"
-pnpm = "12.14.0"
+pnpm = "12.18.0"
 # release builds (.goreleaser.yaml); the release workflow uses this same pin
-"aqua:goreleaser/goreleaser" = "2.19.0"
+"aqua:goreleaser/goreleaser" = "2.20.0"
 # .github/workflows の検査
 actionlint = "1.7.12"
 # GitHub の stacked PR（gh stack）。PR は stack で積む（.claude/feedback/stack_prs_on_the_top.md）
 "github:github/gh-stack" = { version = "0.3.0", bin = "gh-stack" }
-gh = "2.98.0"
+gh = "2.103.3"
 "github:nonchan7720/depgraph" = "0.1.2"
 
 [env]
