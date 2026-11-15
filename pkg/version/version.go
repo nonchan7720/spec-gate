@@ -7,7 +7,7 @@ package version
 
 var (
 	// Version は先頭の "v" を付けないセマンティックバージョン。
-	Version = "0.0.0" // x-release-please-version
+	Version = "0.1.0" // x-release-please-version
 	// Commit はビルド元の git コミット。
 	Commit = "none"
 	// Date はビルド日時（RFC 3339）。
